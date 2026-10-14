@@ -1287,7 +1287,7 @@ table.data tr:hover td{background:#FFFAF5}
   text-transform:uppercase;letter-spacing:.04em;margin-top:.15rem;
 }
 .hero-mini-1{top:12%;left:0%;animation-delay:.0s}
-.hero-mini-2{top:22%;right:0%;animation-delay:.8s}
+.hero-mini-2{top:8%;right:-2%;animation-delay:.8s}
 .hero-mini-3{bottom:22%;left:2%;animation-delay:1.6s}
 .hero-mini-4{bottom:10%;right:4%;animation-delay:2.4s}
 
