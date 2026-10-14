@@ -1,0 +1,31 @@
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# System & Editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Dependencies
+vendor/
+node_modules/
+
+# Logs & Cache
+*.log
+.cache/
+.trash/
+
+# User Uploaded Dynamic Content (keep .gitkeep if any)
+public_html/uploads/*
+!public_html/uploads/.gitkeep
+!public_html/uploads/default/
+
+# Composer
+composer.phar

@@ -1,0 +1,429 @@
+/* =========================================================
+   INFINITY LEARNING — Rising Rooks Chess Academy Stylesheet
+   Navy & Gold palette with interactive boards & tier indicators
+   ========================================================= */
+
+:root {
+  --chess-navy: #122A5A;
+  --chess-navy-light: #1E3A8A;
+  --chess-gold: #BE9420;
+  --chess-gold-light: #FCD34D;
+  --chess-board-light: #F0D9B5;
+  --chess-board-dark: #B58863;
+  --chess-board-highlight: rgba(255, 235, 59, 0.5);
+  --chess-board-check: rgba(239, 68, 68, 0.6);
+  --chess-move-dot: rgba(20, 83, 45, 0.35);
+}
+
+.chess-hero-banner {
+  background: linear-gradient(135deg, #0A192F 0%, #122A5A 50%, #1E3A8A 100%);
+  color: #fff;
+  border-radius: var(--r-xl);
+  padding: 32px;
+  margin-bottom: 32px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 16px 32px -8px rgba(18, 42, 90, 0.3);
+}
+
+.chess-hero-banner::after {
+  content: '♞';
+  position: absolute;
+  right: -20px;
+  bottom: -40px;
+  font-size: 200px;
+  color: rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+  font-family: serif;
+}
+
+.chess-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: var(--r-full);
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-learner      { background: #FFEDD5; color: #9A3412; border: 1px solid #FDBA74; }
+.badge-rookie       { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; }
+.badge-intermediate { background: #E2E8F0; color: #334155; border: 1px solid #CBD5E1; }
+.badge-master       { background: #FEF08A; color: #854D0E; border: 1px solid #FACC15; }
+.badge-grandmaster  { background: #E0F2FE; color: #0369A1; border: 1px solid #7DD3FC; }
+
+/* Grid Layout for Play & Dashboard */
+.chess-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 560px) 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+@media (max-width: 991px) {
+  .chess-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Board Container */
+.chess-board-wrap {
+  background: var(--surface-1);
+  border: 1px solid var(--il-border);
+  border-radius: var(--r-xl);
+  padding: 20px;
+  box-shadow: var(--elev-2);
+}
+
+.board-stage {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  user-select: none;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border: 4px solid #4a3428;
+  display: flex;
+  box-sizing: border-box;
+}
+
+#boardContainer,
+#liveBoardContainer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex: 1;
+}
+
+.chess-board-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  width: 100%;
+  height: 100%;
+  flex: 1;
+}
+
+.chess-square {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.chess-square.light { background-color: var(--chess-board-light); }
+.chess-square.dark  { background-color: var(--chess-board-dark); }
+
+.chess-square.selected {
+  background-color: #FDE047 !important;
+}
+
+.chess-square.last-move {
+  background-color: rgba(234, 179, 8, 0.45) !important;
+}
+
+.chess-square.in-check {
+  background-color: var(--chess-board-check) !important;
+}
+
+.chess-square .coord-rank {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.chess-square .coord-file {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.chess-piece {
+  width: 86%;
+  height: 86%;
+  pointer-events: none;
+  transition: transform 0.1s ease;
+}
+
+.chess-piece svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.25));
+}
+
+.chess-square.legal-move::after {
+  content: '';
+  position: absolute;
+  width: 26%;
+  height: 26%;
+  border-radius: 50%;
+  background-color: var(--chess-move-dot);
+  pointer-events: none;
+}
+
+.chess-square.legal-capture::after {
+  content: '';
+  position: absolute;
+  width: 80%;
+  height: 80%;
+  border-radius: 50%;
+  border: 4px solid rgba(220, 38, 38, 0.5);
+  background: transparent;
+  pointer-events: none;
+}
+
+/* Clocks & Players */
+.player-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  margin-bottom: 12px;
+}
+
+.player-bar.bottom {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+.player-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.player-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--chess-navy);
+}
+
+.player-clock {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  background: var(--surface-1);
+  padding: 4px 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--il-border);
+  color: var(--il-text);
+}
+
+.player-clock.active {
+  background: #FEF3C7;
+  border-color: #F59E0B;
+  color: #B45309;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+}
+
+.player-clock.low-time {
+  background: #FEE2E2 !important;
+  border-color: #EF4444 !important;
+  color: #DC2626 !important;
+  animation: chessClockPanic 0.8s infinite alternate ease-in-out;
+}
+
+@keyframes chessClockPanic {
+  0% { transform: scale(1); box-shadow: 0 0 4px rgba(239, 68, 68, 0.3); }
+  100% { transform: scale(1.06); box-shadow: 0 0 14px rgba(239, 68, 68, 0.7); }
+}
+
+/* Sidebar & Move Log */
+.chess-sidebar-card {
+  background: var(--surface-1);
+  border: 1px solid var(--il-border);
+  border-radius: var(--r-xl);
+  padding: 24px;
+  box-shadow: var(--elev-2);
+}
+
+/* =========================================================
+   BOARD SKINS (Transforms board squares dynamically)
+   ========================================================= */
+.board-theme-neo_emerald .chess-square.light { background-color: #EEEED2 !important; }
+.board-theme-neo_emerald .chess-square.dark  { background-color: #769656 !important; }
+.board-theme-neo_emerald { border-color: #4E6A3B !important; box-shadow: 0 8px 24px rgba(78, 106, 59, 0.35) !important; }
+
+.board-theme-royal_wood .chess-square.light { background-color: #F0D9B5 !important; }
+.board-theme-royal_wood .chess-square.dark  { background-color: #B58863 !important; }
+.board-theme-royal_wood { border-color: #5C3A21 !important; box-shadow: 0 8px 24px rgba(92, 58, 33, 0.4) !important; }
+
+.board-theme-cyber_neon .chess-square.light { background-color: #1E293B !important; }
+.board-theme-cyber_neon .chess-square.dark  { background-color: #0F172A !important; }
+.board-theme-cyber_neon { border-color: #06B6D4 !important; box-shadow: 0 0 24px rgba(6, 182, 212, 0.5) !important; }
+
+.board-theme-gothic_crimson .chess-square.light { background-color: #E2E8F0 !important; }
+.board-theme-gothic_crimson .chess-square.dark  { background-color: #991B1B !important; }
+.board-theme-gothic_crimson { border-color: #450A0A !important; box-shadow: 0 8px 24px rgba(153, 27, 27, 0.45) !important; }
+
+.board-theme-ocean_blue .chess-square.light { background-color: #E0F2FE !important; }
+.board-theme-ocean_blue .chess-square.dark  { background-color: #0284C7 !important; }
+.board-theme-ocean_blue { border-color: #0369A1 !important; box-shadow: 0 8px 24px rgba(2, 132, 199, 0.4) !important; }
+
+/* =========================================================
+   LIVE EVALUATION BAR
+   ========================================================= */
+.eval-bar-wrapper {
+  width: 24px;
+  background: #0F172A;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  border: 2px solid rgba(0,0,0,0.25);
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.eval-bar-fill {
+  width: 100%;
+  height: 50%;
+  background: #FFFFFF;
+  transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.eval-bar-badge {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 800;
+  color: #FFFFFF;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  pointer-events: none;
+  z-index: 2;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   BEST MOVE HINTS & PIECE IMPACT ANIMATIONS
+   ========================================================= */
+.chess-square.hint-from {
+  background-color: rgba(59, 130, 246, 0.65) !important;
+}
+
+.chess-square.hint-to {
+  background-color: rgba(34, 197, 94, 0.65) !important;
+}
+
+.chess-piece {
+  transition: transform 0.18s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.move-history-table {
+  width: 100%;
+  height: 240px;
+  overflow-y: auto;
+  background: var(--surface-0);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+}
+
+.move-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.move-row:nth-child(even) { background: rgba(0,0,0,0.02); }
+.move-col-num { color: var(--il-muted); }
+.move-col-white, .move-col-black { font-weight: 500; cursor: pointer; }
+.move-col-white:hover, .move-col-black:hover { color: var(--il-primary); }
+
+/* Calibration Gauntlet Progress */
+.calibration-tracker {
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: var(--r-lg);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.calibration-dots {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.calib-dot {
+  flex: 1;
+  height: 38px;
+  border-radius: var(--r-sm);
+  background: #DBEAFE;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: #1E40AF;
+  border: 1px solid #93C5FD;
+}
+
+.calib-dot.completed {
+  background: #16A34A;
+  color: #fff;
+  border-color: #15803D;
+}
+
+.calib-dot.active {
+  background: #F59E0B;
+  color: #fff;
+  border-color: #D97706;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
+}
+
+/* Promotion Battle Callout */
+.promo-battle-box {
+  background: linear-gradient(135deg, #FEF9C3 0%, #FEF08A 100%);
+  border: 2px solid #EAB308;
+  border-radius: var(--r-lg);
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 20px -4px rgba(234, 179, 8, 0.25);
+}
+
+/* Curriculum Cards */
+.curriculum-card {
+  background: var(--surface-1);
+  border: 1px solid var(--il-border);
+  border-radius: var(--r-lg);
+  padding: 20px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.curriculum-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--elev-3);
+  border-color: var(--il-primary);
+}

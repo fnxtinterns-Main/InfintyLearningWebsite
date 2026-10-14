@@ -1,0 +1,19 @@
+{
+    "name": "infinity-learning/platform",
+    "description": "Infinity Learning — Unified Learning Platform",
+    "type": "project",
+    "require": {
+        "php": ">=8.1",
+        "ext-pdo": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "ext-openssl": "*",
+        "ext-fileinfo": "*",
+        "setasign/fpdf": "^1.9",
+        "setasign/fpdi": "^2.6",
+        "phpmailer/phpmailer": "^7.1"
+    },
+    "autoload": {
+        "psr-4": { "App\\": "src/" }
+    }
+}
