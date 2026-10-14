@@ -29,3 +29,9 @@ public_html/uploads/*
 
 # Composer
 composer.phar
+
+# Standalone Assets / Presentations
+Rising Rook Academy/
+Institute-Of-Digital-Training-*.png
+DO_NOT_UPLOAD_HERE
+
