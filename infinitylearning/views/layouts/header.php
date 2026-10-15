@@ -21,7 +21,7 @@ if ($user) {
         $displayName = $p['full_name'] ?? 'Teacher';
         $avatarUrl   = $p['profile_image'] ?? null;
     } else {
-        $displayName = Auth::isSchoolAdmin() ? 'School Admin' : 'Administrator';
+        $displayName = Auth::isSchoolAdmin() ? 'Admin' : 'Administrator';
     }
 }
 $initial = $displayName ? mb_strtoupper(mb_substr($displayName, 0, 1)) : '?';
@@ -56,7 +56,7 @@ if ($user && !empty($user['school_id'])) {
 <noscript>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </noscript>
-<link rel="stylesheet" href="/assets/css/style.css?v=2.7">
+<link rel="stylesheet" href="/assets/css/style.css?v=2.8">
 <?php if (!empty($schoolBranding['brand_primary_color'])): ?>
 <style>
 :root {
@@ -549,7 +549,7 @@ if (!empty($rawSegments) && $cleanUri !== '/') {
     $crumbs[] = ['title' => '🏠 Home', 'url' => '/'];
     $segLabels = [
         'teacher'        => 'Teacher Hub',
-        'school'         => 'School Admin',
+        'school'         => 'Admin',
         'student'        => 'Student Portal',
         'admin'          => 'Admin Panel',
         'questions'      => 'Question Bank',
@@ -635,9 +635,9 @@ const CMD_ITEMS = [
     { icon: '🔄', title: 'Teacher Substitution Finder', desc: 'Find free teachers for any period instantly', url: '/school/timetable?action=sub', group: 'Academics', keywords: 'substitution free teachers relief period' },
     { icon: '💳', title: 'Fee Management & Invoices', desc: 'Student tuition fees, payments, and invoices', url: '/school/fees', group: 'Finance', keywords: 'fee invoice receipt tuition payment bank' },
     { icon: '📊', title: 'Report Cards & Gradebook', desc: 'Generate printable term marksheet and certificates', url: '/school/students', group: 'Academics', keywords: 'report card marksheet term grades student' },
-    { icon: '🎨', title: 'White-Label Branding', desc: 'Customize school name, crest, logo, and theme color', url: '/school/branding', group: 'School Admin', keywords: 'branding white label logo theme crest school' },
-    { icon: '👨‍🏫', title: 'Manage Teachers', desc: 'Staff directory and teacher assignments', url: '/school/teachers', group: 'School Admin', keywords: 'teachers staff faculty users' },
-    { icon: '🎓', title: 'Manage Students', desc: 'Enrollment, classes, sections, and student roster', url: '/school/students', group: 'School Admin', keywords: 'students admission classes roster enroll' },
+    { icon: '🎨', title: 'White-Label Branding', desc: 'Customize school name, crest, logo, and theme color', url: '/school/branding', group: 'Admin', keywords: 'branding white label logo theme crest school' },
+    { icon: '👨‍🏫', title: 'Manage Teachers', desc: 'Staff directory and teacher assignments', url: '/school/teachers', group: 'Admin', keywords: 'teachers staff faculty users' },
+    { icon: '🎓', title: 'Manage Students', desc: 'Enrollment, classes, sections, and student roster', url: '/school/students', group: 'Admin', keywords: 'students admission classes roster enroll' },
     { icon: '🎨', title: 'Interactive Live Whiteboard', desc: 'Canvas for diagramming and teaching', url: '/live/whiteboard', group: 'Tools', keywords: 'whiteboard draw canvas live' },
     <?php endif; ?>
 

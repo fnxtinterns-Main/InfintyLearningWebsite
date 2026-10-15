@@ -9,7 +9,7 @@ $all = Lesson::list(['limit' => 200], $schoolId);
 $own = array_filter($all, fn($l) => !empty($l['school_id']) && (int)$l['school_id'] === $schoolId);
 $global = array_filter($all, fn($l) => empty($l['school_id']));
 
-$pageTitle = 'Lessons — School Admin';
+$pageTitle = 'Lessons — Admin';
 require VIEW_PATH . '/layouts/header.php';
 ?>
 <div class="admin-shell">

@@ -12,7 +12,7 @@ $activities = Activity::list(['status' => ''], $schoolId);
 $own    = array_filter($activities, fn($a) => !empty($a['school_id']) && (int)$a['school_id'] === $schoolId);
 $global = array_filter($activities, fn($a) => empty($a['school_id']));
 
-$pageTitle = 'Activities — School Admin';
+$pageTitle = 'Activities — Admin';
 require VIEW_PATH . '/layouts/header.php';
 ?>
 <div class="admin-shell">

@@ -31,7 +31,7 @@ $recent = $db->prepare("
 $recent->execute([$schoolId]);
 $recent = $recent->fetchAll();
 
-$pageTitle = $school['name'] . ' — School Admin';
+$pageTitle = $school['name'] . ' — Admin';
 
 // ---- Prepare chart data ------------------------------------------------
 $trendLabels = [];
@@ -70,7 +70,7 @@ require VIEW_PATH . '/layouts/header.php';
                     </div>
                 <?php endif; ?>
                 <div class="dashboard-header-text">
-                    <span class="kicker">🏫 SCHOOL ADMIN</span>
+                    <span class="kicker">🏫 ADMIN</span>
                     <h1 style="margin-top:2px; font-weight:800; letter-spacing:-0.02em;"><?= Helper::e($school['name']) ?></h1>
                     <p class="muted" style="margin-top:4px;">
                         <?php if ($school['board']): ?><?= Helper::e($school['board']) ?> · <?php endif; ?>

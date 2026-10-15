@@ -40,7 +40,7 @@ require VIEW_PATH . '/layouts/header.php';
     <main class="admin-main">
         <div class="dashboard-header" style="flex-wrap:wrap; gap:16px;">
             <div>
-                <a href="/school" class="back-link">← School Admin</a>
+                <a href="/school" class="back-link">← Admin</a>
                 <h1 style="margin:4px 0 0; font-size:24px;">🏛️ White-Label Branding & Portal Identity</h1>
                 <p style="color:var(--il-muted); font-size:14px; margin:4px 0 0;">
                     Customize student portals, report cards, fee receipts, and dashboards with your institution's colors, crest, and seal.

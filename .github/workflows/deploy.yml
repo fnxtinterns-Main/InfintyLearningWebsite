@@ -13,7 +13,7 @@ jobs:
       - name: 🚚 Checkout latest code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: 📂 Sync files to Hostinger FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -24,7 +24,7 @@ jobs:
           port: 21
           protocol: ftp
           dangerous-clean-slate: false
-          server-dir: /
+          server-dir: /domains/infintylearning.net/
           exclude: |
             **/.git*
             **/.git*/**
