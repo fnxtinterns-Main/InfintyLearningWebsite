@@ -33,8 +33,10 @@ if (!Session::verifyCsrf($_POST['csrf'] ?? null)) {
 }
 
 $action = $_POST['action'] ?? 'save';
-$class = urlencode($_POST['class'] ?? 'Grade 8');
-$section = urlencode($_POST['section'] ?? 'A');
+$rawClass = trim((string)($_POST['class'] ?? $_POST['class_level'] ?? ''));
+$rawSection = trim((string)($_POST['section'] ?? ''));
+$class = urlencode($rawClass !== '' ? $rawClass : 'Grade 8');
+$section = urlencode($rawSection !== '' ? $rawSection : 'A');
 
 try {
     if ($action === 'save') {

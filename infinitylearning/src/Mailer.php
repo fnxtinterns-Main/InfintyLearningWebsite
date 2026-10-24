@@ -32,13 +32,21 @@ final class Mailer
         }
 
         // Fallback: native mail()
+        $fromEmail = !empty($smtp['from']) ? $smtp['from'] : 'info@infintylearning.net';
+        $fromName  = !empty($smtp['from_name']) ? $smtp['from_name'] : 'Infinity Learning';
+        $fullHtml  = self::wrapHtmlTemplate($htmlBody, $subject);
+
         $headers = [
             'MIME-Version: 1.0',
-            'Content-type: text/html; charset=UTF-8',
-            'From: ' . $smtp['from'],
-            'Reply-To: ' . $smtp['from'],
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . ($fromName ? "{$fromName} <{$fromEmail}>" : $fromEmail),
+            'Reply-To: ' . $fromEmail,
+            'Return-Path: ' . $fromEmail,
+            'X-Mailer: Infinity Learning Platform',
+            'Auto-Submitted: auto-generated',
         ];
-        return @mail($to, $subject, $htmlBody, implode("\r\n", $headers));
+        $extraParams = '-f ' . escapeshellarg($fromEmail);
+        return @mail($to, $subject, $fullHtml, implode("\r\n", $headers), $extraParams);
     }
 
     /**
@@ -90,37 +98,68 @@ final class Mailer
     // INTERNAL
     // =========================================================
 
-   private static function sendWithPHPMailer(string $to, string $toName, string $subject, string $htmlBody, array $smtp): bool
-{
-    try {
-        $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
-        $mail->isSMTP();
-        $mail->Host       = $smtp['host'];
-        $mail->Port       = (int)$smtp['port'];
-        $mail->SMTPAuth   = true;
-        $mail->Username   = $smtp['user'];
-        $mail->Password   = $smtp['pass'];
-        $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+    private static function sendWithPHPMailer(string $to, string $toName, string $subject, string $htmlBody, array $smtp): bool
+    {
+        try {
+            $config = require BASE_PATH . '/config/config.php';
+            $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+            $mail->isSMTP();
+            $mail->Host       = $smtp['host'];
+            $mail->Port       = (int)$smtp['port'];
+            $mail->SMTPAuth   = true;
+            $mail->Username   = $smtp['user'];
+            $mail->Password   = $smtp['pass'];
+            
+            // Support SSL (port 465) or TLS (port 587)
+            if ((int)$smtp['port'] === 465) {
+                $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+            } else {
+                $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+            }
 
-        // ---- FORCE UTF-8 EVERYWHERE (fixes emoji + em-dash corruption) ----
-        $mail->CharSet  = 'UTF-8';
-        $mail->Encoding = 'base64';
-        $mail->setLanguage('en');
+            // ---- FORCE UTF-8 EVERYWHERE (fixes emoji + em-dash corruption) ----
+            $mail->CharSet  = 'UTF-8';
+            $mail->Encoding = 'base64';
+            $mail->setLanguage('en');
 
-        $mail->setFrom($smtp['from'], 'Infinity Learning');
-        $mail->addAddress($to, $toName);
-        $mail->isHTML(true);
-        $mail->Subject = $subject;
-        $mail->Body    = $htmlBody;
-        $mail->AltBody = strip_tags($htmlBody);
-        return $mail->send();
-    } catch (\Throwable $e) {
-        error_log('[Mailer] PHPMailer failed: ' . $e->getMessage());
-        error_log('[Mailer] ErrorInfo: ' . ($mail->ErrorInfo ?? 'N/A'));
-        self::logToFile($to, $subject, $htmlBody);
-        return false;
+            $fromEmail = !empty($smtp['from']) ? $smtp['from'] : 'info@infintylearning.net';
+            $fromName  = !empty($smtp['from_name']) ? $smtp['from_name'] : 'Infinity Learning';
+
+            // CRITICAL FOR SPF/DKIM ALIGNMENT:
+            // 1. Envelope Sender (Return-Path / MAIL FROM)
+            $mail->Sender = $fromEmail;
+            $mail->setFrom($fromEmail, $fromName);
+            $mail->addReplyTo($fromEmail, $fromName);
+
+            // 2. Domain Hostname for Message-ID alignment
+            $domain = parse_url($config['app']['url'] ?? 'https://infintylearning.net', PHP_URL_HOST) ?: 'infintylearning.net';
+            $mail->Hostname = $domain;
+
+            // 3. Transactional Headers
+            $mail->XMailer = 'Infinity Learning Mailer';
+            $mail->addCustomHeader('Auto-Submitted', 'auto-generated');
+            $mail->addCustomHeader('X-Auto-Response-Suppress', 'OOF, AutoReply');
+            $mail->Priority = 3;
+
+            $mail->addAddress($to, $toName);
+
+            // 4. Wrap in standards-compliant HTML envelope (prevents MIME/tag imbalance penalties)
+            $fullHtml = self::wrapHtmlTemplate($htmlBody, $subject);
+            $mail->isHTML(true);
+            $mail->Subject = $subject;
+            $mail->Body    = $fullHtml;
+
+            // 5. Clean, authentic plain-text body (without raw CSS dump)
+            $mail->AltBody = self::htmlToPlainText($fullHtml);
+
+            return $mail->send();
+        } catch (\Throwable $e) {
+            error_log('[Mailer] PHPMailer failed: ' . $e->getMessage());
+            error_log('[Mailer] ErrorInfo: ' . ($mail->ErrorInfo ?? 'N/A'));
+            self::logToFile($to, $subject, $htmlBody);
+            return false;
+        }
     }
-}
 
     private static function logToFile(string $to, string $subject, string $htmlBody): void
     {
@@ -135,6 +174,68 @@ final class Mailer
         );
         @file_put_contents($dir . '/mail.log', $line, FILE_APPEND);
         error_log('[MAIL] To=' . $to . ' | Subject=' . $subject);
+    }
+
+    /**
+     * Wrap body into a clean, standards-compliant HTML email envelope.
+     * Prevents SpamAssassin/Gmail MIME_HTML_ONLY and tag imbalance penalties.
+     */
+    public static function wrapHtmlTemplate(string $body, string $title = 'Infinity Learning'): string
+    {
+        if (stripos($body, '<!DOCTYPE') !== false || stripos($body, '<html') !== false) {
+            return $body;
+        }
+
+        $safeTitle = htmlspecialchars($title, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return "<!DOCTYPE html>
+<html lang=\"en\" xmlns=\"http://www.w3.org/1999/xhtml\">
+<head>
+    <meta charset=\"UTF-8\">
+    <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+    <title>{$safeTitle}</title>
+</head>
+<body style=\"margin:0; padding:20px 10px; background-color:#FFF9F4; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing:antialiased; color:#2B1B12;\">
+    <table role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"background-color:#FFF9F4;\">
+        <tr>
+            <td align=\"center\" style=\"padding:10px 0;\">
+                {$body}
+            </td>
+        </tr>
+    </table>
+</body>
+</html>";
+    }
+
+    /**
+     * Convert HTML to clean plain text for multipart/alternative (AltBody).
+     * Prevents raw CSS remnants inside plain-text MIME sections that trigger spam filters.
+     */
+    public static function htmlToPlainText(string $html): string
+    {
+        // 1. Strip style and script tags entirely
+        $text = preg_replace('/<style\b[^>]*>(.*?)<\/style>/is', '', $html);
+        $text = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $text);
+
+        // 2. Format block elements to newlines
+        $text = preg_replace('/<br\s*\/?>/i', "\n", $text);
+        $text = preg_replace('/<\/(p|div|tr|h1|h2|h3|h4|h5|h6)>/i', "\n\n", $text);
+        $text = preg_replace('/<\/li>/i', "\n", $text);
+        $text = preg_replace('/<li[^>]*>/i', "• ", $text);
+
+        // 3. Strip remaining HTML tags
+        $text = strip_tags($text);
+
+        // 4. Decode HTML entities
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        // 5. Clean up whitespaces
+        $lines = explode("\n", $text);
+        $trimmedLines = array_map('trim', $lines);
+        $clean = implode("\n", $trimmedLines);
+        $clean = preg_replace("/\n{3,}/", "\n\n", $clean);
+
+        return trim($clean);
     }
 
     // =========================================================

@@ -15,7 +15,7 @@ if (!Session::verifyCsrf($_POST['csrf'] ?? null)) {
 }
 
 $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-if (!RateLimiter::hit($ip, 'register', 5, 3600)) {
+if (!RateLimiter::hit($ip, 'register', 50, 3600)) {
     Session::flash('error', 'Too many registration attempts. Please try later.');
     Helper::redirect('/register');
 }

@@ -177,13 +177,19 @@ require VIEW_PATH . '/layouts/header.php';
 <div id="slotModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9999; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(5px);">
     <div class="card" style="background:var(--surface-1); color:var(--il-text); border:1px solid var(--il-border); border-radius:18px; max-width:520px; width:100%; padding:26px; box-shadow:0 24px 60px rgba(0,0,0,0.35);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-            <h3 style="margin:0; font-size:19px;">Assign Routine Period</h3>
+            <div>
+                <h3 style="margin:0; font-size:19px;">Assign Routine Period</h3>
+                <div style="font-size:12.5px; color:var(--il-primary); font-weight:700; margin-top:2px;">
+                    Class: <?= Helper::e($selectedClass) ?> · Section <?= Helper::e($selectedSection) ?>
+                </div>
+            </div>
             <button type="button" class="btn btn-ghost btn-sm" onclick="closeSlotModal()">&times;</button>
         </div>
 
         <form method="post" action="/school/timetable-save-handler.php">
             <input type="hidden" name="action" value="save">
             <input type="hidden" name="class_level" value="<?= Helper::e($selectedClass) ?>">
+            <input type="hidden" name="class" value="<?= Helper::e($selectedClass) ?>">
             <input type="hidden" name="section" value="<?= Helper::e($selectedSection) ?>">
             <input type="hidden" name="csrf" value="<?= Helper::e(\App\Session::csrfToken()) ?>">
 
@@ -253,6 +259,7 @@ require VIEW_PATH . '/layouts/header.php';
 
         <form method="post" action="/school/timetable-save-handler.php">
             <input type="hidden" name="action" value="add_class">
+            <input type="hidden" name="section" value="<?= Helper::e($selectedSection) ?>">
             <input type="hidden" name="csrf" value="<?= Helper::e(\App\Session::csrfToken()) ?>">
 
             <div class="form-group" style="margin-bottom:18px;">
