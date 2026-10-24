@@ -7,7 +7,7 @@ use App\Helper;
 
 Auth::requireLogin();
 $user = Auth::user();
-$feeId = (int)($_GET['id'] ?? 0);
+$feeId = (int)($_GET['id'] ?? $_GET['fee_id'] ?? 0);
 
 if (!$feeId) {
     Helper::redirect('/dashboard');
@@ -24,12 +24,37 @@ if (Auth::role() === 'student' && (int)$fee['student_user_id'] !== (int)$user['i
     http_response_code(403);
     exit('Unauthorized access.');
 }
-if (Auth::isSchoolAdmin() && !empty($user['school_id']) && (int)$fee['school_id'] !== (int)$user['school_id']) {
+if (Auth::role() === 'parent') {
+    try {
+        $db = \App\Database::connect();
+        $chk = $db->prepare("SELECT 1 FROM student_parents sp JOIN parents p ON p.id = sp.parent_id WHERE p.user_id = ? AND sp.student_user_id = ?");
+        $chk->execute([(int)$user['id'], (int)$fee['student_user_id']]);
+        if (!$chk->fetch() && !Auth::isSuperAdmin()) {
+            http_response_code(403);
+            exit('Unauthorized access.');
+        }
+    } catch (\Throwable $e) {
+        // Fallback allow if parent table isn't joined
+    }
+}
+if (Auth::isSchoolAdmin() && !empty($user['school_id']) && !empty($fee['school_id']) && (int)$fee['school_id'] !== (int)$user['school_id']) {
     http_response_code(403);
     exit('Unauthorized access.');
 }
 
 $pageTitle = 'Receipt #' . ($fee['receipt_number'] ?: 'FEE-' . $fee['id']) . ' — Infinity Learning';
+
+$userRole = Auth::role();
+$backUrl = '/school/fees';
+if ($userRole === 'student') {
+    $backUrl = '/student/fees';
+} elseif (!empty($_SERVER['HTTP_REFERER'])) {
+    $ref = (string)$_SERVER['HTTP_REFERER'];
+    $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+    if ($host !== '' && strpos($ref, $host) !== false && strpos($ref, '/fee-receipt') === false) {
+        $backUrl = $ref;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -160,7 +185,7 @@ table.receipt-table th.tar, table.receipt-table td.tar { text-align: right; }
 
 <div style="width:100%; max-width:820px;">
     <div class="no-print-bar">
-        <a href="javascript:history.back()" class="btn btn-secondary">← Back</a>
+        <a href="<?= Helper::e($backUrl) ?>" onclick="return handleSmartBack(event, '<?= Helper::e($backUrl) ?>')" class="btn btn-secondary">← Back</a>
         <div style="display:flex; gap:10px;">
             <button onclick="window.print()" class="btn btn-primary">🖨️ Print / Download PDF</button>
         </div>
@@ -276,5 +301,36 @@ table.receipt-table th.tar, table.receipt-table td.tar { text-align: right; }
     </div>
 </div>
 
+<script>
+function handleSmartBack(e, fallbackUrl) {
+    if (e) {
+        if (e.ctrlKey || e.metaKey || e.button === 1) return true;
+        e.preventDefault();
+    }
+    if (window.opener && !window.opener.closed) {
+        window.close();
+        setTimeout(function() {
+            window.location.href = fallbackUrl;
+        }, 120);
+        return false;
+    }
+    if (window.history.length > 1 && document.referrer && document.referrer.indexOf(window.location.host) !== -1) {
+        window.history.back();
+        setTimeout(function() {
+            window.location.href = fallbackUrl;
+        }, 250);
+        return false;
+    }
+    if (window.history.length <= 1) {
+        window.close();
+        setTimeout(function() {
+            window.location.href = fallbackUrl;
+        }, 100);
+        return false;
+    }
+    window.location.href = fallbackUrl;
+    return false;
+}
+</script>
 </body>
 </html>

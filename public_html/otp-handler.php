@@ -5,7 +5,7 @@ define('APP_ROOT', __DIR__ . '/../infinitylearning');
 require_once APP_ROOT . '/config/constants.php';
 require_once APP_ROOT . '/src/autoload.php';
 
-use App\{Session, OTP, Auth, SMS, Mailer, Helper, RateLimiter, Audit, Database};
+use App\{Session, OTP, Auth, SMS, Mailer, Helper, RateLimiter, Audit, Database, School};
 
 Session::start();
 
@@ -65,11 +65,17 @@ if ($action === 'verify') {
     }
 
     $db = Database::connect();
+    
+    // Ensure any database schema migrations run OUTSIDE the transaction
+    // to prevent MySQL from triggering an implicit commit on DDL statements
+    School::ensureSchema();
+
     try {
         $db->beginTransaction();
 
-        $schoolId = (int)($data['school_id'] ?? 0);
-        $status   = 'pending';
+        $schoolId  = (int)($data['school_id'] ?? 0);
+        $isAiverse = !empty($_SESSION['_pending_is_aiverse']) || !empty($data['is_aiverse']) || School::isAiverse($schoolId);
+        $status    = $isAiverse ? 'active' : 'pending';
 
         $userId = Auth::createUser([
             'email'     => $data['email'],
@@ -81,22 +87,56 @@ if ($action === 'verify') {
         ]);
 
         if ($role === 'student') {
-            $stmt = $db->prepare("
-                INSERT INTO students
-                    (user_id, full_name, gender, age, school_name, school_board,
-                     current_class, academic_year, city, state, interests)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?)
-            ");
-            $stmt->execute([
-                $userId, $data['full_name'],
-                $data['gender'] !== '' ? $data['gender'] : null,
-                $data['age'] !== null && $data['age'] !== '' ? (int)$data['age'] : null,
-                null, $data['school_board'] ?: null, $data['current_class'] ?: null,
-                $data['academic_year'] ?: null, $data['city'] ?: null,
-                $data['state'] ?: null, $data['interests'] ?: null,
-            ]);
+            // Check student table columns dynamically
+            $studentCols = $db->query("SHOW COLUMNS FROM students")->fetchAll(\PDO::FETCH_COLUMN);
+            $hasDistrict = in_array('district', $studentCols, true);
+            $hasPincode  = in_array('pincode', $studentCols, true);
 
-            if (!empty($data['guardian_name']) && !empty($data['guardian_phone'])) {
+            if ($hasDistrict && $hasPincode) {
+                $stmt = $db->prepare("
+                    INSERT INTO students
+                        (user_id, full_name, gender, age, school_name, school_board,
+                         current_class, academic_year, city, district, pincode, state, interests)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ");
+                $stmt->execute([
+                    $userId, $data['full_name'],
+                    $data['gender'] !== '' ? $data['gender'] : null,
+                    $data['age'] !== null && $data['age'] !== '' ? (int)$data['age'] : null,
+                    $isAiverse ? 'AIVERSE' : null,
+                    $data['school_board'] ?: ($isAiverse ? 'AI Academy' : null),
+                    $data['current_class'] ?: ($isAiverse ? 'AIverse Cohort 2026' : null),
+                    $data['academic_year'] ?: ($isAiverse ? '2026-2027' : null),
+                    $data['city'] ?: null,
+                    $data['district'] ?? null,
+                    $data['pincode'] ?? null,
+                    $data['state'] ?: null,
+                    $data['interests'] ?: ($isAiverse ? 'Artificial Intelligence, Machine Learning' : null),
+                ]);
+            } else {
+                // Fallback for standard columns
+                $cityCombined = trim(($data['city'] ?? '') . (!empty($data['district']) ? ' (Dist: ' . $data['district'] . ')' : '') . (!empty($data['pincode']) ? ' PIN: ' . $data['pincode'] : ''));
+                $stmt = $db->prepare("
+                    INSERT INTO students
+                        (user_id, full_name, gender, age, school_name, school_board,
+                         current_class, academic_year, city, state, interests)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                ");
+                $stmt->execute([
+                    $userId, $data['full_name'],
+                    $data['gender'] !== '' ? $data['gender'] : null,
+                    $data['age'] !== null && $data['age'] !== '' ? (int)$data['age'] : null,
+                    $isAiverse ? 'AIVERSE' : null,
+                    $data['school_board'] ?: ($isAiverse ? 'AI Academy' : null),
+                    $data['current_class'] ?: ($isAiverse ? 'AIverse Cohort 2026' : null),
+                    $data['academic_year'] ?: ($isAiverse ? '2026-2027' : null),
+                    $cityCombined ?: null,
+                    $data['state'] ?: null,
+                    $data['interests'] ?: ($isAiverse ? 'Artificial Intelligence, Machine Learning' : null),
+                ]);
+            }
+
+            if (!$isAiverse && !empty($data['guardian_name']) && !empty($data['guardian_phone'])) {
                 $db->prepare("
                     INSERT INTO parents (full_name, email, phone, relationship, occupation, city, state)
                     VALUES (?,?,?,?,?,?,?)
@@ -133,23 +173,30 @@ if ($action === 'verify') {
 
         $db->commit();
 
-        Audit::log('registration.completed', 'user', $userId, ['role' => $role, 'school_id' => $schoolId]);
+        Audit::log('registration.completed', 'user', $userId, ['role' => $role, 'school_id' => $schoolId, 'is_aiverse' => $isAiverse]);
 
         unset(
             $_SESSION['_pending_registration'],
             $_SESSION['_pending_phone'],
             $_SESSION['_pending_role'],
             $_SESSION['_pending_school_id'],
-            $_SESSION['_pending_school_name']
+            $_SESSION['_pending_school_name'],
+            $_SESSION['_pending_is_aiverse']
         );
 
-        Session::flash('success', 'Registration successful! Your school admin will review and approve your account.');
+        if ($isAiverse) {
+            Session::flash('success', 'Registration successful! Welcome to AIVERSE. Please log in to explore your AI courses.');
+        } else {
+            Session::flash('success', 'Registration successful! Your school admin will review and approve your account.');
+        }
         Helper::redirect('/login');
 
     } catch (\Throwable $e) {
-        $db->rollBack();
-        error_log('Registration failed: ' . $e->getMessage());
-        Session::flash('error', 'Registration failed. Please try again.');
+        if ($db && $db->inTransaction()) {
+            $db->rollBack();
+        }
+        error_log('Registration failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+        Session::flash('error', 'Registration error: ' . $e->getMessage());
         Helper::redirect('/verify-otp');
     }
 }

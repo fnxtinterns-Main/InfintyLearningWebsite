@@ -33,9 +33,35 @@ final class School
     /** Only active schools — for registration dropdowns. */
     public static function activeForDropdown(): array
     {
-        return Database::connect()
+        self::ensureSchema();
+        $schools = Database::connect()
             ->query("SELECT id, name, city, state, board FROM schools WHERE status='active' ORDER BY name")
             ->fetchAll();
+
+        $hasAiverse = false;
+        foreach ($schools as $s) {
+            if (strtoupper($s['name']) === 'AIVERSE' || str_contains(strtoupper($s['name']), 'AIVERSE')) {
+                $hasAiverse = true;
+                break;
+            }
+        }
+
+        if (!$hasAiverse) {
+            try {
+                $aiverse = self::getOrCreateAiverse();
+                if ($aiverse) {
+                    array_unshift($schools, [
+                        'id'    => (int)$aiverse['id'],
+                        'name'  => 'AIVERSE',
+                        'city'  => 'Online',
+                        'state' => 'India',
+                        'board' => 'AI Academy'
+                    ]);
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        return $schools;
     }
 
     public static function find(int $id): ?array
@@ -152,12 +178,62 @@ final class School
     public static function ensureSchema(): void
     {
         try {
-            Database::connect()->exec("
-                ALTER TABLE `schools`
-                  ADD COLUMN IF NOT EXISTS `allow_weekly_summary` tinyint(1) NOT NULL DEFAULT 0,
-                  ADD COLUMN IF NOT EXISTS `weekly_summary_enabled` tinyint(1) NOT NULL DEFAULT 1;
-            ");
-        } catch (\Throwable $e) {}
+            $db = Database::connect();
+            // 1. schools table columns
+            $schoolCols = $db->query("SHOW COLUMNS FROM `schools`")->fetchAll(\PDO::FETCH_COLUMN);
+            if (!in_array('allow_weekly_summary', $schoolCols, true)) {
+                $db->exec("ALTER TABLE `schools` ADD COLUMN `allow_weekly_summary` tinyint(1) NOT NULL DEFAULT 0");
+            }
+            if (!in_array('weekly_summary_enabled', $schoolCols, true)) {
+                $db->exec("ALTER TABLE `schools` ADD COLUMN `weekly_summary_enabled` tinyint(1) NOT NULL DEFAULT 1");
+            }
+
+            // 2. students table columns
+            $studentCols = $db->query("SHOW COLUMNS FROM `students`")->fetchAll(\PDO::FETCH_COLUMN);
+            if (!in_array('district', $studentCols, true)) {
+                $db->exec("ALTER TABLE `students` ADD COLUMN `district` varchar(100) NULL");
+            }
+            if (!in_array('pincode', $studentCols, true)) {
+                $db->exec("ALTER TABLE `students` ADD COLUMN `pincode` varchar(20) NULL");
+            }
+        } catch (\Throwable $e) {
+            error_log('ensureSchema error: ' . $e->getMessage());
+        }
+    }
+
+    public static function isAiverse(?int $schoolId): bool
+    {
+        if (!$schoolId || $schoolId <= 0) return false;
+        $school = self::find($schoolId);
+        if (!$school) return false;
+        $name = strtoupper(trim($school['name'] ?? ''));
+        $code = strtoupper(trim($school['code'] ?? ''));
+        return $name === 'AIVERSE' || $code === 'AIVERSE' || str_contains($name, 'AIVERSE');
+    }
+
+    public static function getOrCreateAiverse(): array
+    {
+        self::ensureSchema();
+        $db = Database::connect();
+        $stmt = $db->prepare("SELECT * FROM schools WHERE UPPER(name) LIKE '%AIVERSE%' OR UPPER(code) LIKE '%AIVERSE%' LIMIT 1");
+        $stmt->execute();
+        $school = $stmt->fetch();
+        if ($school) {
+            return $school;
+        }
+
+        $uuid = Auth::uuid();
+        $insert = $db->prepare("
+            INSERT INTO schools (uuid, code, name, board, city, state, address, contact_email, status)
+            VALUES (?, 'AIVERSE', 'AIVERSE', 'AI Academy', 'Online', 'India', 'AIverse Learning Portal', 'info@infintylearning.net', 'active')
+        ");
+        $insert->execute([$uuid]);
+        return self::find((int)$db->lastInsertId()) ?: [
+            'id' => (int)$db->lastInsertId(),
+            'name' => 'AIVERSE',
+            'code' => 'AIVERSE',
+            'status' => 'active'
+        ];
     }
 
     public static function update(int $id, array $d): void

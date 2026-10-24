@@ -13,92 +13,139 @@ final class StudentProfile
     {
         $db = Database::connect();
 
-        // --- Base user + profile ---
+        // --- Base user + profile (support lookup by users.id or students.id) ---
         $stmt = $db->prepare("
             SELECT u.id, u.email, u.phone, u.role, u.status, u.created_at, u.last_login_at,
-                   s.*
+                   s.*, s.id AS student_table_id, s.user_id AS student_user_id
             FROM users u
             LEFT JOIN students s ON s.user_id = u.id
-            WHERE u.id = ? AND u.role = 'student'
+            WHERE (u.id = ? OR s.id = ?) AND u.role = 'student'
             LIMIT 1
         ");
-        $stmt->execute([$studentUserId]);
+        $stmt->execute([$studentUserId, $studentUserId]);
         $student = $stmt->fetch();
         if (!$student) return null;
 
+        $actualUserId = (int)$student['id'];
+        $studentTableId = (int)($student['student_table_id'] ?? 0);
+        $candidateIds = array_values(array_unique(array_filter([$actualUserId, $studentTableId, $studentUserId])));
+        $inClause = implode(',', array_fill(0, count($candidateIds), '?'));
+
+        // Ensure user_id is explicitly set
+        $student['user_id'] = $actualUserId;
+
         // --- Parents ---
-        $stmt = $db->prepare("
-            SELECT p.* FROM parents p
-            JOIN student_parents sp ON sp.parent_id = p.id
-            WHERE sp.student_user_id = ?
-            ORDER BY sp.is_primary DESC, p.id ASC
-        ");
-        $stmt->execute([$studentUserId]);
-        $student['parents'] = $stmt->fetchAll();
+        $student['parents'] = [];
+        try {
+            $stmt = $db->prepare("
+                SELECT p.* FROM parents p
+                JOIN student_parents sp ON sp.parent_id = p.id
+                WHERE sp.student_user_id IN ($inClause)
+                ORDER BY sp.is_primary DESC, p.id ASC
+            ");
+            $stmt->execute($candidateIds);
+            $student['parents'] = $stmt->fetchAll() ?: [];
+        } catch (\Throwable $e) {
+            error_log('StudentProfile parents query error: ' . $e->getMessage());
+        }
 
         // --- Batches ---
-        $stmt = $db->prepare("
-            SELECT b.id, b.name, b.subject, b.class_level, t.full_name AS teacher_name,
-                   bs.joined_at
-            FROM batch_students bs
-            JOIN batches b ON b.id = bs.batch_id
-            LEFT JOIN users u ON u.id = b.teacher_id
-            LEFT JOIN teachers t ON t.user_id = u.id
-            WHERE bs.student_user_id = ? AND b.status = 'active'
-            ORDER BY bs.joined_at DESC
-        ");
-        $stmt->execute([$studentUserId]);
-        $student['batches'] = $stmt->fetchAll();
-
-        // --- Attendance summary ---
-        $stmt = $db->prepare("
-            SELECT status, COUNT(*) AS cnt
-            FROM attendance WHERE student_user_id = ?
-            GROUP BY status
-        ");
-        $stmt->execute([$studentUserId]);
-        $att = ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0];
-        foreach ($stmt->fetchAll() as $r) {
-            $att[$r['status']] = (int)$r['cnt'];
+        $student['batches'] = [];
+        try {
+            $student['batches'] = Batch::forStudent($actualUserId) ?: [];
+        } catch (\Throwable $e) {
+            error_log('StudentProfile batches query error: ' . $e->getMessage());
         }
-        $total = array_sum($att);
+
+        // --- Attendance summary & Daily records ---
+        $att = ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0];
+        $dailyAttendance = [];
+        try {
+            $att = Attendance::summaryForStudent($actualUserId) ?: $att;
+            $attStmt = $db->prepare("
+                SELECT a.id, a.batch_id, a.attendance_date, a.status, a.remarks, b.name AS batch_name
+                FROM attendance a
+                LEFT JOIN batches b ON b.id = a.batch_id
+                WHERE a.student_user_id IN ($inClause)
+                ORDER BY a.attendance_date ASC
+            ");
+            $attStmt->execute($candidateIds);
+            $dailyAttendance = $attStmt->fetchAll() ?: [];
+        } catch (\Throwable $e) {
+            error_log('StudentProfile attendance query error: ' . $e->getMessage());
+        }
+        $totalAtt = array_sum($att);
         $student['attendance'] = [
             'raw'          => $att,
-            'total'        => $total,
-            'present_pct'  => $total > 0 ? (int)round($att['present'] / $total * 100) : 0,
+            'total'        => $totalAtt,
+            'present_pct'  => $totalAtt > 0 ? (int)round(($att['present'] ?? 0) / $totalAtt * 100) : 0,
+            'daily_records'=> $dailyAttendance,
         ];
 
         // --- Lesson progress ---
-        $stmt = $db->prepare("
-            SELECT
-                COUNT(*) AS started,
-                SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS completed
-            FROM lesson_progress
-            WHERE student_user_id = ?
-        ");
-        $stmt->execute([$studentUserId]);
-        $lp = $stmt->fetch() ?: ['started'=>0,'completed'=>0];
+        $lp = ['started'=>0,'completed'=>0];
+        $availableLessons = [];
+        try {
+            $stmt = $db->prepare("
+                SELECT
+                    COUNT(*) AS started,
+                    SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS completed
+                FROM lesson_progress
+                WHERE student_user_id IN ($inClause)
+            ");
+            $stmt->execute($candidateIds);
+            $lp = $stmt->fetch() ?: ['started'=>0,'completed'=>0];
+            $availableLessons = Lesson::list([], -1, $actualUserId) ?: [];
+        } catch (\Throwable $e) {
+            error_log('StudentProfile lesson_progress query error: ' . $e->getMessage());
+        }
         $student['lessons'] = [
-            'started'   => (int)$lp['started'],
-            'completed' => (int)$lp['completed'],
+            'started'   => (int)($lp['started'] ?? 0),
+            'completed' => (int)($lp['completed'] ?? 0),
+            'total'     => max(count($availableLessons), (int)($lp['started'] ?? 0)),
         ];
 
+        // --- Daily Routine (Today's Class Schedule) ---
+        $student['daily_routine'] = [];
+        try {
+            $student['daily_routine'] = Timetable::getStudentSchedule($actualUserId) ?: [];
+        } catch (\Throwable $e) {
+            error_log('StudentProfile daily_routine query error: ' . $e->getMessage());
+        }
+
+        // --- Academic Examinations & Tests ---
+        $student['exams'] = [
+            'categories' => [],
+            'all_tests'  => [],
+            'summary'    => ['total_tests' => 0, 'total_obtained' => 0, 'total_max' => 0, 'average_pct' => 0]
+        ];
+        try {
+            $student['exams'] = AcademicAssessment::getStudentExamHistory($actualUserId);
+        } catch (\Throwable $e) {
+            error_log('StudentProfile exams query error: ' . $e->getMessage());
+        }
+
         // --- Activity participation by category ---
-        $stmt = $db->prepare("
-            SELECT a.id, a.title, a.slug, a.category, a.event_date, a.cover_image,
-                   a.short_description,
-                   ar.status AS participation_status, ar.registered_at,
-                   ares.position AS result_position, ares.score AS result_score,
-                   ares.remarks AS result_remarks
-            FROM activity_registrations ar
-            JOIN activities a ON a.id = ar.activity_id
-            LEFT JOIN activity_results ares
-                ON ares.activity_id = a.id AND ares.student_user_id = ar.user_id
-            WHERE ar.user_id = ?
-            ORDER BY a.event_date DESC, ar.registered_at DESC
-        ");
-        $stmt->execute([$studentUserId]);
-        $allActivities = $stmt->fetchAll();
+        $allActivities = [];
+        try {
+            $stmt = $db->prepare("
+                SELECT a.id, a.title, a.slug, a.category, a.event_date, a.cover_image,
+                       a.short_description,
+                       ar.status AS participation_status, ar.registered_at,
+                       ares.position AS result_position, ares.score AS result_score,
+                       ares.remarks AS result_remarks
+                FROM activity_registrations ar
+                JOIN activities a ON a.id = ar.activity_id
+                LEFT JOIN activity_results ares
+                    ON ares.activity_id = a.id AND ares.student_user_id = ar.user_id
+                WHERE ar.user_id IN ($inClause)
+                ORDER BY a.event_date DESC, ar.registered_at DESC
+            ");
+            $stmt->execute($candidateIds);
+            $allActivities = $stmt->fetchAll() ?: [];
+        } catch (\Throwable $e) {
+            error_log('StudentProfile activities query error: ' . $e->getMessage());
+        }
 
         // Group by "profile" per doc §14
         $profiles = [
@@ -109,7 +156,7 @@ final class StudentProfile
             'academic'        => [],
         ];
         foreach ($allActivities as $a) {
-            $cat = $a['category'];
+            $cat = $a['category'] ?? '';
             if (in_array($cat, ['sports'], true)) {
                 $profiles['sports'][] = $a;
             } elseif (in_array($cat, ['creative','cultural'], true)) {
@@ -126,27 +173,37 @@ final class StudentProfile
         $student['activity_profiles'] = $profiles;
 
         // --- Achievements ---
-        $stmt = $db->prepare("
-            SELECT * FROM achievements
-            WHERE student_user_id = ?
-            ORDER BY earned_at DESC
-        ");
-        $stmt->execute([$studentUserId]);
-        $student['achievements'] = $stmt->fetchAll();
+        $student['achievements'] = [];
+        try {
+            $stmt = $db->prepare("
+                SELECT * FROM achievements
+                WHERE student_user_id IN ($inClause)
+                ORDER BY earned_at DESC
+            ");
+            $stmt->execute($candidateIds);
+            $student['achievements'] = $stmt->fetchAll() ?: [];
+        } catch (\Throwable $e) {
+            error_log('StudentProfile achievements query error: ' . $e->getMessage());
+        }
 
         // --- Certificates ---
-        $stmt = $db->prepare("
-            SELECT * FROM certificates
-            WHERE student_user_id = ?
-            ORDER BY issued_at DESC
-        ");
-        $stmt->execute([$studentUserId]);
-        $student['certificates'] = $stmt->fetchAll();
+        $student['certificates'] = [];
+        try {
+            $stmt = $db->prepare("
+                SELECT * FROM certificates
+                WHERE student_user_id IN ($inClause)
+                ORDER BY issued_at DESC
+            ");
+            $stmt->execute($candidateIds);
+            $student['certificates'] = $stmt->fetchAll() ?: [];
+        } catch (\Throwable $e) {
+            error_log('StudentProfile certificates query error: ' . $e->getMessage());
+        }
 
         // --- Doubts & Q&A Portal Data ---
         try {
-            $student['doubts_stats'] = DoubtFeed::getStudentStats($studentUserId);
-            $student['recent_doubts'] = DoubtFeed::listForStudent($studentUserId);
+            $student['doubts_stats'] = DoubtFeed::getStudentStats($actualUserId);
+            $student['recent_doubts'] = DoubtFeed::listForStudent($actualUserId);
         } catch (\Throwable $e) {
             $student['doubts_stats'] = ['total' => 0, 'answered' => 0, 'open' => 0];
             $student['recent_doubts'] = [];
@@ -174,13 +231,26 @@ final class StudentProfile
     {
         $db = Database::connect();
 
+        $ids = [$studentUserId];
+        try {
+            $s = $db->prepare("SELECT user_id, id FROM students WHERE user_id = ? OR id = ? LIMIT 1");
+            $s->execute([$studentUserId, $studentUserId]);
+            $row = $s->fetch();
+            if ($row) {
+                if (!empty($row['user_id'])) $ids[] = (int)$row['user_id'];
+                if (!empty($row['id'])) $ids[] = (int)$row['id'];
+            }
+        } catch (\Throwable $e) {}
+        $ids = array_values(array_unique(array_filter($ids)));
+        $inClause = implode(',', array_fill(0, count($ids), '?'));
+
         // 1. Gather all unique activity dates (YYYY-MM-DD)
         $dates = [];
 
         // Attendance present
         try {
-            $stmt = $db->prepare("SELECT DISTINCT date FROM attendance WHERE student_user_id = ? AND status = 'present'");
-            $stmt->execute([$studentUserId]);
+            $stmt = $db->prepare("SELECT DISTINCT attendance_date FROM attendance WHERE student_user_id IN ($inClause) AND status = 'present'");
+            $stmt->execute($ids);
             foreach ($stmt->fetchAll(\PDO::FETCH_COLUMN) as $d) {
                 if ($d) $dates[substr((string)$d, 0, 10)] = true;
             }
@@ -188,8 +258,8 @@ final class StudentProfile
 
         // Lesson progress
         try {
-            $stmt = $db->prepare("SELECT DISTINCT DATE(updated_at) FROM lesson_progress WHERE student_user_id = ?");
-            $stmt->execute([$studentUserId]);
+            $stmt = $db->prepare("SELECT DISTINCT DATE(updated_at) FROM lesson_progress WHERE student_user_id IN ($inClause)");
+            $stmt->execute($ids);
             foreach ($stmt->fetchAll(\PDO::FETCH_COLUMN) as $d) {
                 if ($d) $dates[substr((string)$d, 0, 10)] = true;
             }
@@ -197,8 +267,8 @@ final class StudentProfile
 
         // Quiz attempts
         try {
-            $stmt = $db->prepare("SELECT DISTINCT DATE(created_at) FROM lesson_quiz_attempts WHERE student_user_id = ?");
-            $stmt->execute([$studentUserId]);
+            $stmt = $db->prepare("SELECT DISTINCT DATE(created_at) FROM lesson_quiz_attempts WHERE student_user_id IN ($inClause)");
+            $stmt->execute($ids);
             foreach ($stmt->fetchAll(\PDO::FETCH_COLUMN) as $d) {
                 if ($d) $dates[substr((string)$d, 0, 10)] = true;
             }
@@ -206,8 +276,8 @@ final class StudentProfile
 
         // Assessment submissions
         try {
-            $stmt = $db->prepare("SELECT DISTINCT DATE(submitted_at) FROM assessment_submissions WHERE student_user_id = ?");
-            $stmt->execute([$studentUserId]);
+            $stmt = $db->prepare("SELECT DISTINCT DATE(submitted_at) FROM assessment_submissions WHERE student_user_id IN ($inClause)");
+            $stmt->execute($ids);
             foreach ($stmt->fetchAll(\PDO::FETCH_COLUMN) as $d) {
                 if ($d) $dates[substr((string)$d, 0, 10)] = true;
             }
@@ -215,8 +285,8 @@ final class StudentProfile
 
         // Activity registrations
         try {
-            $stmt = $db->prepare("SELECT DISTINCT DATE(registered_at) FROM activity_registrations WHERE user_id = ?");
-            $stmt->execute([$studentUserId]);
+            $stmt = $db->prepare("SELECT DISTINCT DATE(registered_at) FROM activity_registrations WHERE user_id IN ($inClause)");
+            $stmt->execute($ids);
             foreach ($stmt->fetchAll(\PDO::FETCH_COLUMN) as $d) {
                 if ($d) $dates[substr((string)$d, 0, 10)] = true;
             }
@@ -224,8 +294,8 @@ final class StudentProfile
 
         // Chess games
         try {
-            $stmt = $db->prepare("SELECT DISTINCT DATE(played_at) FROM chess_games WHERE white_user_id = ? OR black_user_id = ?");
-            $stmt->execute([$studentUserId, $studentUserId]);
+            $stmt = $db->prepare("SELECT DISTINCT DATE(played_at) FROM chess_games WHERE white_user_id IN ($inClause) OR black_user_id IN ($inClause)");
+            $stmt->execute(array_merge($ids, $ids));
             foreach ($stmt->fetchAll(\PDO::FETCH_COLUMN) as $d) {
                 if ($d) $dates[substr((string)$d, 0, 10)] = true;
             }
@@ -277,36 +347,36 @@ final class StudentProfile
 
         // Attendance (+15 XP each)
         try {
-            $stmt = $db->prepare("SELECT COUNT(*) FROM attendance WHERE student_user_id = ? AND status = 'present'");
-            $stmt->execute([$studentUserId]);
+            $stmt = $db->prepare("SELECT COUNT(*) FROM attendance WHERE student_user_id IN ($inClause) AND status = 'present'");
+            $stmt->execute($ids);
             $totalXp += (int)$stmt->fetchColumn() * 15;
         } catch (\Throwable $e) {}
 
         // Lessons completed (+50 XP each)
         try {
-            $stmt = $db->prepare("SELECT COUNT(*) FROM lesson_progress WHERE student_user_id = ? AND status = 'completed'");
-            $stmt->execute([$studentUserId]);
+            $stmt = $db->prepare("SELECT COUNT(*) FROM lesson_progress WHERE student_user_id IN ($inClause) AND status = 'completed'");
+            $stmt->execute($ids);
             $totalXp += (int)$stmt->fetchColumn() * 50;
         } catch (\Throwable $e) {}
 
         // Quizzes attempted (+30 XP each)
         try {
-            $stmt = $db->prepare("SELECT COUNT(*) FROM lesson_quiz_attempts WHERE student_user_id = ?");
-            $stmt->execute([$studentUserId]);
+            $stmt = $db->prepare("SELECT COUNT(*) FROM lesson_quiz_attempts WHERE student_user_id IN ($inClause)");
+            $stmt->execute($ids);
             $totalXp += (int)$stmt->fetchColumn() * 30;
         } catch (\Throwable $e) {}
 
         // Assessment marks
         try {
-            $stmt = $db->prepare("SELECT COALESCE(SUM(marks_obtained), 0) FROM assessment_submissions WHERE student_user_id = ?");
-            $stmt->execute([$studentUserId]);
+            $stmt = $db->prepare("SELECT COALESCE(SUM(score_obtained), 0) FROM assessment_submissions WHERE student_user_id IN ($inClause)");
+            $stmt->execute($ids);
             $totalXp += (int)round((float)$stmt->fetchColumn() * 2);
         } catch (\Throwable $e) {}
 
         // Activity registrations (+25 XP each)
         try {
-            $stmt = $db->prepare("SELECT COUNT(*) FROM activity_registrations WHERE user_id = ?");
-            $stmt->execute([$studentUserId]);
+            $stmt = $db->prepare("SELECT COUNT(*) FROM activity_registrations WHERE user_id IN ($inClause)");
+            $stmt->execute($ids);
             $totalXp += (int)$stmt->fetchColumn() * 25;
         } catch (\Throwable $e) {}
 

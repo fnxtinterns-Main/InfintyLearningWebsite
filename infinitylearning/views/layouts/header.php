@@ -33,12 +33,18 @@ if ($user) {
     $notifications = Notification::latest((int)$user['id'], 10);
 }
 $schoolBranding = null;
+$isAiverse = false;
 if ($user && !empty($user['school_id'])) {
     try {
         $sDb = \App\Database::connect();
         $sStmt = $sDb->prepare("SELECT * FROM schools WHERE id = ? LIMIT 1");
         $sStmt->execute([(int)$user['school_id']]);
         $schoolBranding = $sStmt->fetch() ?: null;
+        if ($schoolBranding) {
+            $sName = strtoupper(trim($schoolBranding['name'] ?? ''));
+            $sCode = strtoupper(trim($schoolBranding['code'] ?? ''));
+            $isAiverse = ($sName === 'AIVERSE' || $sCode === 'AIVERSE' || str_contains($sName, 'AIVERSE'));
+        }
     } catch (\Throwable $e) {}
 }
 ?>
@@ -394,23 +400,39 @@ select option {
     </div>
     <button class="nav-toggle" aria-label="Toggle menu">☰</button>
     <div class="nav-links">
-        <a href="/chess"<?= $isActive('/chess') ?>>♟️ Chess</a>
-        <a href="/counseling"<?= $isActive('/counseling') ?>>Counseling</a>
-        <a href="/activities"<?= $isActive('/activities') ?>>Activities</a>
-        <a href="/lessons"<?= $isActive('/lessons') ?>>Learn</a>
-
-        <?php if ($user): ?>
-            <a href="/dashboard"<?= $isActive('/dashboard') ?>>Dashboard</a>
-            <?php if ($role === 'student'): ?>
-                <a href="/student/assessments"<?= $isActive('/student/assessments') ?>>📝 Tests & HW</a>
-                <a href="/student/timetable"<?= $isActive('/student/timetable') ?>>🗓️ Routine</a>
-                <a href="/student/doubts"<?= $isActive('/student/doubts') ?>>💬 Doubts</a>
-                <a href="/student/fees"<?= $isActive('/student/fees') ?>>💳 Fees</a>
-            <?php endif; ?>
+        <?php if ($isAiverse): ?>
             <?php if ($role === 'admin'): ?>
-                <a href="<?= Auth::isSchoolAdmin() ? '/school' : '/admin' ?>"<?= $isActive('/admin') ?>>
-                    <?= Auth::isSchoolAdmin() ? 'School' : 'Admin' ?>
-                </a>
+                <a href="/school"<?= $isActive('/school') ?>>📊 Console</a>
+                <a href="/school/courses"<?= $isActive('/school/courses') ?>>🤖 AI Courses</a>
+                <a href="/school/bundles"<?= $isActive('/school/bundles') ?>>📦 Bundles &amp; Offers</a>
+                <a href="/school/banners"<?= $isActive('/school/banners') ?>>📢 Promo Banners</a>
+                <a href="/school/fees"<?= $isActive('/school/fees') ?>>💳 Fees &amp; Payments</a>
+                <a href="/school/students"<?= $isActive('/school/students') ?>>👩‍🎓 Scholars</a>
+            <?php else: ?>
+                <a href="/dashboard"<?= $isActive('/dashboard') ?>>🚀 AIverse Hub</a>
+                <a href="/dashboard#bundles">🎁 Bundles &amp; Offers</a>
+                <a href="/dashboard#courses">🤖 AI Courses</a>
+                <a href="/student/fees"<?= $isActive('/student/fees') ?>>💳 Course Fees</a>
+            <?php endif; ?>
+        <?php else: ?>
+            <a href="/chess"<?= $isActive('/chess') ?>>♟️ Chess</a>
+            <a href="/counseling"<?= $isActive('/counseling') ?>>Counseling</a>
+            <a href="/activities"<?= $isActive('/activities') ?>>Activities</a>
+            <a href="/lessons"<?= $isActive('/lessons') ?>>Learn</a>
+
+            <?php if ($user): ?>
+                <a href="/dashboard"<?= $isActive('/dashboard') ?>>Dashboard</a>
+                <?php if ($role === 'student'): ?>
+                    <a href="/student/assessments"<?= $isActive('/student/assessments') ?>>📝 Tests & HW</a>
+                    <a href="/student/timetable"<?= $isActive('/student/timetable') ?>>🗓️ Weekly Routine</a>
+                    <a href="/student/doubts"<?= $isActive('/student/doubts') ?>>💬 Doubts</a>
+                    <a href="/student/fees"<?= $isActive('/student/fees') ?>>💳 Fees</a>
+                <?php endif; ?>
+                <?php if ($role === 'admin'): ?>
+                    <a href="<?= Auth::isSchoolAdmin() ? '/school' : '/admin' ?>"<?= $isActive('/admin') ?>>
+                        <?= Auth::isSchoolAdmin() ? 'School' : 'Admin' ?>
+                    </a>
+                <?php endif; ?>
             <?php endif; ?>
         <?php endif; ?>
     </div>
@@ -500,24 +522,33 @@ select option {
                         <div class="user-head-text">
                             <div class="user-name"><?= Helper::e($displayName) ?></div>
                             <div class="user-email"><?= Helper::e($user['email']) ?></div>
-                            <span class="badge badge-brand user-role"><?= Helper::e(ucfirst($role)) ?></span>
+                            <span class="badge badge-brand user-role" <?= $isAiverse ? 'style="background:linear-gradient(135deg,#6366f1,#a855f7); color:#fff; border:none;"' : '' ?>>
+                                <?= $isAiverse ? '🚀 AIVERSE Scholar' : Helper::e(ucfirst($role)) ?>
+                            </span>
                         </div>
                     </div>
                     <div class="user-sep"></div>
-                    <a class="user-item" href="/profile" role="menuitem"><span class="ico">👤</span> My Profile</a>
-                    <a class="user-item" href="/dashboard" role="menuitem"><span class="ico">📊</span> Dashboard</a>
-                    <a class="user-item" href="/chess" role="menuitem"><span class="ico">♟️</span> Chess Academy</a>
-                    <?php if ($role === 'student'): ?>
-                        <a class="user-item" href="/student/doubts" role="menuitem"><span class="ico">💬</span> My Doubts Portal</a>
-                        <a class="user-item" href="/student?id=<?= (int)$user['id'] ?>" role="menuitem"><span class="ico">🌱</span> Development Profile</a>
-                        <a class="user-item" href="/parent-pass" role="menuitem"><span class="ico">📱</span> Parent Progress Pass</a>
-                        <a class="user-item" href="/my-certificates" role="menuitem"><span class="ico">🏅</span> My Certificates</a>
-                        <a class="user-item" href="/my-counseling" role="menuitem"><span class="ico">🧭</span> My Counseling</a>
-                    <?php endif; ?>
-                    <?php if ($role === 'admin'): ?>
-                        <a class="user-item" href="<?= Auth::isSchoolAdmin() ? '/school' : '/admin' ?>" role="menuitem">
-                            <span class="ico">⚙️</span> <?= Auth::isSchoolAdmin() ? 'School Panel' : 'Admin Panel' ?>
-                        </a>
+                    <?php if ($isAiverse): ?>
+                        <a class="user-item" href="/dashboard" role="menuitem"><span class="ico">🚀</span> AIverse Hub</a>
+                        <a class="user-item" href="/dashboard#courses" role="menuitem"><span class="ico">🤖</span> My AI Courses</a>
+                        <a class="user-item" href="/student/fees" role="menuitem"><span class="ico">💳</span> Course Fees & Receipts</a>
+                        <a class="user-item" href="/profile" role="menuitem"><span class="ico">👤</span> My Profile</a>
+                    <?php else: ?>
+                        <a class="user-item" href="/profile" role="menuitem"><span class="ico">👤</span> My Profile</a>
+                        <a class="user-item" href="/dashboard" role="menuitem"><span class="ico">📊</span> Dashboard</a>
+                        <a class="user-item" href="/chess" role="menuitem"><span class="ico">♟️</span> Chess Academy</a>
+                        <?php if ($role === 'student'): ?>
+                            <a class="user-item" href="/student/doubts" role="menuitem"><span class="ico">💬</span> My Doubts Portal</a>
+                            <a class="user-item" href="/student?id=<?= (int)$user['id'] ?>" role="menuitem"><span class="ico">🌱</span> Development Profile</a>
+                            <a class="user-item" href="/parent-pass" role="menuitem"><span class="ico">📱</span> Parent Progress Pass</a>
+                            <a class="user-item" href="/my-certificates" role="menuitem"><span class="ico">🏅</span> My Certificates</a>
+                            <a class="user-item" href="/my-counseling" role="menuitem"><span class="ico">🧭</span> My Counseling</a>
+                        <?php endif; ?>
+                        <?php if ($role === 'admin'): ?>
+                            <a class="user-item" href="<?= Auth::isSchoolAdmin() ? '/school' : '/admin' ?>" role="menuitem">
+                                <span class="ico">⚙️</span> <?= Auth::isSchoolAdmin() ? 'School Panel' : 'Admin Panel' ?>
+                            </a>
+                        <?php endif; ?>
                     <?php endif; ?>
                     <div class="user-sep"></div>
                     <a class="user-item user-item-danger" href="/logout" role="menuitem"><span class="ico">↩️</span> Logout</a>
@@ -643,6 +674,11 @@ const CMD_ITEMS = [
 
     // Student Commands
     <?php if ($role === 'student'): ?>
+    <?php if ($isAiverse): ?>
+    { icon: '🚀', title: 'AIverse Hub', desc: 'Return to AI course overview and enrolled programs', url: '/dashboard', group: 'Navigation', keywords: 'aiverse dashboard home artificial intelligence courses' },
+    { icon: '🤖', title: 'Explore AI Courses', desc: 'Browse Generative AI, Python, Agents, Deep Learning', url: '/dashboard#courses', group: 'Academics', keywords: 'ai courses catalog prompt engineering agentic deep learning' },
+    { icon: '💳', title: 'Course Fees & Receipts', desc: 'View payment status and download fee receipts', url: '/student/fees', group: 'Finance', keywords: 'fee receipt payment invoices course balance' },
+    <?php else: ?>
     { icon: '📱', title: 'Parent Progress Pass', desc: 'Mobile-first student progress pass for parents', url: '/parent-pass', group: 'Growth', keywords: 'parent pass progress attendance report card mobile share' },
     { icon: '🗓️', title: 'My Class Routine', desc: 'View today\'s periods and weekly timetable', url: '/student/timetable', group: 'Academics', keywords: 'timetable routine classes schedule' },
     { icon: '📝', title: 'My Tests & Homework', desc: 'Take unit tests, practice quizzes, and homework', url: '/student/assessments', group: 'Academics', keywords: 'tests exam homework quizzes marks' },
@@ -650,6 +686,7 @@ const CMD_ITEMS = [
     { icon: '🎨', title: 'Digital Whiteboard', desc: 'Open blank sketch and problem solving canvas', url: '/live/whiteboard', group: 'Tools', keywords: 'whiteboard draw sketch canvas' },
     { icon: '♟️', title: 'Rising Rooks Chess Academy', desc: 'Live chess games, puzzles, and rating', url: '/chess/live', group: 'Co-Curricular', keywords: 'chess game play puzzles rooks rating' },
     { icon: '🏅', title: 'My Certificates', desc: 'Download verifiable achievement certificates', url: '/my-certificates', group: 'Growth', keywords: 'certificates awards achievements' },
+    <?php endif; ?>
     <?php endif; ?>
 
     // Universal / Authenticated Commands

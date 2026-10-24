@@ -32,29 +32,59 @@ final class Attendance
 
     public static function summaryForStudent(int $userId): array
     {
-        $stmt = Database::connect()->prepare("
+        $db = Database::connect();
+        $studentUserIds = [$userId];
+        try {
+            $q = $db->prepare("SELECT user_id, id FROM students WHERE user_id = ? OR id = ? LIMIT 1");
+            $q->execute([$userId, $userId]);
+            $row = $q->fetch();
+            if ($row) {
+                if (!empty($row['user_id'])) $studentUserIds[] = (int)$row['user_id'];
+                if (!empty($row['id'])) $studentUserIds[] = (int)$row['id'];
+            }
+        } catch (\Throwable $e) {}
+        $studentUserIds = array_values(array_unique($studentUserIds));
+        $inClause = implode(',', array_fill(0, count($studentUserIds), '?'));
+
+        $stmt = $db->prepare("
             SELECT status, COUNT(*) AS cnt FROM attendance
-            WHERE student_user_id=? GROUP BY status
+            WHERE student_user_id IN ($inClause) GROUP BY status
         ");
-        $stmt->execute([$userId]);
+        $stmt->execute($studentUserIds);
         $out = ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0];
-        foreach ($stmt->fetchAll() as $r) $out[$r['status']] = (int)$r['cnt'];
+        foreach ($stmt->fetchAll() as $r) {
+            if (isset($out[$r['status']])) {
+                $out[$r['status']] += (int)$r['cnt'];
+            }
+        }
         return $out;
     }
 
-    /** Recent 30 attendance rows for a student, for a mini history view. */
-    public static function recentForStudent(int $userId, int $limit = 10): array
+    /** Recent attendance rows for a student, dynamically supporting user_id and students.id. */
+    public static function recentForStudent(int $userId, int $limit = 30): array
     {
-        $stmt = Database::connect()->prepare("
+        $db = Database::connect();
+        $studentUserIds = [$userId];
+        try {
+            $q = $db->prepare("SELECT user_id, id FROM students WHERE user_id = ? OR id = ? LIMIT 1");
+            $q->execute([$userId, $userId]);
+            $row = $q->fetch();
+            if ($row) {
+                if (!empty($row['user_id'])) $studentUserIds[] = (int)$row['user_id'];
+                if (!empty($row['id'])) $studentUserIds[] = (int)$row['id'];
+            }
+        } catch (\Throwable $e) {}
+        $studentUserIds = array_values(array_unique($studentUserIds));
+        $inClause = implode(',', array_fill(0, count($studentUserIds), '?'));
+
+        $stmt = $db->prepare("
             SELECT a.*, b.name AS batch_name
             FROM attendance a
             LEFT JOIN batches b ON b.id = a.batch_id
-            WHERE a.student_user_id = ?
-            ORDER BY a.attendance_date DESC LIMIT ?
+            WHERE a.student_user_id IN ($inClause)
+            ORDER BY a.attendance_date DESC LIMIT " . (int)$limit . "
         ");
-        $stmt->bindValue(1, $userId, \PDO::PARAM_INT);
-        $stmt->bindValue(2, $limit, \PDO::PARAM_INT);
-        $stmt->execute();
+        $stmt->execute($studentUserIds);
         return $stmt->fetchAll();
     }
 

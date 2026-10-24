@@ -38,6 +38,8 @@ $data = [
     'age'                   => $_POST['age'] ?? null,
     'city'                  => trim($_POST['city'] ?? ''),
     'state'                 => trim($_POST['state'] ?? ''),
+    'district'              => trim($_POST['district'] ?? ''),
+    'pincode'               => trim($_POST['pincode'] ?? ''),
     'school_board'          => trim($_POST['school_board'] ?? ''),
     'academic_year'         => trim($_POST['academic_year'] ?? ''),
     'current_class'         => trim($_POST['current_class'] ?? ''),
@@ -57,15 +59,18 @@ $data = [
 // Validate school
 if ($data['school_id'] <= 0) {
     Helper::flashOld($_POST);
-    Session::flash('error', 'Please select your school.');
+    Session::flash('error', 'Please select your school or program.');
     Helper::redirect('/register?type=' . $role);
 }
 $school = School::find($data['school_id']);
 if (!$school || $school['status'] !== 'active') {
     Helper::flashOld($_POST);
-    Session::flash('error', 'Selected school is not available.');
+    Session::flash('error', 'Selected school or program is not available.');
     Helper::redirect('/register?type=' . $role);
 }
+
+$isAiverse = School::isAiverse($data['school_id']);
+$data['is_aiverse'] = $isAiverse ? 1 : 0;
 
 // Validate fields
 $v = new Validator();
@@ -79,19 +84,25 @@ $v->required('full_name', $data['full_name'], 'Full name')
   ->password('password', $data['password'])
   ->matches('password_confirm', $data['password_confirm'], $data['password']);
 
-if ($data['gender'] !== '') {
-    $v->in('gender', $data['gender'], ['male','female','other','prefer_not_to_say'], 'gender');
-}
-
 if ($role === 'student') {
-    $v->required('age', $data['age'], 'Age')
-      ->required('current_class', $data['current_class'], 'Current class')
-      ->required('guardian_name', $data['guardian_name'], 'Parent/guardian name')
-      ->required('guardian_phone', $data['guardian_phone'], 'Parent/guardian phone')
-      ->phone('guardian_phone', $data['guardian_phone'])
-      ->in('guardian_relationship', $data['guardian_relationship'], ['father','mother','guardian','other'], 'relationship');
-    if ($data['guardian_email'] !== '') {
-        $v->email('guardian_email', $data['guardian_email']);
+    if ($isAiverse) {
+        $v->required('state', $data['state'], 'State')
+          ->required('district', $data['district'], 'District')
+          ->required('city', $data['city'], 'City')
+          ->required('pincode', $data['pincode'], 'Pin Code');
+    } else {
+        if ($data['gender'] !== '') {
+            $v->in('gender', $data['gender'], ['male','female','other','prefer_not_to_say'], 'gender');
+        }
+        $v->required('age', $data['age'], 'Age')
+          ->required('current_class', $data['current_class'], 'Current class')
+          ->required('guardian_name', $data['guardian_name'], 'Parent/guardian name')
+          ->required('guardian_phone', $data['guardian_phone'], 'Parent/guardian phone')
+          ->phone('guardian_phone', $data['guardian_phone'])
+          ->in('guardian_relationship', $data['guardian_relationship'], ['father','mother','guardian','other'], 'relationship');
+        if ($data['guardian_email'] !== '') {
+            $v->email('guardian_email', $data['guardian_email']);
+        }
     }
 } else {
     $v->required('expert_field', $data['expert_field'], 'Expert field');
@@ -125,6 +136,7 @@ $_SESSION['_pending_phone']        = $data['phone'];
 $_SESSION['_pending_role']         = $role;
 $_SESSION['_pending_school_id']    = $data['school_id'];
 $_SESSION['_pending_school_name']  = $school['name'];
+$_SESSION['_pending_is_aiverse']    = $isAiverse;
 
 // Generate OTP once
 $otp = OTP::generate(6);

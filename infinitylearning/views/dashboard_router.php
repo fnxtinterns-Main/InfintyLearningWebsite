@@ -1,6 +1,7 @@
 <?php
 use App\Auth;
 use App\Helper;
+use App\School;
 
 Auth::requireLogin();
 
@@ -17,7 +18,13 @@ if (($user['status'] ?? '') === 'rejected') {
 $role = Auth::role();
 
 switch ($role) {
-    case 'student': require VIEW_PATH . '/student/dashboard.php'; break;
+    case 'student':
+        if (School::isAiverse((int)($user['school_id'] ?? 0))) {
+            require VIEW_PATH . '/aiverse/dashboard.php';
+        } else {
+            require VIEW_PATH . '/student/dashboard.php';
+        }
+        break;
     case 'teacher': require VIEW_PATH . '/teacher/dashboard.php'; break;
     case 'parent':  Helper::redirect('/parent-pass'); break;
     case 'admin':

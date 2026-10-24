@@ -2,29 +2,51 @@
 use App\Auth;
 use App\Helper;
 use App\FeeManagement;
+use App\School;
 
 Auth::requireRole('student');
 $user = Auth::user();
 $studentId = (int)$user['id'];
+$isAiverse = School::isAiverse((int)($user['school_id'] ?? 0));
 
-$fees = FeeManagement::list([
-    'student_user_id' => $studentId,
-]);
+if ($isAiverse) {
+    $enrollments = \App\Aiverse::getStudentEnrollments($studentId);
+    $summary = \App\Aiverse::getStudentAiverseFeeSummary($studentId);
+    $fees = [];
+    foreach ($enrollments as $en) {
+        $fees[] = [
+            'id' => $en['fee_id'] ?? 0,
+            'course_id' => (int)$en['course_id'],
+            'notes' => $en['course_title'],
+            'fee_month' => date('F Y', strtotime($en['created_at'])),
+            'academic_year' => '2026-2027',
+            'fee_type' => 'Course Program',
+            'amount_due' => $en['amount_due'] ?? $en['course_fee'],
+            'amount_paid' => $en['amount_paid'] ?? 0,
+            'status' => $en['payment_status'] ?? 'pending',
+            'receipt_number' => $en['receipt_number'] ?? null,
+            'paid_at' => $en['paid_at'] ?? null,
+        ];
+    }
+} else {
+    $fees = FeeManagement::list([
+        'student_user_id' => $studentId,
+    ]);
+    $summary = FeeManagement::getStudentSummary($studentId);
+}
 
-$summary = FeeManagement::getStudentSummary($studentId);
-
-$pageTitle = 'My Fees & Receipts — Infinity Learning';
+$pageTitle = ($isAiverse ? 'My Course Fees' : 'My Fees & Receipts') . ' — Infinity Learning';
 require VIEW_PATH . '/layouts/header.php';
 ?>
 <section class="section-sm">
     <div class="container-narrow">
         <div class="dashboard-header" style="flex-wrap:wrap; gap:16px;">
             <div>
-                <span class="kicker">💳 STUDENT ACCOUNTS</span>
-                <h1 style="margin:2px 0 0;">Fees & Payment Receipts</h1>
-                <p class="muted">Review monthly tuition records, transaction reference numbers, and digital fee vouchers.</p>
+                <span class="kicker"><?= $isAiverse ? '🚀 AIVERSE COURSE ACCOUNTS' : '💳 STUDENT ACCOUNTS' ?></span>
+                <h1 style="margin:2px 0 0;"><?= $isAiverse ? 'Course Fees & Payment Status' : 'Fees & Payment Receipts' ?></h1>
+                <p class="muted"><?= $isAiverse ? 'Review enrolled AI course fees, amounts paid, pending balances, and digital fee vouchers.' : 'Review monthly tuition records, transaction reference numbers, and digital fee vouchers.' ?></p>
             </div>
-            <a href="/dashboard" class="btn btn-outline-secondary btn-sm">← Back to Dashboard</a>
+            <a href="/dashboard" class="btn btn-outline-secondary btn-sm"><?= $isAiverse ? '← Back to AIverse Hub' : '← Back to Dashboard' ?></a>
         </div>
 
         <!-- STAT TILES -->
@@ -57,8 +79,8 @@ require VIEW_PATH . '/layouts/header.php';
                 <table class="table" style="width:100%; border-collapse:collapse; font-size:14px;">
                     <thead>
                         <tr style="border-bottom:2px solid var(--il-border); text-align:left; background:var(--surface-0); color:var(--il-muted); font-size:12px; text-transform:uppercase;">
-                            <th style="padding:12px 18px;">Month & Type</th>
-                            <th style="padding:12px 18px;">Due Amount</th>
+                            <th style="padding:12px 18px;"><?= $isAiverse ? 'Course & Program' : 'Month & Type' ?></th>
+                            <th style="padding:12px 18px;">Total Due</th>
                             <th style="padding:12px 18px;">Paid</th>
                             <th style="padding:12px 18px;">Status</th>
                             <th style="padding:12px 18px; text-align:right;">Receipt</th>
@@ -68,8 +90,8 @@ require VIEW_PATH . '/layouts/header.php';
                         <?php foreach ($fees as $f): ?>
                             <tr style="border-bottom:1px solid var(--il-border);">
                                 <td style="padding:12px 18px;">
-                                    <strong><?= Helper::e($f['fee_month']) ?> (<?= Helper::e($f['academic_year']) ?>)</strong>
-                                    <div class="muted" style="font-size:12px; text-transform:capitalize;"><?= Helper::e($f['fee_type']) ?> Fee</div>
+                                    <strong><?= !empty($f['notes']) ? Helper::e($f['notes']) : Helper::e($f['fee_month']) . ' (' . Helper::e($f['academic_year']) . ')' ?></strong>
+                                    <div class="muted" style="font-size:12px; text-transform:capitalize;"><?= $isAiverse ? 'AI Program Enrollment' : Helper::e($f['fee_type']) . ' Fee' ?></div>
                                 </td>
                                 <td style="padding:12px 18px; font-family:'JetBrains Mono', monospace; font-weight:700;">
                                     ₹<?= number_format((float)$f['amount_due'], 2) ?>
@@ -92,7 +114,17 @@ require VIEW_PATH . '/layouts/header.php';
                                             🧾 View Receipt
                                         </a>
                                     <?php else: ?>
-                                        <span class="muted" style="font-size:12px;">Payment Pending</span>
+                                        <span class="muted" style="font-size:12px; display:block; margin-bottom:4px;">Payment Pending</span>
+                                    <?php endif; ?>
+                                    <?php if ($isAiverse && !empty($f['course_id'])): ?>
+                                        <form method="POST" action="/aiverse/unenroll" style="margin-top:6px;" onsubmit="return confirm('Are you sure you want to drop <?= Helper::e(addslashes($f['notes'])) ?>? Your enrollment will be cancelled.');">
+                                            <input type="hidden" name="csrf" value="<?= Helper::e(\App\Session::csrfToken()) ?>">
+                                            <input type="hidden" name="course_id" value="<?= (int)$f['course_id'] ?>">
+                                            <input type="hidden" name="redirect_to" value="/student/fees">
+                                            <button type="submit" class="btn btn-xs btn-outline-danger" style="font-size:10.5px; padding:2px 6px; color:#DC2626; border-color:#FECACA;" title="Drop / Unenroll from Course">
+                                                Drop Course ✕
+                                            </button>
+                                        </form>
                                     <?php endif; ?>
                                 </td>
                             </tr>

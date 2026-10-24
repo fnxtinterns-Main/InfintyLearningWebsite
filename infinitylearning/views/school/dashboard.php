@@ -10,6 +10,11 @@ $schoolId = Auth::requireSchoolAdmin();
 $school = School::find($schoolId);
 if (!$school) { Auth::logout(); Helper::redirect('/login'); }
 
+if (School::isAiverse($schoolId)) {
+    require VIEW_PATH . '/aiverse/admin_dashboard.php';
+    return;
+}
+
 $stats           = School::stats($schoolId);
 $userSplit       = Analytics::schoolUserSplit($schoolId);
 $attendanceTrend = Analytics::schoolAttendanceByMonth($schoolId, 6);

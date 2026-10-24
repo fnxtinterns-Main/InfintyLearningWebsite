@@ -7,24 +7,61 @@ use App\Helper;
 
 Auth::requireLogin();
 $user = Auth::user();
-$studentId = (int)($_GET['student_id'] ?? ($user['role'] === 'student' ? $user['id'] : 0));
+if ($user['role'] === 'student') {
+    $studentId = (int)$user['id'];
+} else {
+    $studentId = (int)($_GET['student_id'] ?? 0);
+}
 
 if (!$studentId) {
     Helper::redirect('/dashboard');
 }
 
-$data = ReportCard::generateForStudent($studentId);
+$data = null;
+try {
+    $data = ReportCard::generateForStudent($studentId);
+} catch (\Throwable $e) {
+    error_log('Report card generation error: ' . $e->getMessage());
+}
+
+$userRole = $user['role'] ?? '';
+$backUrl = '/school/students';
+if ($userRole === 'student') {
+    $backUrl = '/dashboard';
+} elseif ($userRole === 'teacher') {
+    $backUrl = '/teacher/batches';
+}
+
+if (!empty($_SERVER['HTTP_REFERER'])) {
+    $ref = (string)$_SERVER['HTTP_REFERER'];
+    $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+    if ($host !== '' && strpos($ref, $host) !== false && strpos($ref, '/report-card') === false) {
+        $backUrl = $ref;
+    }
+}
+
 if (!$data) {
     http_response_code(404);
-    exit('Student report card data not found.');
+    $pageTitle = 'Report Card Not Found';
+    require VIEW_PATH . '/layouts/header.php';
+    echo '<section class="section text-center" style="padding:60px 20px;">
+        <div style="font-size:48px; margin-bottom:12px;">📄</div>
+        <h2>Student Report Card Not Available</h2>
+        <p class="muted" style="max-width:500px; margin:0 auto 20px;">Could not retrieve scholastic records for Scholar #' . htmlspecialchars((string)$studentId) . '. Please ensure the student account is active.</p>
+        <a href="' . htmlspecialchars($backUrl, ENT_QUOTES, 'UTF-8') . '" class="btn btn-primary">← Go Back</a>
+    </section>';
+    require VIEW_PATH . '/layouts/footer.php';
+    exit;
 }
 
 $student = $data['student'];
 $subjects = $data['subjects'];
 $att = $data['attendance'];
 $overall = $data['overall'];
+$isAiverse = !empty($data['is_aiverse']);
+$hasEnrollments = !empty($data['has_enrollments']);
 
-$pageTitle = 'Academic Report Card — ' . ($student['full_name'] ?: 'Student');
+$pageTitle = ($isAiverse ? 'AI Specialization Progress Report — ' : 'Academic Report Card — ') . ($student['full_name'] ?: 'Scholar');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -77,7 +114,7 @@ body {
     border-radius: 18px;
     padding: 44px 52px;
     box-shadow: 0 12px 35px rgba(0,0,0,0.07);
-    border: 3px double #D4AF37; /* Elegant subtle gold double border */
+    border: 3px double #D4AF37;
     position: relative;
 }
 
@@ -101,7 +138,7 @@ body {
     height: 76px;
     margin: 0 auto 8px;
     border-radius: 12px;
-    background: linear-gradient(135deg, #7C2D5C, #A0386B);
+    background: linear-gradient(135deg, #1E1B4B, #31104B);
     color: #fff;
     font-size: 34px;
     display: flex;
@@ -268,8 +305,10 @@ table.marks-table td.tar, table.marks-table th.tar { text-align: right; }
 
 <div style="width:100%; max-width:900px;">
     <div class="no-print-bar">
-        <a href="javascript:history.back()" class="btn btn-secondary">← Back</a>
-        <button onclick="window.print()" class="btn btn-primary">🖨️ Print / Download Report Card PDF</button>
+        <a href="<?= Helper::e($backUrl) ?>" onclick="return handleSmartBack(event, '<?= Helper::e($backUrl) ?>')" class="btn btn-secondary">← Back</a>
+        <?php if ($hasEnrollments): ?>
+            <button onclick="window.print()" class="btn btn-primary">🖨️ Print / Download PDF</button>
+        <?php endif; ?>
     </div>
 
     <div class="report-frame">
@@ -281,116 +320,183 @@ table.marks-table td.tar, table.marks-table th.tar { text-align: right; }
                 <div class="school-crest-fallback">🎓</div>
             <?php endif; ?>
 
-            <div class="school-name"><?= Helper::e($student['school_name'] ?: 'Infinity Learning Partner School') ?></div>
+            <div class="school-name"><?= Helper::e($student['school_name'] ?: 'AIVERSE ACADEMY') ?></div>
             <div class="school-sub">
-                <?= Helper::e($student['school_address'] ?: 'Academic Campus · Department of Primary & Secondary Education') ?><br>
-                Affiliated & Certified Institution · Academic Year 2026–2027
+                <?= Helper::e($student['school_address'] ?: 'Academic Campus · Department of AI & Machine Learning') ?><br>
+                Certified Institution · Academic Session <?= date('Y') ?>–<?= date('Y') + 1 ?>
             </div>
-            <div class="rc-badge">Cumulative Scholastic Assessment & Progress Report</div>
+            <div class="rc-badge"><?= $isAiverse ? 'AI Specialization & Academic Progress Transcript' : 'Cumulative Scholastic Assessment & Progress Report' ?></div>
         </div>
 
         <!-- BIO -->
         <div class="bio-grid">
             <div class="bio-item">
-                <label>Student Name</label>
+                <label>Scholar Name</label>
                 <value><?= Helper::e($student['full_name']) ?></value>
             </div>
             <div class="bio-item">
-                <label>Class & Section</label>
-                <value><?= Helper::e($student['current_class'] ?: 'Grade 8') ?></value>
+                <label>Academic Status</label>
+                <value><?= $hasEnrollments ? 'Active Cohort Scholar' : 'Registered Scholar' ?></value>
             </div>
             <div class="bio-item">
                 <label>Roll / Admission No.</label>
                 <value><?= Helper::e($student['admission_number'] ?: 'ADM-2026-' . $student['user_id']) ?></value>
             </div>
             <div class="bio-item">
-                <label>Attendance Record</label>
-                <value><?= $att['percentage'] ?>% (<?= $att['present_days'] ?>/<?= $att['total_days'] ?> Days)</value>
+                <label>Course Track Attendance</label>
+                <value>
+                    <?php if ($isAiverse): ?>
+                        <?= $hasEnrollments ? 'Self-Paced &amp; Live Workshops' : 'No Active Tracks' ?>
+                    <?php elseif (!empty($att['total_days'])): ?>
+                        <?= $att['percentage'] ?>% (<?= $att['present_days'] ?>/<?= $att['total_days'] ?> Days)
+                    <?php else: ?>
+                        Enrolled
+                    <?php endif; ?>
+                </value>
             </div>
         </div>
 
-        <!-- MARKS TABLE -->
-        <table class="marks-table">
-            <thead>
-                <tr>
-                    <th style="width:28%;">Subject / Discipline</th>
-                    <th class="tac">Unit Test (20)</th>
-                    <th class="tac">Term Exam (80)</th>
-                    <th class="tac">Total Marks (100)</th>
-                    <th class="tac">Grade</th>
-                    <th>Teacher Remarks</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($subjects as $s): ?>
+        <?php if (!$hasEnrollments): ?>
+            <!-- UNENROLLED SCHOLAR STATE -->
+            <div style="background:#FAF8F5; border:1.5px dashed #D5C7B8; border-radius:14px; padding:44px 28px; text-align:center; margin-bottom:28px;">
+                <div style="font-size:48px; margin-bottom:12px;">📚</div>
+                <h3 style="margin:0 0 8px; font-size:1.35rem; color:#231913;">No Active Course Enrollments</h3>
+                <p style="color:#6F5E52; font-size:0.95rem; max-width:540px; margin:0 auto 20px; line-height:1.55;">
+                    Scholar <strong><?= Helper::e($student['full_name']) ?></strong> has registered under <strong><?= Helper::e($student['school_name'] ?: 'AIVERSE Academy') ?></strong>, but has not yet enrolled in any AI course track. Performance transcripts and milestone evaluations are issued once an AI course track is actively enrolled.
+                </p>
+                <div style="display:inline-flex; gap:12px;">
+                    <a href="<?= Helper::e($backUrl) ?>" onclick="return handleSmartBack(event, '<?= Helper::e($backUrl) ?>')" class="btn btn-secondary">← Back to Scholars</a>
+                    <a href="/school/courses" class="btn btn-primary">Browse AI Courses →</a>
+                </div>
+            </div>
+        <?php else: ?>
+            <!-- MARKS TABLE -->
+            <table class="marks-table">
+                <thead>
                     <tr>
-                        <td><strong><?= Helper::e($s['subject']) ?></strong></td>
-                        <td class="tac"><?= number_format((float)$s['unit_test_obtained'], 1) ?></td>
-                        <td class="tac"><?= number_format((float)$s['term_exam_obtained'], 1) ?></td>
-                        <td class="tac" style="font-weight:700;"><?= number_format((float)$s['total_obtained'], 1) ?></td>
-                        <td class="tac">
-                            <span class="grade-badge grade-<?= str_replace('+', '-plus', $s['grade']) ?>">
-                                <?= Helper::e($s['grade']) ?>
-                            </span>
-                        </td>
-                        <td style="font-size:12px; color:#5B4739;"><?= Helper::e($s['remarks']) ?></td>
+                        <th style="width:36%;">Enrolled Track / Course Module</th>
+                        <th class="tac">Unit Evals (20)</th>
+                        <th class="tac">Capstone / Term (80)</th>
+                        <th class="tac">Total Score (100)</th>
+                        <th class="tac">Status / Grade</th>
+                        <th>Instructor Remarks</th>
                     </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <?php foreach ($subjects as $s): ?>
+                        <tr>
+                            <td><strong><?= Helper::e($s['subject']) ?></strong></td>
+                            <td class="tac"><?= $s['unit_test_obtained'] !== null ? number_format((float)$s['unit_test_obtained'], 1) : '—' ?></td>
+                            <td class="tac"><?= $s['term_exam_obtained'] !== null ? number_format((float)$s['term_exam_obtained'], 1) : '—' ?></td>
+                            <td class="tac" style="font-weight:700;"><?= $s['total_obtained'] !== null ? number_format((float)$s['total_obtained'], 1) : '—' ?></td>
+                            <td class="tac">
+                                <span class="grade-badge" style="<?= $s['total_obtained'] === null ? 'background:#E0E7FF; color:#3730A3;' : '' ?>">
+                                    <?= Helper::e($s['grade']) ?>
+                                </span>
+                            </td>
+                            <td style="font-size:12px; color:#5B4739;"><?= Helper::e($s['remarks']) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
 
-        <!-- SUMMARY & NON-SCHOLASTIC -->
-        <div class="summary-grid">
-            <div class="summary-card">
-                <div class="summary-title">Scholastic Grading Scale Reference</div>
-                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; font-size:11.5px; text-align:center;">
-                    <div style="background:#fff; padding:6px; border-radius:6px; border:1px solid #EAE3D5;"><strong>A+</strong>: 90–100%</div>
-                    <div style="background:#fff; padding:6px; border-radius:6px; border:1px solid #EAE3D5;"><strong>A</strong>: 80–89%</div>
-                    <div style="background:#fff; padding:6px; border-radius:6px; border:1px solid #EAE3D5;"><strong>B+</strong>: 70–79%</div>
-                    <div style="background:#fff; padding:6px; border-radius:6px; border:1px solid #EAE3D5;"><strong>B</strong>: 60–69%</div>
+            <!-- SUMMARY & NON-SCHOLASTIC -->
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="summary-title">Scholastic Grading Scale Reference</div>
+                    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; font-size:11.5px; text-align:center;">
+                        <div style="background:#fff; padding:6px; border-radius:6px; border:1px solid #EAE3D5;"><strong>A+</strong>: 90–100%</div>
+                        <div style="background:#fff; padding:6px; border-radius:6px; border:1px solid #EAE3D5;"><strong>A</strong>: 80–89%</div>
+                        <div style="background:#fff; padding:6px; border-radius:6px; border:1px solid #EAE3D5;"><strong>B+</strong>: 70–79%</div>
+                        <div style="background:#fff; padding:6px; border-radius:6px; border:1px solid #EAE3D5;"><strong>B</strong>: 60–69%</div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; font-size:11.5px; text-align:center; margin-top:6px;">
+                        <div style="background:#fff; padding:6px; border-radius:6px; border:1px solid #EAE3D5;"><strong>C</strong>: 50–59%</div>
+                        <div style="background:#fff; padding:6px; border-radius:6px; border:1px solid #EAE3D5;"><strong>D</strong>: 40–49%</div>
+                        <div style="background:#fff; padding:6px; border-radius:6px; border:1px solid #EAE3D5; color:#DC2626;"><strong>F</strong>: Below 40%</div>
+                    </div>
                 </div>
-                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; font-size:11.5px; text-align:center; margin-top:6px;">
-                    <div style="background:#fff; padding:6px; border-radius:6px; border:1px solid #EAE3D5;"><strong>C</strong>: 50–59%</div>
-                    <div style="background:#fff; padding:6px; border-radius:6px; border:1px solid #EAE3D5;"><strong>D</strong>: 40–49%</div>
-                    <div style="background:#fff; padding:6px; border-radius:6px; border:1px solid #EAE3D5; color:#DC2626;"><strong>F</strong>: Below 40%</div>
+
+                <div class="summary-card">
+                    <div class="summary-title"><?= $isAiverse ? 'Specialization & Practical Record' : 'Co-Scholastic & Behavioral Record' ?></div>
+                    <?php if ($isAiverse): ?>
+                        <div class="summary-row"><span>AI Lab Workspaces:</span><strong>Active Access</strong></div>
+                        <div class="summary-row"><span>Hands-on Code Notebooks:</span><strong>In Progress</strong></div>
+                        <div class="summary-row"><span>Industry Certificate Status:</span><strong>Enrolled Track</strong></div>
+                    <?php else: ?>
+                        <div class="summary-row"><span>Discipline & Conduct:</span><strong>Exemplary</strong></div>
+                        <div class="summary-row"><span>Chess Academy & Logic:</span><strong>Active Competitor</strong></div>
+                        <div class="summary-row"><span>Class Participation:</span><strong>Consistent</strong></div>
+                    <?php endif; ?>
                 </div>
             </div>
 
-            <div class="summary-card">
-                <div class="summary-title">Co-Scholastic & Behavioral Record</div>
-                <div class="summary-row"><span>Discipline & Conduct:</span><strong>Exemplary</strong></div>
-                <div class="summary-row"><span>Chess Academy & Logic:</span><strong>Active Competitor</strong></div>
-                <div class="summary-row"><span>Class Participation:</span><strong>Consistent</strong></div>
+            <!-- RESULT BANNER -->
+            <div class="result-banner" style="<?= empty($overall['percentage']) ? 'background: linear-gradient(135deg, #1E293B 0%, #334155 100%);' : '' ?>">
+                <div>
+                    <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.85;">Cumulative Cohort Evaluation</div>
+                    <div class="result-status">STATUS: <?= Helper::e($overall['result']) ?></div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.85;">Overall Performance</div>
+                    <div class="result-pct" style="<?= empty($overall['percentage']) ? 'color:#94A3B8; font-size:18px;' : '' ?>">
+                        <?= $overall['percentage'] !== null ? ($overall['percentage'] . '% (Grade ' . $overall['grade'] . ')') : Helper::e($overall['grade']) ?>
+                    </div>
+                </div>
             </div>
-        </div>
-
-        <!-- RESULT BANNER -->
-        <div class="result-banner">
-            <div>
-                <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.85;">Cumulative Final Assessment</div>
-                <div class="result-status">RESULT: <?= Helper::e($overall['result']) ?></div>
-            </div>
-            <div style="text-align:right;">
-                <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.85;">Overall Percentage</div>
-                <div class="result-pct"><?= $overall['percentage'] ?>% (Grade <?= $overall['grade'] ?>)</div>
-            </div>
-        </div>
+        <?php endif; ?>
 
         <!-- SIGNATURES -->
         <div class="sig-container">
             <div class="sig-box">
-                <div class="sig-line">Class Teacher Signature</div>
+                <div class="sig-line">Instructor / Faculty Lead</div>
             </div>
             <div class="sig-box">
                 <div class="school-seal">Official<br>Seal</div>
-                <div class="sig-line">Controller of Examinations</div>
+                <div class="sig-line">Academic Dean / Controller</div>
             </div>
             <div class="sig-box">
-                <div class="sig-line">Principal / Headmaster</div>
+                <div class="sig-line">Head of Academy</div>
             </div>
         </div>
     </div>
 </div>
 
+<script>
+function handleSmartBack(e, fallbackUrl) {
+    if (e) {
+        // If ctrl/cmd click or middle click, allow opening in new tab normally
+        if (e.ctrlKey || e.metaKey || e.button === 1) return true;
+        e.preventDefault();
+    }
+    // 1. If opened in a new tab/window via target="_blank", close the tab
+    if (window.opener && !window.opener.closed) {
+        window.close();
+        setTimeout(function() {
+            window.location.href = fallbackUrl;
+        }, 120);
+        return false;
+    }
+    // 2. If browser has session history in this tab from this domain
+    if (window.history.length > 1 && document.referrer && document.referrer.indexOf(window.location.host) !== -1) {
+        window.history.back();
+        setTimeout(function() {
+            window.location.href = fallbackUrl;
+        }, 250);
+        return false;
+    }
+    // 3. If window history is 1 (fresh tab opened by link), attempt close then fallback
+    if (window.history.length <= 1) {
+        window.close();
+        setTimeout(function() {
+            window.location.href = fallbackUrl;
+        }, 100);
+        return false;
+    }
+    // 4. Default: navigate to fallback URL
+    window.location.href = fallbackUrl;
+    return false;
+}
+</script>
 </body>
 </html>

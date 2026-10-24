@@ -80,8 +80,25 @@ $routes = [
     '/school/counseling'         => '/views/school/counseling.php',
     '/school/counseling-detail'  => '/views/school/counseling_detail.php',
     '/school/fees'               => '/views/school/fees.php',
+    '/school/courses'            => '/views/school/aiverse_courses.php',
+    '/school/courses/save'       => '/views/school/aiverse_course_save.php',
+    '/school/courses/delete'     => '/views/school/aiverse_course_delete.php',
+    '/school/courses/unenroll'   => '/views/school/aiverse_course_unenroll.php',
+    '/school/bundles'            => '/views/school/aiverse_bundles.php',
+    '/school/bundles/save'       => '/views/school/aiverse_bundle_save.php',
+    '/school/bundles/delete'     => '/views/school/aiverse_bundle_delete.php',
+    '/school/banners'            => '/views/school/aiverse_banners.php',
+    '/school/banners/save'       => '/views/school/aiverse_banner_save.php',
+    '/school/banners/delete'     => '/views/school/aiverse_banner_delete.php',
+    '/school/banners/toggle'     => '/views/school/aiverse_banner_toggle.php',
     '/school/timetable'          => '/views/school/timetable.php',
     '/school/branding'           => '/views/school/branding.php',
+    '/school/results'            => '/views/school/results.php',
+
+    // AIverse
+    '/aiverse/enroll'            => '/views/aiverse/enroll_handler.php',
+    '/aiverse/enroll-bundle'     => '/views/aiverse/enroll_bundle_handler.php',
+    '/aiverse/unenroll'          => '/views/aiverse/unenroll_handler.php',
 
     // Teacher
     '/teacher/chess'                => '/views/teacher/chess.php',
@@ -93,6 +110,7 @@ $routes = [
     '/teacher/batch/import'         => '/views/teacher/import_students.php',
     '/teacher/questions'            => '/views/teacher/question_bank.php',
     '/teacher/assessments'          => '/views/teacher/assessments.php',
+    '/teacher/marks'                => '/views/teacher/marks_entry.php',
     '/teacher/assessment/new'       => '/views/teacher/assessment_form.php',
     '/teacher/assessment/submissions' => '/views/teacher/assessment_submissions.php',
     '/teacher/fees'                 => '/views/teacher/fees.php',
@@ -110,6 +128,7 @@ $routes = [
     '/teacher/counseling-detail'  => '/views/teacher/counseling_detail.php',
 
     // Student & Live Extras
+    '/student/dashboard'            => '/views/student/dashboard.php',
     '/student/assessments'          => '/views/student/assessments.php',
     '/student/assessment/take'      => '/views/student/assessment_take.php',
     '/student/fees'                 => '/views/student/fees.php',

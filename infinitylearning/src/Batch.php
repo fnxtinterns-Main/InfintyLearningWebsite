@@ -120,16 +120,30 @@ final class Batch
 
     public static function forStudent(int $studentUserId): array
     {
-        $stmt = Database::connect()->prepare("
+        $db = Database::connect();
+        $ids = [$studentUserId];
+        try {
+            $s = $db->prepare("SELECT user_id, id FROM students WHERE user_id = ? OR id = ? LIMIT 1");
+            $s->execute([$studentUserId, $studentUserId]);
+            $row = $s->fetch();
+            if ($row) {
+                if (!empty($row['user_id'])) $ids[] = (int)$row['user_id'];
+                if (!empty($row['id'])) $ids[] = (int)$row['id'];
+            }
+        } catch (\Throwable $e) {}
+        $ids = array_values(array_unique(array_filter($ids)));
+        $inClause = implode(',', array_fill(0, count($ids), '?'));
+
+        $stmt = $db->prepare("
             SELECT b.*, t.full_name AS teacher_name
             FROM batches b
             JOIN batch_students bs ON bs.batch_id = b.id
             LEFT JOIN users u ON u.id = b.teacher_id
             LEFT JOIN teachers t ON t.user_id = u.id
-            WHERE bs.student_user_id = ? AND b.status='active'
+            WHERE bs.student_user_id IN ($inClause) AND b.status='active'
             ORDER BY b.created_at DESC
         ");
-        $stmt->execute([$studentUserId]);
+        $stmt->execute($ids);
         return $stmt->fetchAll();
     }
 

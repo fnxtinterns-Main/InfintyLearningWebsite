@@ -55,8 +55,10 @@ final class FeeManagement
         $discount = (float)($d['discount'] ?? 0.0);
 
         $netDue = max(0.0, $amountDue - $discount);
-        $status = 'pending';
-        if ($amountPaid >= $netDue && $netDue > 0) {
+        $status = !empty($d['status']) ? (string)$d['status'] : 'pending';
+        if ($netDue <= 0.0 && ($amountDue > 0 || $discount > 0)) {
+            $status = 'paid';
+        } elseif ($amountPaid >= $netDue && $netDue > 0) {
             $status = 'paid';
         } elseif ($amountPaid > 0) {
             $status = 'partial';
@@ -219,20 +221,28 @@ final class FeeManagement
         self::ensureTable();
         $db = Database::connect();
         $stmt = $db->prepare("
-            SELECT sf.*, u.email AS student_email, st.full_name AS student_name,
-                   st.current_class, st.admission_number,
-                   b.name AS batch_name,
-                   s.name AS school_name, s.crest_logo, s.phone AS school_phone,
-                   s.email AS school_email, s.address AS school_address,
-                   s.brand_primary_color
+            SELECT sf.*, u.email AS student_email, u.phone AS student_phone,
+                   st.full_name AS student_name, st.current_class,
+                   b.name AS batch_name
             FROM student_fees sf
             JOIN users u ON u.id = sf.student_user_id
             LEFT JOIN students st ON st.user_id = sf.student_user_id
             LEFT JOIN batches b ON b.id = sf.batch_id
-            LEFT JOIN schools s ON s.id = sf.school_id
             WHERE sf.id = ? LIMIT 1
         ");
         $stmt->execute([$feeId]);
-        return $stmt->fetch() ?: null;
+        $fee = $stmt->fetch();
+        if (!$fee) return null;
+
+        $school = !empty($fee['school_id']) ? School::find((int)$fee['school_id']) : null;
+        $fee['school_name']         = $school['name'] ?? 'Infinity Learning';
+        $fee['school_address']      = $school['address'] ?? (!empty($school['city']) ? $school['city'] . ', ' . ($school['state'] ?? '') : 'Academic Campus · Department of Accounts & Fees');
+        $fee['school_email']        = $school['contact_email'] ?? ($school['email'] ?? 'info@infintylearning.net');
+        $fee['school_phone']        = $school['contact_phone'] ?? ($school['phone'] ?? '+91 98015 06511');
+        $fee['crest_logo']          = $school['crest_logo'] ?? ($school['logo'] ?? '');
+        $fee['brand_primary_color'] = $school['brand_primary_color'] ?? '#FF7A18';
+        $fee['admission_number']    = $fee['admission_number'] ?? ('IL-' . str_pad((string)$fee['student_user_id'], 5, '0', STR_PAD_LEFT));
+
+        return $fee;
     }
 }

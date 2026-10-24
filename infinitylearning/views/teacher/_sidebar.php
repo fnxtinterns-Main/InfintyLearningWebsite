@@ -6,6 +6,7 @@ $active = fn($p) => $path === $p ? ' class="active"' : '';
     <a href="/teacher/batches"<?= $active('/teacher/batches') ?>><span class="ico">🏫</span> My Batches</a>
     <a href="/teacher/questions"<?= $active('/teacher/questions') ?>><span class="ico">❓</span> Question Bank</a>
     <a href="/teacher/assessments"<?= $active('/teacher/assessments') ?>><span class="ico">📝</span> Assessments & Tests</a>
+    <a href="/teacher/marks"<?= $active('/teacher/marks') ?>><span class="ico">✍️</span> Enter Marks</a>
     <a href="/teacher/fees"<?= $active('/teacher/fees') ?>><span class="ico">💳</span> Student Fees</a>
     <a href="/teacher/timetable"<?= $active('/teacher/timetable') ?>><span class="ico">🗓️</span> Class Routine</a>
     <a href="/teacher/doubts"<?= $active('/teacher/doubts') ?>><span class="ico">💬</span> Student Doubts</a>

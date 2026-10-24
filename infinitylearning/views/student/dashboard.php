@@ -70,25 +70,23 @@ try {
     $upcomingAssignments = \App\ActivityAssignment::upcomingForStudent((int)$user['id'], 5);
 } catch (\Throwable $e) {}
 
-$gamification = [
-    'current_streak' => 0,
-    'longest_streak' => 0,
-    'active_days'    => 0,
-    'has_today'      => false,
-    'total_xp'       => 0,
-    'level'          => 1,
-    'cur_level_base' => 0,
-    'next_level_xp'  => 100,
-    'level_progress' => 0,
-    'rank_title'     => 'Novice'
+$studentExams = [
+    'categories' => [],
+    'all_tests'  => [],
+    'summary'    => ['total_tests' => 0, 'total_obtained' => 0, 'total_max' => 0, 'average_pct' => 0]
 ];
 try {
-    $gamification = \App\StudentProfile::calculateStreakAndXP((int)$user['id']);
+    $studentExams = \App\AcademicAssessment::getStudentExamHistory((int)$user['id']);
 } catch (\Throwable $e) {}
 
 $doubtStats = ['total' => 0, 'answered' => 0, 'open' => 0];
 try {
     $doubtStats = \App\DoubtFeed::getStudentStats((int)$user['id']);
+} catch (\Throwable $e) {}
+
+$dailyRoutine = [];
+try {
+    $dailyRoutine = \App\Timetable::getStudentSchedule((int)$user['id']) ?: [];
 } catch (\Throwable $e) {}
 
 $pageTitle = 'Dashboard — Infinity Learning';
@@ -99,6 +97,9 @@ $presentPct = (int)round(($att['present'] ?? 0) / $totalAtt * 100);
 $absentPct  = (int)round(($att['absent'] ?? 0)  / $totalAtt * 100);
 $latePct    = (int)round(($att['late'] ?? 0)    / $totalAtt * 100);
 $excusedPct = (int)round(($att['excused'] ?? 0) / $totalAtt * 100);
+
+$examSummary = $studentExams['summary'] ?? ['total_tests' => 0, 'average_pct' => 0];
+$latestTest = !empty($studentExams['all_tests'][0]) ? $studentExams['all_tests'][0] : null;
 ?>
 <section class="section-sm">
     <div class="container-narrow" style="max-width:none">
@@ -118,47 +119,105 @@ $excusedPct = (int)round(($att['excused'] ?? 0) / $totalAtt * 100);
                 </div>
             </div>
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                <a href="/student/doubts" class="btn btn-primary btn-sm" style="font-weight:700;">💬 Doubt Portal</a>
-                <a href="/parent-pass" class="btn btn-outline-primary btn-sm" title="Share or view student progress card">📱 Parent Progress Pass</a>
-                <a href="/profile" class="btn btn-secondary btn-sm">Edit profile</a>
+                <a href="/student?id=<?= (int)$user['id'] ?>" class="btn btn-outline-primary btn-sm" style="font-weight:700;">🌱 Development Profile</a>
+                <a href="/student/report-card" class="btn btn-primary btn-sm" style="font-weight:700;">📄 Academic Report Card</a>
+                <a href="/student/doubts" class="btn btn-secondary btn-sm">💬 Doubts</a>
+                <a href="/parent-pass" class="btn btn-secondary btn-sm" title="Share or view student progress card">📱 Parent Pass</a>
             </div>
         </div>
 
-        <!-- ============ STUDY STREAK & XP ENGINE BANNER ============ -->
-        <div class="card mt-2" style="background:linear-gradient(135deg, rgba(99,102,241,0.08), rgba(245,158,11,0.08)); border:1px solid rgba(245,158,11,0.3); border-radius:14px; padding:16px 20px;">
+        <!-- ============ TODAY'S CLASS ROUTINE (DAILY ROUTINE) ============ -->
+        <div class="card mt-2" style="border-radius:14px; padding:18px 22px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
+                <div>
+                    <h3 style="margin:0; display:flex; align-items:center; gap:8px; font-size:17px;">
+                        <span>🗓️</span> Today's Class Routine (<?= date('l, d M') ?>)
+                    </h3>
+                    <p class="muted" style="margin:2px 0 0; font-size:12.5px;">Your scheduled class periods, timings, and faculty for today.</p>
+                </div>
+                <a href="/student/timetable" class="btn btn-outline-primary btn-sm" style="font-weight:700;">
+                    🗓️ View Weekly Routine →
+                </a>
+            </div>
+
+            <?php if (empty($dailyRoutine)): ?>
+                <div style="text-align:center; padding:20px; background:var(--surface-1); border-radius:10px; border:1px dashed var(--il-border);">
+                    <span style="font-size:24px;">🏖️</span>
+                    <p class="muted" style="margin:6px 0 0; font-size:13px;">No class periods scheduled for today. Check your <a href="/student/timetable" style="font-weight:600; text-decoration:underline;">Weekly Routine</a> for the complete 6-day timetable.</p>
+                </div>
+            <?php else: ?>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:10px;">
+                    <?php foreach ($dailyRoutine as $slot): 
+                        $subColor = !empty($slot['subject_color']) ? $slot['subject_color'] : '#2563EB';
+                        $subIcon  = !empty($slot['subject_icon'])  ? $slot['subject_icon']  : '📖';
+                    ?>
+                        <div style="background:var(--surface-1); border:1px solid var(--il-border); border-left:3.5px solid <?= Helper::e($subColor) ?>; border-radius:10px; padding:10px 12px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                <span class="badge" style="background:<?= Helper::e($subColor) ?>18; color:<?= Helper::e($subColor) ?>; font-size:10.5px; font-weight:700;">
+                                    Period <?= (int)$slot['period_number'] ?>
+                                </span>
+                                <span class="muted" style="font-size:11px; font-family:'JetBrains Mono', monospace; font-weight:600;">
+                                    <?= \App\Timetable::formatTime12($slot['start_time']) ?> - <?= \App\Timetable::formatTime12($slot['end_time']) ?>
+                                </span>
+                            </div>
+                            <h4 style="margin:2px 0; font-size:13.5px; display:flex; align-items:center; gap:5px;">
+                                <span><?= Helper::e($subIcon) ?></span>
+                                <?= Helper::e($slot['subject_name'] ?? 'Subject') ?>
+                            </h4>
+                            <div class="muted" style="font-size:11px; margin-top:3px;">
+                                👨‍🏫 <?= Helper::e($slot['teacher_name'] ?? 'Assigned Faculty') ?>
+                                <?php if (!empty($slot['room_number'])): ?>
+                                    · 📍 Rm <?= Helper::e($slot['room_number']) ?>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <!-- ============ ACADEMIC EXAMINATIONS & RESULTS BANNER ============ -->
+        <div class="card mt-2" style="background:linear-gradient(135deg, rgba(37,99,235,0.06), rgba(16,185,129,0.06)); border:1px solid rgba(37,99,235,0.22); border-radius:14px; padding:18px 22px;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
                 <div style="display:flex; align-items:center; gap:14px;">
-                    <div style="font-size:36px; line-height:1;">🔥</div>
+                    <div style="font-size:36px; line-height:1;">📊</div>
                     <div>
-                        <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                             <span style="font-size:18px; font-weight:800; color:var(--il-text);">
-                                <?= $gamification['current_streak'] ?> Day Study Streak!
+                                Academic Examination Performance
                             </span>
-                            <?php if ($gamification['has_today']): ?>
-                                <span class="badge badge-success" style="font-size:11px; padding:3px 8px;">✓ Active Today</span>
+                            <?php if ($examSummary['total_tests'] > 0): ?>
+                                <span class="badge badge-success" style="font-size:11px; padding:3px 8px;">
+                                    ⭐ <?= $examSummary['average_pct'] ?>% Overall Avg
+                                </span>
                             <?php else: ?>
-                                <span class="badge badge-warning" style="font-size:11px; padding:3px 8px;">⏳ Learn today to keep streak!</span>
+                                <span class="badge badge-secondary" style="font-size:11px; padding:3px 8px;">
+                                    📝 New Tests Ongoing
+                                </span>
                             <?php endif; ?>
                         </div>
-                        <div class="muted" style="font-size:12px; margin-top:3px;">
-                            Best Streak: <strong><?= $gamification['longest_streak'] ?> days</strong> · <strong><?= $gamification['active_days'] ?></strong> active days logged
+                        <div class="muted" style="font-size:12.5px; margin-top:4px;">
+                            <?php if ($latestTest): ?>
+                                Latest: <strong><?= Helper::e($latestTest['title']) ?></strong> (<?= Helper::e($latestTest['subject_name']) ?>) — <strong style="color:var(--il-primary);"><?= $latestTest['score_obtained'] ?> / <?= $latestTest['total_marks'] ?> (<?= $latestTest['percentage'] ?>%)</strong>
+                            <?php else: ?>
+                                Unit Tests, Pen-Paper Tests & Term Exams evaluated by your teachers appear here and on your official report card.
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
 
-                <!-- XP & LEVEL -->
-                <div style="min-width:240px; flex:1; max-width:340px;">
+                <!-- EXAM QUICK ACTIONS & PROGRESS -->
+                <div style="min-width:240px; flex:1; max-width:360px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; margin-bottom:6px;">
-                        <span>Level <?= $gamification['level'] ?> <span class="badge badge-primary" style="font-size:11px; font-weight:600;"><?= $gamification['rank_title'] ?></span></span>
-                        <span style="color:#f59e0b;">⚡ <?= $gamification['total_xp'] ?> XP</span>
+                        <span>Academic Standing</span>
+                        <span style="color:#2563EB; font-weight:800;"><?= $examSummary['total_tests'] ?> Tests Logged</span>
                     </div>
-                    <div style="background:var(--surface-2); border-radius:999px; height:8px; overflow:hidden; border:1px solid var(--il-border);">
-                        <div style="background:linear-gradient(90deg, #f59e0b, #6366f1); height:100%; width:<?= $gamification['level_progress'] ?>%; border-radius:999px;"></div>
+                    <div style="background:var(--surface-2); border-radius:999px; height:9px; overflow:hidden; border:1px solid var(--il-border);">
+                        <div style="background:linear-gradient(90deg, #2563EB, #10B981); height:100%; width:<?= min(100, (int)$examSummary['average_pct']) ?>%; border-radius:999px; transition:width 0.5s ease;"></div>
                     </div>
-                    <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--il-muted); margin-top:4px;">
-                        <span><?= $gamification['cur_level_base'] ?> XP</span>
-                        <span><?= $gamification['level_progress'] ?>% to Level <?= $gamification['level'] + 1 ?></span>
-                        <span><?= $gamification['next_level_xp'] ?> XP</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:var(--il-muted); margin-top:6px;">
+                        <span>Avg: <?= $examSummary['average_pct'] ?>%</span>
+                        <a href="/student/report-card" style="color:var(--il-primary); font-weight:700; text-decoration:underline;">View Report Card →</a>
                     </div>
                 </div>
             </div>
@@ -321,24 +380,80 @@ $excusedPct = (int)round(($att['excused'] ?? 0) / $totalAtt * 100);
             </div>
         </div>
 
-        <!-- ============ ATTENDANCE ============ -->
-        <div class="card mt-3">
-            <h3>📊 Attendance Breakdown</h3>
-            <div class="divider"></div>
-            <?php if ($totalAtt === 1 && array_sum($att) === 0): ?>
-                <p class="muted">No attendance recorded yet.</p>
-            <?php else: ?>
-                <div class="grid grid-4">
-                    <div class="stat" style="border-left-color:#16A34A"><span class="n"><?= $att['present'] ?></span><span class="l">Present (<?= $presentPct ?>%)</span></div>
-                    <div class="stat" style="border-left-color:#DC2626"><span class="n"><?= $att['absent'] ?></span><span class="l">Absent (<?= $absentPct ?>%)</span></div>
-                    <div class="stat" style="border-left-color:#F59E0B"><span class="n"><?= $att['late'] ?></span><span class="l">Late (<?= $latePct ?>%)</span></div>
-                    <div class="stat" style="border-left-color:#2563EB"><span class="n"><?= $att['excused'] ?></span><span class="l">Excused (<?= $excusedPct ?>%)</span></div>
+        <!-- ============ ATTENDANCE BAR GRAPH ============ -->
+        <div class="card mt-3" style="border-radius:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <div>
+                    <h3 style="margin:0; display:flex; align-items:center; gap:8px;">
+                        <span>📊</span> Attendance Bar Graph
+                    </h3>
+                    <p class="muted" style="margin:2px 0 0; font-size:12.5px;">Visual breakdown of recorded attendance status across all enrolled batches.</p>
                 </div>
-                <div style="margin-top:1rem;height:12px;border-radius:99px;overflow:hidden;background:var(--surface-2);display:flex">
-                    <div style="background:#16A34A;width:<?= $presentPct ?>%"></div>
-                    <div style="background:#F59E0B;width:<?= $latePct ?>%"></div>
-                    <div style="background:#2563EB;width:<?= $excusedPct ?>%"></div>
-                    <div style="background:#DC2626;width:<?= $absentPct ?>%"></div>
+                <div style="display:flex; gap:14px; font-size:12px; flex-wrap:wrap;">
+                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:3px; background:#16A34A;"></span> Present (<?= $presentPct ?>%)</span>
+                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:3px; background:#DC2626;"></span> Absent (<?= $absentPct ?>%)</span>
+                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:3px; background:#F59E0B;"></span> Late (<?= $latePct ?>%)</span>
+                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:3px; background:#2563EB;"></span> Excused (<?= $excusedPct ?>%)</span>
+                </div>
+            </div>
+            <div class="divider"></div>
+
+            <?php if ($totalAtt === 1 && array_sum($att) === 0): ?>
+                <p class="muted" style="text-align:center; padding:20px 0;">No attendance records logged yet by your teachers.</p>
+            <?php else: 
+                $barItems = [
+                    ['label' => 'Present', 'count' => (int)$att['present'], 'pct' => $presentPct, 'color' => '#16A34A', 'gradient' => 'linear-gradient(180deg, #22C55E 0%, #16A34A 100%)', 'icon' => '✅'],
+                    ['label' => 'Absent',  'count' => (int)$att['absent'],  'pct' => $absentPct,  'color' => '#DC2626', 'gradient' => 'linear-gradient(180deg, #EF4444 0%, #DC2626 100%)', 'icon' => '✕'],
+                    ['label' => 'Late',    'count' => (int)$att['late'],    'pct' => $latePct,    'color' => '#F59E0B', 'gradient' => 'linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%)', 'icon' => '⏱️'],
+                    ['label' => 'Excused', 'count' => (int)$att['excused'], 'pct' => $excusedPct, 'color' => '#2563EB', 'gradient' => 'linear-gradient(180deg, #3B82F6 0%, #2563EB 100%)', 'icon' => 'ℹ️'],
+                ];
+            ?>
+                <!-- Vertical Bar Chart Container -->
+                <div style="position:relative; padding:20px 10px 10px 45px; background:var(--surface-1); border-radius:12px; border:1px solid var(--il-border);">
+                    <!-- Y-Axis Gridlines & Labels -->
+                    <div style="position:absolute; left:12px; top:20px; bottom:40px; display:flex; flex-direction:column; justify-content:space-between; font-size:10px; color:var(--il-muted); font-family:'JetBrains Mono', monospace; text-align:right; width:26px;">
+                        <span>100%</span>
+                        <span>75%</span>
+                        <span>50%</span>
+                        <span>25%</span>
+                        <span>0%</span>
+                    </div>
+
+                    <div style="position:absolute; left:45px; right:15px; top:20px; bottom:40px; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none;">
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1.5px solid var(--il-border); height:0;"></div>
+                    </div>
+
+                    <!-- Bars Area -->
+                    <div style="display:flex; justify-content:space-around; align-items:flex-end; height:180px; position:relative; z-index:2;">
+                        <?php foreach ($barItems as $item): 
+                            $barH = $item['pct'] > 0 ? max(8, min(100, $item['pct'])) : 0;
+                        ?>
+                            <div style="display:flex; flex-direction:column; align-items:center; width:22%; max-width:120px; height:100%; justify-content:flex-end;">
+                                <!-- Value Badge Above Bar -->
+                                <div style="font-size:11px; font-weight:800; color:<?= $item['color'] ?>; margin-bottom:6px; white-space:nowrap;">
+                                    <?= $item['pct'] ?>%
+                                </div>
+                                
+                                <!-- Bar Pillar -->
+                                <div style="width:100%; max-width:68px; height:<?= $barH ?>%; background:<?= $item['gradient'] ?>; border-radius:8px 8px 2px 2px; box-shadow:0 3px 8px <?= $item['color'] ?>33; min-height:<?= $item['pct'] > 0 ? '8px' : '3px' ?>; transition:height 0.6s cubic-bezier(0.4, 0, 0.2, 1); display:flex; align-items:flex-start; justify-content:center; padding-top:4px;">
+                                </div>
+
+                                <!-- Label Below Bar -->
+                                <div style="margin-top:8px; text-align:center;">
+                                    <div style="font-weight:700; font-size:12px; color:var(--il-text);">
+                                        <?= $item['icon'] ?> <?= $item['label'] ?>
+                                    </div>
+                                    <div class="muted" style="font-size:11px;">
+                                        <?= $item['count'] ?> <?= $item['count'] === 1 ? 'day' : 'days' ?>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             <?php endif; ?>
         </div>

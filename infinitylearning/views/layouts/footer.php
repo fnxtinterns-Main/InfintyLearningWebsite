@@ -108,6 +108,62 @@
             color:#B85000;
         }
 
+        footer.footer .footer-powered{
+            margin-top:18px;
+            padding-top:14px;
+            border-top:1px solid #F3DECB;
+        }
+        footer.footer .footer-powered-label{
+            display:block;
+            font-size:.65rem;
+            letter-spacing:.08em;
+            text-transform:uppercase;
+            font-weight:700;
+            color:#A07B65;
+            margin-bottom:8px;
+        }
+        footer.footer .footer-powered-logos{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            flex-wrap:wrap;
+        }
+        footer.footer .footer-partner-badge{
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            background:#FFF7ED;
+            border:1px solid #FED7AA;
+            padding:4px 10px 4px 6px;
+            border-radius:24px;
+        }
+        footer.footer .footer-partner-img{
+            height:28px;
+            width:28px;
+            border-radius:50%;
+            object-fit:cover;
+            background:#FFFFFF;
+            box-shadow:0 1px 3px rgba(0,0,0,0.1);
+            display:block;
+        }
+        footer.footer .footer-partner-img.futurenxt-img{
+            border-radius:4px;
+            width:auto;
+            height:22px;
+            padding:1px 4px;
+            object-fit:contain;
+        }
+        footer.footer .footer-partner-name{
+            font-size:.8rem;
+            font-weight:700;
+            color:#7C2D5C;
+        }
+        footer.footer .footer-powered-amp{
+            color:#A07B65;
+            font-weight:700;
+            font-size:.85rem;
+        }
+
         footer.footer .footer-col-heading{
             font-size:.78rem;
             font-weight:800;
@@ -195,6 +251,7 @@
             footer.footer .footer-col-heading,
             footer.footer .footer-col{ text-align:center; }
             footer.footer .footer-bottom{ justify-content:center; text-align:center; }
+            footer.footer .footer-powered-logos{ justify-content:center; }
         }
 
         /* Dark mode */
@@ -213,6 +270,14 @@
             footer.footer .footer-contact li{ color:#A8917E; }
             footer.footer .footer-contact a{ color:#FF9F45; }
             footer.footer .footer-contact a:hover{ color:#FFB871; }
+            footer.footer .footer-powered{ border-top-color:#3A2A1F; }
+            footer.footer .footer-powered-label{ color:#8C7565; }
+            footer.footer .footer-partner-badge{
+                background:#261A12;
+                border-color:#4A3222;
+            }
+            footer.footer .footer-partner-name{ color:#FFD199; }
+            footer.footer .footer-powered-amp{ color:#8C7565; }
             footer.footer .footer-bottom{
                 border-top-color:#3A2A1F;
                 color:#A8917E;
@@ -240,6 +305,10 @@
                 </p>
                 <ul class="footer-contact">
                     <li>
+                        <span class="footer-contact-icon">📞</span>
+                        <a href="tel:9801506511">+91 98015 06511</a>
+                    </li>
+                    <li>
                         <span class="footer-contact-icon">📧</span>
                         <a href="mailto:info@infintylearning.net">info@infintylearning.net</a>
                     </li>
@@ -248,6 +317,21 @@
                         <a href="https://infintylearning.net" target="_blank" rel="noopener">infintylearning.net</a>
                     </li>
                 </ul>
+
+                <div class="footer-powered">
+                    <span class="footer-powered-label">POWERED BY</span>
+                    <div class="footer-powered-logos">
+                        <div class="footer-partner-badge" title="Agents Of Change">
+                            <img src="/assets/img/agents-of-change.jpg" alt="Agents Of Change" class="footer-partner-img">
+                            <span class="footer-partner-name">Agents Of Change</span>
+                        </div>
+                        <span class="footer-powered-amp">&amp;</span>
+                        <div class="footer-partner-badge" title="FutureNXT">
+                            <img src="/assets/img/futurenxt-logo.jpg" alt="FutureNXT" class="footer-partner-img futurenxt-img">
+                            <span class="footer-partner-name">FutureNXT</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Column 2: Platform links -->
@@ -276,7 +360,7 @@
         </div>
 
         <div class="footer-bottom">
-            <p>© <?= date('Y') ?> Infinity Learning. All rights reserved.</p>
+            <p>© <?= date('Y') ?> Infinity Learning · Powered by <strong>Agents Of Change</strong> &amp; <strong>FutureNXT</strong>. All rights reserved.</p>
             <p class="footer-bottom-links">
                 <a href="/privacy">Privacy</a>
                 <span class="footer-dot">·</span>

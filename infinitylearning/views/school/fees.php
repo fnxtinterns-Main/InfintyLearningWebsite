@@ -7,10 +7,12 @@ use App\Database;
 
 $schoolId = Auth::requireSchoolAdmin();
 $school = School::find($schoolId);
+$isAiverse = School::isAiverse($schoolId);
+$aiverseCourses = $isAiverse ? \App\Aiverse::getCourses('all') : [];
 
 $db = Database::connect();
 $students = $db->query("
-    SELECT u.id, s.full_name, s.current_class, u.phone, u.email
+    SELECT u.id, s.full_name, s.current_class, s.city, s.district, s.state, u.phone, u.email
     FROM users u
     JOIN students s ON s.user_id = u.id
     WHERE u.school_id = {$schoolId} AND u.status = 'active'
@@ -41,7 +43,7 @@ foreach ($fees as $f) {
     }
 }
 
-$pageTitle = 'Student Fee Management — ' . $school['name'];
+$pageTitle = ($isAiverse ? 'Course Fee Management — ' : 'Student Fee Management — ') . ($school['name'] ?? 'Infinity Learning');
 require VIEW_PATH . '/layouts/header.php';
 ?>
 <div class="admin-shell">
@@ -49,11 +51,17 @@ require VIEW_PATH . '/layouts/header.php';
     <div>
         <div class="dashboard-header" style="flex-wrap:wrap; gap:16px;">
             <div>
-                <span class="kicker">💳 ACCOUNTS & TUITION</span>
-                <h1 style="margin:2px 0 0;">Student Fee Management</h1>
-                <p class="muted">Track monthly tuition, generate digital fee receipts, and send 1-click WhatsApp reminders to parents.</p>
+                <span class="kicker"><?= $isAiverse ? '🤖 AIVERSE COURSE REVENUE & BILLING' : '💳 ACCOUNTS & TUITION' ?></span>
+                <h1 style="margin:2px 0 0;"><?= $isAiverse ? 'AI Course Fees & Payments' : 'Student Fee Management' ?></h1>
+                <p class="muted">
+                    <?= $isAiverse 
+                        ? 'Track AI course enrollments, verify scholar payments, and issue official digital receipts.' 
+                        : 'Track monthly tuition, generate digital fee receipts, and send 1-click WhatsApp reminders to parents.' ?>
+                </p>
             </div>
-            <button type="button" class="btn btn-primary" onclick="openNewFeeModal()">+ Record / Assign Fee</button>
+            <button type="button" class="btn btn-primary" onclick="openNewFeeModal()">
+                <?= $isAiverse ? '+ Enroll Scholar / Assign Fee' : '+ Record / Assign Fee' ?>
+            </button>
         </div>
 
         <?php if ($msg = \App\Session::flash('success')): ?>
@@ -130,9 +138,9 @@ require VIEW_PATH . '/layouts/header.php';
                     <table class="table" style="width:100%; border-collapse:collapse; font-size:14px;">
                         <thead>
                             <tr style="border-bottom:2px solid var(--il-border); text-align:left; background:var(--surface-0); color:var(--il-muted); font-size:12px; text-transform:uppercase;">
-                                <th style="padding:12px 18px;">Student</th>
-                                <th style="padding:12px 18px;">Class & Batch</th>
-                                <th style="padding:12px 18px;">Type & Month</th>
+                                <th style="padding:12px 18px;"><?= $isAiverse ? 'Scholar' : 'Student' ?></th>
+                                <th style="padding:12px 18px;"><?= $isAiverse ? 'District & Location' : 'Class & Batch' ?></th>
+                                <th style="padding:12px 18px;"><?= $isAiverse ? 'Course Program' : 'Type & Month' ?></th>
                                 <th style="padding:12px 18px;">Amount Due</th>
                                 <th style="padding:12px 18px;">Paid</th>
                                 <th style="padding:12px 18px;">Status</th>
@@ -143,20 +151,26 @@ require VIEW_PATH . '/layouts/header.php';
                             <?php foreach ($fees as $f): ?>
                                 <?php
                                     $dueBalance = (float)$f['amount_due'] - (float)$f['discount'] - (float)$f['amount_paid'];
-                                    $whatsappMsg = urlencode("Hello! This is a reminder from {$school['name']} regarding {$f['student_name']}'s fee for {$f['fee_month']}. Pending amount: ₹" . number_format($dueBalance, 2) . ". Kindly clear the dues.");
+                                    $progTitle = !empty($f['notes']) ? $f['notes'] : ($isAiverse ? 'AI Specialization Track' : $f['fee_month']);
+                                    $whatsappMsg = urlencode("Hello! This is a reminder from {$school['name']} regarding {$f['student_name']}'s course fee for {$progTitle}. Pending amount: ₹" . number_format($dueBalance, 2) . ". Kindly complete the payment.");
                                     $waLink = !empty($f['student_phone']) ? "https://wa.me/" . preg_replace('/[^0-9]/', '', $f['student_phone']) . "?text={$whatsappMsg}" : null;
                                 ?>
                                 <tr style="border-bottom:1px solid var(--il-border);">
                                     <td style="padding:12px 18px;">
                                         <strong><?= Helper::e($f['student_name']) ?></strong>
-                                        <div class="muted" style="font-size:12px;"><?= Helper::e($f['student_phone']) ?></div>
+                                        <div class="muted" style="font-size:12px;"><?= Helper::e($f['student_phone'] ?: $f['student_email']) ?></div>
                                     </td>
                                     <td style="padding:12px 18px;">
-                                        <?= Helper::e($f['current_class'] ?: 'Class') ?>
-                                        <div class="muted" style="font-size:12px;"><?= Helper::e($f['batch_name'] ?: 'General') ?></div>
+                                        <?php if ($isAiverse): ?>
+                                            <div><?= Helper::e($f['city'] ?? 'Scholar') ?></div>
+                                            <div class="muted" style="font-size:12px;"><?= Helper::e(($f['district'] ?? '') . (!empty($f['state']) ? ', ' . $f['state'] : '')) ?></div>
+                                        <?php else: ?>
+                                            <?= Helper::e($f['current_class'] ?: 'Class') ?>
+                                            <div class="muted" style="font-size:12px;"><?= Helper::e($f['batch_name'] ?: 'General') ?></div>
+                                        <?php endif; ?>
                                     </td>
                                     <td style="padding:12px 18px;">
-                                        <span class="badge" style="background:#F1F5F9; color:#475569; text-transform:capitalize;"><?= Helper::e($f['fee_type']) ?></span>
+                                        <strong><?= Helper::e($progTitle) ?></strong>
                                         <div class="muted" style="font-size:12px;"><?= Helper::e($f['fee_month']) ?></div>
                                     </td>
                                     <td style="padding:12px 18px; font-family:'JetBrains Mono', monospace; font-weight:700;">
@@ -190,6 +204,17 @@ require VIEW_PATH . '/layouts/header.php';
                                                     🧾 Receipt
                                                 </a>
                                             <?php endif; ?>
+                                            <?php if ($isAiverse): ?>
+                                                <form method="POST" action="/school/courses/unenroll" style="margin:0; display:inline;" onsubmit="return confirm('Remove scholar <?= Helper::e(addslashes($f['student_name'])) ?> from this course enrollment?');">
+                                                    <input type="hidden" name="csrf" value="<?= Helper::e(\App\Session::csrfToken()) ?>">
+                                                    <input type="hidden" name="fee_id" value="<?= (int)$f['id'] ?>">
+                                                    <input type="hidden" name="student_user_id" value="<?= (int)$f['student_user_id'] ?>">
+                                                    <input type="hidden" name="redirect_to" value="/school/fees">
+                                                    <button type="submit" class="btn btn-xs btn-outline-danger" style="font-size:10.5px; padding:3px 6px; color:#DC2626; border-color:#FECACA;" title="Remove Scholar from Course">
+                                                        Drop ✕
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                 </tr>
@@ -206,7 +231,7 @@ require VIEW_PATH . '/layouts/header.php';
 <div id="newFeeModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9999; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(5px);">
     <div style="background:#fff; border-radius:18px; max-width:540px; width:100%; padding:28px; box-shadow:0 24px 60px rgba(0,0,0,0.3);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
-            <h3 style="margin:0; font-size:19px;">Assign Fee to Student</h3>
+            <h3 style="margin:0; font-size:19px;"><?= $isAiverse ? 'Enroll Scholar in AI Course / Assign Fee' : 'Assign Fee to Student' ?></h3>
             <button type="button" class="btn btn-sm btn-ghost" onclick="closeNewFeeModal()">&times;</button>
         </div>
 
@@ -216,43 +241,62 @@ require VIEW_PATH . '/layouts/header.php';
             <input type="hidden" name="csrf" value="<?= Helper::e(\App\Session::csrfToken()) ?>">
 
             <div style="margin-bottom:14px;">
-                <label class="form-label">Select Student *</label>
+                <label class="form-label">Select <?= $isAiverse ? 'Scholar' : 'Student' ?> *</label>
                 <select name="student_user_id" class="form-control" required>
                     <?php foreach ($students as $st): ?>
-                        <option value="<?= (int)$st['id'] ?>"><?= Helper::e($st['full_name']) ?> (<?= Helper::e($st['current_class']) ?>)</option>
+                        <option value="<?= (int)$st['id'] ?>">
+                            <?= Helper::e($st['full_name']) ?> (<?= Helper::e($isAiverse ? ($st['city'] ?? $st['phone']) : $st['current_class']) ?>)
+                        </option>
                     <?php endforeach; ?>
                 </select>
             </div>
 
-            <div class="grid grid-2" style="margin-bottom:14px;">
-                <div>
-                    <label class="form-label">Fee Month *</label>
-                    <select name="fee_month" class="form-control" required>
-                        <?php foreach (['January','February','March','April','May','June','July','August','September','October','November','December'] as $m): ?>
-                            <option value="<?= $m ?>" <?= date('F') === $m ? 'selected' : '' ?>><?= $m ?></option>
+            <?php if ($isAiverse): ?>
+                <div style="margin-bottom:14px;">
+                    <label class="form-label">Select AI Course Track *</label>
+                    <select name="course_select" id="aiverseCourseSelect" class="form-control" onchange="onCourseSelectChange(this)" required>
+                        <option value="">-- Choose AI Course --</option>
+                        <?php foreach ($aiverseCourses as $ac): ?>
+                            <option value="<?= (int)$ac['id'] ?>" data-fee="<?= (float)$ac['fee'] ?>" data-title="<?= Helper::e($ac['title']) ?>">
+                                <?= Helper::e($ac['title']) ?> (₹<?= number_format((float)$ac['fee'], 2) ?>)
+                            </option>
                         <?php endforeach; ?>
                     </select>
+                    <input type="hidden" name="notes" id="aiverseCourseNotes" value="AI Course Enrollment">
+                    <input type="hidden" name="fee_type" value="activity">
+                    <input type="hidden" name="fee_month" value="<?= date('F Y') ?>">
                 </div>
-                <div>
-                    <label class="form-label">Fee Type</label>
-                    <select name="fee_type" class="form-control">
-                        <option value="tuition">Tuition Fee</option>
-                        <option value="chess_academy">Chess Academy Fee</option>
-                        <option value="admission">Admission Fee</option>
-                        <option value="transport">Transport Fee</option>
-                        <option value="exam">Exam Fee</option>
-                    </select>
+            <?php else: ?>
+                <div class="grid grid-2" style="margin-bottom:14px;">
+                    <div>
+                        <label class="form-label">Fee Month *</label>
+                        <select name="fee_month" class="form-control" required>
+                            <?php foreach (['January','February','March','April','May','June','July','August','September','October','November','December'] as $m): ?>
+                                <option value="<?= $m ?>" <?= date('F') === $m ? 'selected' : '' ?>><?= $m ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Fee Type</label>
+                        <select name="fee_type" class="form-control">
+                            <option value="tuition">Tuition Fee</option>
+                            <option value="chess_academy">Chess Academy Fee</option>
+                            <option value="admission">Admission Fee</option>
+                            <option value="transport">Transport Fee</option>
+                            <option value="exam">Exam Fee</option>
+                        </select>
+                    </div>
                 </div>
-            </div>
+            <?php endif; ?>
 
             <div class="grid grid-2" style="margin-bottom:14px;">
                 <div>
                     <label class="form-label">Amount Due (₹) *</label>
-                    <input type="number" step="0.5" name="amount_due" class="form-control" value="2500" required>
+                    <input type="number" step="0.5" name="amount_due" id="feeAmountDueInput" class="form-control" value="<?= $isAiverse ? '4999' : '2500' ?>" required>
                 </div>
                 <div>
                     <label class="form-label">Due Date</label>
-                    <input type="date" name="due_date" class="form-control" value="<?= date('Y-m-10', strtotime('+1 month')) ?>">
+                    <input type="date" name="due_date" class="form-control" value="<?= date('Y-m-d', strtotime('+14 days')) ?>">
                 </div>
             </div>
 
@@ -307,6 +351,16 @@ require VIEW_PATH . '/layouts/header.php';
 <script>
 function openNewFeeModal() { document.getElementById('newFeeModal').style.display = 'flex'; }
 function closeNewFeeModal() { document.getElementById('newFeeModal').style.display = 'none'; }
+function onCourseSelectChange(sel) {
+    var opt = sel.options[sel.selectedIndex];
+    if (opt && opt.dataset.fee) {
+        document.getElementById('feeAmountDueInput').value = opt.dataset.fee;
+        var noteInput = document.getElementById('aiverseCourseNotes');
+        if (noteInput) {
+            noteInput.value = 'Course Enrollment: ' + opt.dataset.title;
+        }
+    }
+}
 function openPaymentModal(id, name, due) {
     document.getElementById('payFeeId').value = id;
     document.getElementById('payStudentText').textContent = 'Student: ' + name + ' • Balance Due: ₹' + due.toFixed(2);

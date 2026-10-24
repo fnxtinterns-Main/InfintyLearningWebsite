@@ -329,7 +329,7 @@ require VIEW_PATH . '/layouts/header.php';
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                     <div style="font-size:13px; font-weight:700; color:var(--il-text);">💳 Monthly Fee Status</div>
                     <?php if ($latestFee): ?>
-                        <a href="/school/fee-receipt?fee_id=<?= (int)$latestFee['id'] ?>" style="font-size:11px; color:var(--primary); text-decoration:none; font-weight:600;">Latest Receipt →</a>
+                        <a href="/student/fee-receipt?id=<?= (int)$latestFee['id'] ?>" target="_blank" style="font-size:11px; color:var(--primary); text-decoration:none; font-weight:600;">Latest Receipt →</a>
                     <?php endif; ?>
                 </div>
                 <?php if ($latestFee): ?>
