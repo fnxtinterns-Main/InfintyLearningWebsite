@@ -209,6 +209,18 @@ final class StudentProfile
             $student['recent_doubts'] = [];
         }
 
+        // --- Mentor details ---
+        $student['mentor_name'] = null;
+        if (!empty($student['mentor_user_id'])) {
+            try {
+                $mStmt = $db->prepare("SELECT full_name, email FROM users WHERE id = ?");
+                $mStmt->execute([(int)$student['mentor_user_id']]);
+                if ($mRow = $mStmt->fetch()) {
+                    $student['mentor_name'] = $mRow['full_name'] ?: $mRow['email'];
+                }
+            } catch (\Throwable $e) {}
+        }
+
         return $student;
     }
 

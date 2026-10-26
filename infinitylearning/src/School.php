@@ -196,9 +196,63 @@ final class School
             if (!in_array('pincode', $studentCols, true)) {
                 $db->exec("ALTER TABLE `students` ADD COLUMN `pincode` varchar(20) NULL");
             }
+            if (!in_array('registration_number', $studentCols, true)) {
+                $db->exec("ALTER TABLE `students` ADD COLUMN `registration_number` varchar(100) NULL AFTER `current_class`");
+            }
+            if (!in_array('roll_number', $studentCols, true)) {
+                $db->exec("ALTER TABLE `students` ADD COLUMN `roll_number` varchar(50) NULL AFTER `registration_number`");
+            }
+            if (!in_array('mentor_user_id', $studentCols, true)) {
+                $db->exec("ALTER TABLE `students` ADD COLUMN `mentor_user_id` bigint(20) UNSIGNED NULL");
+            }
+
+            // 3. teachers table columns
+            $teacherCols = $db->query("SHOW COLUMNS FROM `teachers`")->fetchAll(\PDO::FETCH_COLUMN);
+            if (!in_array('teacher_code', $teacherCols, true)) {
+                $db->exec("ALTER TABLE `teachers` ADD COLUMN `teacher_code` varchar(50) NULL AFTER `user_id`");
+            }
+            if (!in_array('registration_number', $teacherCols, true)) {
+                $db->exec("ALTER TABLE `teachers` ADD COLUMN `registration_number` varchar(100) NULL AFTER `teacher_code`");
+            }
+            if (!in_array('class_teacher_grade', $teacherCols, true)) {
+                $db->exec("ALTER TABLE `teachers` ADD COLUMN `class_teacher_grade` varchar(50) NULL");
+            }
+            if (!in_array('class_teacher_section', $teacherCols, true)) {
+                $db->exec("ALTER TABLE `teachers` ADD COLUMN `class_teacher_section` varchar(20) NULL");
+            }
         } catch (\Throwable $e) {
             error_log('ensureSchema error: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Generate unique teacher ID starting with school name first letter (e.g. G12344).
+     */
+    public static function generateTeacherCode(?string $schoolName): string
+    {
+        $firstLetter = 'T';
+        $trimmed = trim((string)$schoolName);
+        if ($trimmed !== '') {
+            $cleaned = preg_replace('/[^A-Za-z]/', '', $trimmed);
+            if (!empty($cleaned)) {
+                $firstLetter = strtoupper(substr($cleaned, 0, 1));
+            }
+        }
+        try {
+            $db = Database::connect();
+            for ($i = 0; $i < 10; $i++) {
+                $digits = str_pad((string)random_int(10000, 99999), 5, '0', STR_PAD_LEFT);
+                $code = $firstLetter . $digits;
+                $stmt = $db->prepare("SELECT id FROM teachers WHERE teacher_code = ? LIMIT 1");
+                $stmt->execute([$code]);
+                if (!$stmt->fetch()) {
+                    return $code;
+                }
+            }
+        } catch (\Throwable $e) {
+            // fallback
+        }
+        return $firstLetter . random_int(10000, 99999);
     }
 
     public static function isAiverse(?int $schoolId): bool
@@ -473,6 +527,7 @@ final class School
 
     public static function pendingUsers(int $schoolId, ?string $role = null): array
     {
+        self::ensureSchema();
         $db = Database::connect();
         $sql = "
             SELECT u.id, u.email, u.phone, u.role, u.status, u.created_at,
@@ -482,10 +537,16 @@ final class School
                    COALESCE(s.gender,    t.gender)         AS gender,
                    COALESCE(s.profile_image, t.profile_image) AS avatar,
                    s.age, s.current_class, s.school_board, s.academic_year, s.interests,
+                   s.registration_number AS registration_number, s.roll_number, s.mentor_user_id,
+                   COALESCE(m.full_name, mu.email)         AS mentor_name,
+                   t.teacher_code, t.registration_number   AS teacher_registration_number,
+                   t.class_teacher_grade, t.class_teacher_section,
                    t.expert_field, t.years_experience, t.additional_expertise, t.bio
             FROM users u
             LEFT JOIN students s ON s.user_id = u.id
             LEFT JOIN teachers t ON t.user_id = u.id
+            LEFT JOIN users mu ON mu.id = s.mentor_user_id
+            LEFT JOIN teachers m ON m.user_id = mu.id
             WHERE u.school_id = ? AND u.status = 'pending'
         ";
         $params = [$schoolId];
@@ -501,6 +562,7 @@ final class School
 
     public static function users(int $schoolId, ?string $role = null, ?string $status = null): array
     {
+        self::ensureSchema();
         $db = Database::connect();
         $sql = "
             SELECT u.id, u.email, u.phone, u.role, u.status, u.created_at, u.last_login_at,
@@ -510,10 +572,16 @@ final class School
                    COALESCE(s.gender,    t.gender)         AS gender,
                    COALESCE(s.profile_image, t.profile_image) AS avatar,
                    s.age, s.current_class, s.school_board, s.academic_year, s.interests,
+                   s.registration_number AS registration_number, s.roll_number, s.mentor_user_id,
+                   COALESCE(m.full_name, mu.email)         AS mentor_name,
+                   t.teacher_code, t.registration_number   AS teacher_registration_number,
+                   t.class_teacher_grade, t.class_teacher_section,
                    t.expert_field, t.years_experience, t.additional_expertise, t.bio
             FROM users u
             LEFT JOIN students s ON s.user_id = u.id
             LEFT JOIN teachers t ON t.user_id = u.id
+            LEFT JOIN users mu ON mu.id = s.mentor_user_id
+            LEFT JOIN teachers m ON m.user_id = mu.id
             WHERE u.school_id = ?
         ";
         $params = [$schoolId];
@@ -528,7 +596,80 @@ final class School
         $sql .= " ORDER BY u.created_at DESC LIMIT 500";
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
-        return $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+
+        // Ensure every teacher has a teacher_code populated
+        if ($role === 'teacher' || $role === null) {
+            $sch = null;
+            foreach ($rows as &$r) {
+                if ($r['role'] === 'teacher' && empty($r['teacher_code'])) {
+                    if (!$sch) $sch = self::find($schoolId);
+                    $newCode = self::generateTeacherCode($sch['name'] ?? null);
+                    try {
+                        $db->prepare("UPDATE teachers SET teacher_code = ? WHERE user_id = ?")->execute([$newCode, (int)$r['id']]);
+                        $r['teacher_code'] = $newCode;
+                    } catch (\Throwable $e) {}
+                }
+            }
+        }
+
+        return $rows;
+    }
+
+    public static function assignClassTeacher(int $teacherUserId, int $schoolId, ?string $grade, ?string $section = null): bool
+    {
+        self::ensureSchema();
+        $db = Database::connect();
+        $chk = $db->prepare("SELECT id FROM users WHERE id = ? AND school_id = ? AND role = 'teacher' LIMIT 1");
+        $chk->execute([$teacherUserId, $schoolId]);
+        if (!$chk->fetch()) return false;
+
+        $g = trim((string)$grade) ?: null;
+        $s = trim((string)$section) ?: null;
+
+        $stmt = $db->prepare("
+            UPDATE teachers SET class_teacher_grade = ?, class_teacher_section = ?
+            WHERE user_id = ?
+        ");
+        $stmt->execute([$g, $s, $teacherUserId]);
+        Audit::log('school.class_teacher_assigned', 'teacher', $teacherUserId, [
+            'grade' => $g,
+            'section' => $s,
+            'school_id' => $schoolId,
+        ]);
+        return true;
+    }
+
+    public static function assignMentor(array $studentUserIds, ?int $mentorUserId, int $schoolId): int
+    {
+        self::ensureSchema();
+        $db = Database::connect();
+        $validMentor = null;
+        if (!empty($mentorUserId)) {
+            $mChk = $db->prepare("SELECT id FROM users WHERE id = ? AND school_id = ? AND role = 'teacher' LIMIT 1");
+            $mChk->execute([$mentorUserId, $schoolId]);
+            if ($mChk->fetch()) {
+                $validMentor = $mentorUserId;
+            }
+        }
+
+        $count = 0;
+        $upd = $db->prepare("UPDATE students SET mentor_user_id = ? WHERE user_id = ?");
+        foreach ($studentUserIds as $sid) {
+            $sid = (int)$sid;
+            if ($sid <= 0) continue;
+            $sChk = $db->prepare("SELECT id FROM users WHERE id = ? AND school_id = ? AND role = 'student' LIMIT 1");
+            $sChk->execute([$sid, $schoolId]);
+            if ($sChk->fetch()) {
+                $upd->execute([$validMentor, $sid]);
+                $count++;
+            }
+        }
+        Audit::log('school.mentor_assigned', 'mentor', $mentorUserId ?? 0, [
+            'student_count' => $count,
+            'school_id' => $schoolId,
+        ]);
+        return $count;
     }
 
     public static function approveUser(int $userId, int $schoolId, int $byUserId): bool

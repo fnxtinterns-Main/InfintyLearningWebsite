@@ -157,11 +157,11 @@ final class Lesson
      * @param int|null $viewerUserId     when set, lessons scoped to a batch are only shown if
      *                                   the viewer is the creator OR is enrolled in that batch.
      */
-    public static function list(array $opts = [], ?int $viewerSchoolId = null, ?int $viewerUserId = null): array
+    public static function list(array $opts = [], ?int $viewerSchoolId = null, ?int $viewerUserId = null, ?string $viewerRole = null): array
     {
         $db = Database::connect();
         $sql = "SELECT l.*, s.name AS subject_name, s.color AS subject_color,
-                       sc.name AS school_name, b.name AS batch_name
+                       sc.name AS school_name, b.name AS batch_name, b.class_level AS batch_class_level
                 FROM lessons l
                 JOIN subjects s ON s.id = l.subject_id
                 LEFT JOIN schools sc ON sc.id = l.school_id
@@ -179,17 +179,42 @@ final class Lesson
             $sql .= " AND l.school_id IS NULL";
         }
 
-        // ---- Scope: batch (only when a student viewer is passed) ----
+        // ---- Scope: batch & audience ----
         if ($viewerUserId) {
-            // Show lessons with no batch OR lessons from batches the viewer is a student of
-            // OR lessons created by the viewer
-            $sql .= " AND (
-                l.batch_id IS NULL
-                OR l.created_by = ?
-                OR l.batch_id IN (SELECT batch_id FROM batch_students WHERE student_user_id = ?)
-            )";
-            $params[] = $viewerUserId;
-            $params[] = $viewerUserId;
+            if ($viewerRole === 'student') {
+                // Students see:
+                // 1) All open lessons (no specific batch required)
+                // 2) Lessons in batches they are enrolled in
+                // 3) Lessons in batches matching their class level
+                $sql .= " AND (
+                    l.batch_id IS NULL
+                    OR l.created_by = ?
+                    OR l.batch_id IN (
+                        SELECT batch_id FROM batch_students 
+                        WHERE student_user_id = ? 
+                           OR student_user_id IN (SELECT id FROM students WHERE user_id = ?)
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM batches b2
+                        JOIN students st2 ON (st2.current_class = b2.class_level OR st2.current_class LIKE CONCAT('%', b2.class_level, '%'))
+                        WHERE b2.id = l.batch_id AND (st2.user_id = ? OR st2.id = ?)
+                    )
+                )";
+                $params[] = $viewerUserId;
+                $params[] = $viewerUserId;
+                $params[] = $viewerUserId;
+                $params[] = $viewerUserId;
+                $params[] = $viewerUserId;
+            } elseif ($viewerRole === 'teacher') {
+                // Teachers see all lessons in their school, plus lessons they created
+                // (no restrictive batch filter)
+            } elseif ($viewerRole === 'admin' || $viewerRole === 'school_admin') {
+                // School admins see all lessons in their school
+            } else {
+                // Generic / other
+                $sql .= " AND (l.batch_id IS NULL OR l.created_by = ?)";
+                $params[] = $viewerUserId;
+            }
         }
 
         if (!empty($opts['subject_id'])) { $sql .= " AND l.subject_id = ?"; $params[] = (int)$opts['subject_id']; }
@@ -212,16 +237,44 @@ final class Lesson
     {
         $scope = null;
         $userId = null;
+        $role = null;
         if (Auth::check()) {
             $u = Auth::user();
             $userId = (int)$u['id'];
+            $role = $u['role'] ?? Auth::role();
             if (Auth::isSuperAdmin()) {
                 $scope = -1;
             } elseif (!empty($u['school_id'])) {
                 $scope = (int)$u['school_id'];
+            } else {
+                // Resolve school_id from student/teacher profile if not set in users
+                try {
+                    $db = Database::connect();
+                    if ($role === 'student') {
+                        $sQ = $db->prepare("
+                            SELECT sc.id AS school_id
+                            FROM students s
+                            JOIN schools sc ON sc.name = s.school_name
+                            WHERE s.user_id = ? LIMIT 1
+                        ");
+                        $sQ->execute([$userId]);
+                        $foundId = $sQ->fetchColumn();
+                        if ($foundId) $scope = (int)$foundId;
+                    } elseif ($role === 'teacher') {
+                        $tQ = $db->prepare("
+                            SELECT sc.id AS school_id
+                            FROM teachers t
+                            JOIN schools sc ON sc.name = t.school_name
+                            WHERE t.user_id = ? LIMIT 1
+                        ");
+                        $tQ->execute([$userId]);
+                        $foundId = $tQ->fetchColumn();
+                        if ($foundId) $scope = (int)$foundId;
+                    }
+                } catch (\Throwable $e) {}
             }
         }
-        return self::list($opts, $scope, $userId);
+        return self::list($opts, $scope, $userId, $role);
     }
 
     /** Lessons a teacher has created (own page). */
@@ -232,33 +285,75 @@ final class Lesson
 
     public static function canView(array $lesson, ?array $viewer): bool
     {
-        // Global lesson → always visible
-        if (empty($lesson['school_id'])) {
-            // But if batch-scoped and viewer is not a member and not creator → still hidden
-            if (!empty($lesson['batch_id']) && $viewer) {
-                if ((int)($lesson['created_by'] ?? 0) === (int)$viewer['id']) return true;
-                $db = Database::connect();
-                $q = $db->prepare("SELECT 1 FROM batch_students WHERE batch_id=? AND student_user_id=? LIMIT 1");
-                $q->execute([(int)$lesson['batch_id'], (int)$viewer['id']]);
-                return (bool)$q->fetch();
-            }
+        // Global lesson with no batch → always visible
+        if (empty($lesson['school_id']) && empty($lesson['batch_id'])) {
             return true;
         }
 
-        if (!$viewer) return false;
+        if (!$viewer) return empty($lesson['school_id']) && empty($lesson['batch_id']);
         if (Auth::isSuperAdmin()) return true;
-        if (!empty($viewer['school_id']) && (int)$viewer['school_id'] === (int)$lesson['school_id']) {
-            if (!empty($lesson['batch_id'])) {
-                // Same school but batch-scoped
-                if ((int)($lesson['created_by'] ?? 0) === (int)$viewer['id']) return true;
-                $db = Database::connect();
-                $q = $db->prepare("SELECT 1 FROM batch_students WHERE batch_id=? AND student_user_id=? LIMIT 1");
-                $q->execute([(int)$lesson['batch_id'], (int)$viewer['id']]);
-                return (bool)$q->fetch();
-            }
+
+        $viewerRole = $viewer['role'] ?? '';
+        $viewerId   = (int)$viewer['id'];
+
+        // If creator
+        if ((int)($lesson['created_by'] ?? 0) === $viewerId) {
             return true;
         }
-        return false;
+
+        $viewerSchoolId = !empty($viewer['school_id']) ? (int)$viewer['school_id'] : null;
+        if (!$viewerSchoolId) {
+            try {
+                $db = Database::connect();
+                $sQ = $db->prepare("
+                    SELECT sc.id FROM students s
+                    JOIN schools sc ON sc.name = s.school_name
+                    WHERE s.user_id = ? LIMIT 1
+                ");
+                $sQ->execute([$viewerId]);
+                $viewerSchoolId = (int)$sQ->fetchColumn() ?: null;
+            } catch (\Throwable $e) {}
+        }
+
+        // Check school match if lesson is school-specific
+        if (!empty($lesson['school_id'])) {
+            if (!$viewerSchoolId || $viewerSchoolId !== (int)$lesson['school_id']) {
+                return false;
+            }
+        }
+
+        // If school admin or teacher of this school
+        if ($viewerRole === 'admin' || $viewerRole === 'school_admin' || $viewerRole === 'teacher') {
+            return true;
+        }
+
+        // If batch is specified, check enrollment or matching class
+        if (!empty($lesson['batch_id'])) {
+            $db = Database::connect();
+            $q = $db->prepare("
+                SELECT 1 FROM batch_students bs
+                WHERE bs.batch_id = ? AND (
+                    bs.student_user_id = ? 
+                    OR bs.student_user_id IN (SELECT id FROM students WHERE user_id = ?)
+                )
+                LIMIT 1
+            ");
+            $q->execute([(int)$lesson['batch_id'], $viewerId, $viewerId]);
+            if ($q->fetch()) return true;
+
+            $q2 = $db->prepare("
+                SELECT 1 FROM batches b
+                JOIN students s ON (s.current_class = b.class_level OR s.current_class LIKE CONCAT('%', b.class_level, '%'))
+                WHERE b.id = ? AND (s.user_id = ? OR s.id = ?)
+                LIMIT 1
+            ");
+            $q2->execute([(int)$lesson['batch_id'], $viewerId, $viewerId]);
+            if ($q2->fetch()) return true;
+
+            return false;
+        }
+
+        return true;
     }
 
     public static function subjects(): array

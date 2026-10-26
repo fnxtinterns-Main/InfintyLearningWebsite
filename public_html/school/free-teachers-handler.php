@@ -40,6 +40,11 @@ try {
         'busy' => $data['busy']
     ]);
 } catch (\Throwable $e) {
-    http_response_code(500);
-    echo json_encode(['error' => $e->getMessage()]);
+    error_log('free-teachers-handler error: ' . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage(),
+        'free' => [],
+        'busy' => []
+    ]);
 }

@@ -186,9 +186,15 @@ require VIEW_PATH . '/layouts/header.php';
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label>Current Class *</label>
-                            <input type="text" name="current_class" id="currentClassInput" required value="<?= Helper::old('current_class') ?>" placeholder="e.g. Grade 8">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Current Class *</label>
+                                <input type="text" name="current_class" id="currentClassInput" required value="<?= Helper::old('current_class') ?>" placeholder="e.g. Grade 8">
+                            </div>
+                            <div class="form-group">
+                                <label>Registration Number *</label>
+                                <input type="text" name="registration_number" id="regNumberInput" required value="<?= Helper::old('registration_number') ?>" placeholder="e.g. REG-2026-001">
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -244,9 +250,14 @@ require VIEW_PATH . '/layouts/header.php';
                             <input type="text" name="expert_field" required value="<?= Helper::old('expert_field') ?>" placeholder="e.g. Mathematics">
                         </div>
                         <div class="form-group">
-                            <label>Years of Experience</label>
-                            <input type="number" name="years_experience" min="0" max="60" value="<?= Helper::old('years_experience') ?>">
+                            <label>Registration Number *</label>
+                            <input type="text" name="registration_number" required value="<?= Helper::old('registration_number') ?>" placeholder="e.g. T-REG-1049">
                         </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Years of Experience</label>
+                        <input type="number" name="years_experience" min="0" max="60" value="<?= Helper::old('years_experience') ?>">
                     </div>
 
                     <div class="form-group">

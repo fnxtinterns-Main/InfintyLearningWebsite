@@ -28,7 +28,7 @@ if ($action === 'resend') {
         Session::flash('error', 'Please wait before requesting a new OTP.');
         Helper::redirect('/verify-otp');
     }
-    if (!RateLimiter::hit($phone, 'otp_resend', 3, 3600)) {
+    if (!RateLimiter::hit($phone, 'otp_resend', 50, 3600)) {
         Session::flash('error', 'Too many resend attempts.');
         Helper::redirect('/verify-otp');
     }
@@ -48,7 +48,7 @@ if ($action === 'resend') {
 
 // ---------------- VERIFY ----------------
 if ($action === 'verify') {
-    if (!RateLimiter::hit($phone, 'otp_verify', 10, 900)) {
+    if (!RateLimiter::hit($phone, 'otp_verify', 50, 900)) {
         Session::flash('error', 'Too many attempts. Try again later.');
         Helper::redirect('/verify-otp');
     }
@@ -91,22 +91,28 @@ if ($action === 'verify') {
             $studentCols = $db->query("SHOW COLUMNS FROM students")->fetchAll(\PDO::FETCH_COLUMN);
             $hasDistrict = in_array('district', $studentCols, true);
             $hasPincode  = in_array('pincode', $studentCols, true);
+            $hasRegNo    = in_array('registration_number', $studentCols, true);
+
+            $cols = ['user_id', 'full_name', 'gender', 'age', 'school_name', 'school_board', 'current_class', 'academic_year'];
+            $vals = [
+                $userId,
+                $data['full_name'],
+                $data['gender'] !== '' ? $data['gender'] : null,
+                $data['age'] !== null && $data['age'] !== '' ? (int)$data['age'] : null,
+                $isAiverse ? 'AIVERSE' : null,
+                $data['school_board'] ?: ($isAiverse ? 'AI Academy' : null),
+                $data['current_class'] ?: ($isAiverse ? 'AIverse Cohort 2026' : null),
+                $data['academic_year'] ?: ($isAiverse ? '2026-2027' : null),
+            ];
+
+            if ($hasRegNo) {
+                $cols[] = 'registration_number';
+                $vals[] = $data['registration_number'] ?? null;
+            }
 
             if ($hasDistrict && $hasPincode) {
-                $stmt = $db->prepare("
-                    INSERT INTO students
-                        (user_id, full_name, gender, age, school_name, school_board,
-                         current_class, academic_year, city, district, pincode, state, interests)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-                ");
-                $stmt->execute([
-                    $userId, $data['full_name'],
-                    $data['gender'] !== '' ? $data['gender'] : null,
-                    $data['age'] !== null && $data['age'] !== '' ? (int)$data['age'] : null,
-                    $isAiverse ? 'AIVERSE' : null,
-                    $data['school_board'] ?: ($isAiverse ? 'AI Academy' : null),
-                    $data['current_class'] ?: ($isAiverse ? 'AIverse Cohort 2026' : null),
-                    $data['academic_year'] ?: ($isAiverse ? '2026-2027' : null),
+                $cols = array_merge($cols, ['city', 'district', 'pincode', 'state', 'interests']);
+                $vals = array_merge($vals, [
                     $data['city'] ?: null,
                     $data['district'] ?? null,
                     $data['pincode'] ?? null,
@@ -114,27 +120,19 @@ if ($action === 'verify') {
                     $data['interests'] ?: ($isAiverse ? 'Artificial Intelligence, Machine Learning' : null),
                 ]);
             } else {
-                // Fallback for standard columns
                 $cityCombined = trim(($data['city'] ?? '') . (!empty($data['district']) ? ' (Dist: ' . $data['district'] . ')' : '') . (!empty($data['pincode']) ? ' PIN: ' . $data['pincode'] : ''));
-                $stmt = $db->prepare("
-                    INSERT INTO students
-                        (user_id, full_name, gender, age, school_name, school_board,
-                         current_class, academic_year, city, state, interests)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?)
-                ");
-                $stmt->execute([
-                    $userId, $data['full_name'],
-                    $data['gender'] !== '' ? $data['gender'] : null,
-                    $data['age'] !== null && $data['age'] !== '' ? (int)$data['age'] : null,
-                    $isAiverse ? 'AIVERSE' : null,
-                    $data['school_board'] ?: ($isAiverse ? 'AI Academy' : null),
-                    $data['current_class'] ?: ($isAiverse ? 'AIverse Cohort 2026' : null),
-                    $data['academic_year'] ?: ($isAiverse ? '2026-2027' : null),
+                $cols = array_merge($cols, ['city', 'state', 'interests']);
+                $vals = array_merge($vals, [
                     $cityCombined ?: null,
                     $data['state'] ?: null,
                     $data['interests'] ?: ($isAiverse ? 'Artificial Intelligence, Machine Learning' : null),
                 ]);
             }
+
+            $colList = implode(', ', $cols);
+            $placeholders = implode(', ', array_fill(0, count($cols), '?'));
+            $stmt = $db->prepare("INSERT INTO students ({$colList}) VALUES ({$placeholders})");
+            $stmt->execute($vals);
 
             if (!$isAiverse && !empty($data['guardian_name']) && !empty($data['guardian_phone'])) {
                 $db->prepare("
@@ -153,22 +151,40 @@ if ($action === 'verify') {
                 ")->execute([$userId, $parentId]);
             }
         } else {
-            $stmt = $db->prepare("
-                INSERT INTO teachers
-                    (user_id, full_name, gender, school_name, city, state,
-                     expert_field, years_experience, additional_expertise, bio)
-                VALUES (?,?,?,?,?,?,?,?,?,?)
-            ");
-            $stmt->execute([
-                $userId, $data['full_name'],
+            $teacherCols = $db->query("SHOW COLUMNS FROM teachers")->fetchAll(\PDO::FETCH_COLUMN);
+            $hasTeacherCode = in_array('teacher_code', $teacherCols, true);
+            $hasTeacherReg  = in_array('registration_number', $teacherCols, true);
+
+            $schoolName = $_SESSION['_pending_school_name'] ?? null;
+            $teacherCode = School::generateTeacherCode($schoolName);
+
+            $tCols = ['user_id', 'full_name', 'gender', 'school_name', 'city', 'state', 'expert_field', 'years_experience', 'additional_expertise', 'bio'];
+            $tVals = [
+                $userId,
+                $data['full_name'],
                 $data['gender'] !== '' ? $data['gender'] : null,
-                null, $data['city'] ?: null, $data['state'] ?: null,
+                $schoolName,
+                $data['city'] ?: null,
+                $data['state'] ?: null,
                 $data['expert_field'] ?: null,
-                $data['years_experience'] !== null && $data['years_experience'] !== ''
-                    ? (int)$data['years_experience'] : null,
+                $data['years_experience'] !== null && $data['years_experience'] !== '' ? (int)$data['years_experience'] : null,
                 $data['additional_expertise'] ?: null,
                 $data['bio'] ?: null,
-            ]);
+            ];
+
+            if ($hasTeacherCode) {
+                $tCols[] = 'teacher_code';
+                $tVals[] = $teacherCode;
+            }
+            if ($hasTeacherReg) {
+                $tCols[] = 'registration_number';
+                $tVals[] = $data['registration_number'] ?? null;
+            }
+
+            $tColList = implode(', ', $tCols);
+            $tPlaceholders = implode(', ', array_fill(0, count($tCols), '?'));
+            $stmt = $db->prepare("INSERT INTO teachers ({$tColList}) VALUES ({$tPlaceholders})");
+            $stmt->execute($tVals);
         }
 
         $db->commit();

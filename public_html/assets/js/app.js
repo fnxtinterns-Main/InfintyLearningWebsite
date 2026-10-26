@@ -5,9 +5,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // ============================================================
     const navbar = document.querySelector('.navbar');
     if (navbar) {
+        let isScrolled = false;
         const updateNav = () => {
-            if (window.scrollY > 8) navbar.classList.add('scrolled');
-            else navbar.classList.remove('scrolled');
+            const y = window.scrollY || 0;
+            if (!isScrolled && y > 24) {
+                isScrolled = true;
+                navbar.classList.add('scrolled');
+            } else if (isScrolled && y < 8) {
+                isScrolled = false;
+                navbar.classList.remove('scrolled');
+            }
         };
         updateNav();
         window.addEventListener('scroll', updateNav, { passive: true });
@@ -121,22 +128,86 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // ============================================================
-    // 8. NOTIFICATION CLICK → mark as read
+    // 8. NOTIFICATION CLICK → mark as read & dismiss from panel
     // ============================================================
     document.querySelectorAll('.notif-item').forEach(item => {
-        item.addEventListener('click', function () {
+        item.addEventListener('click', function (e) {
             const nid = this.dataset.nid;
-            if (!nid) return;
-            try {
-                fetch('/notifications-mark-read-handler.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'id=' + encodeURIComponent(nid),
-                    keepalive: true
-                });
-            } catch (err) {}
+            const link = this.getAttribute('href');
+            if (nid) {
+                try {
+                    fetch('/notifications-mark-read-handler.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'id=' + encodeURIComponent(nid),
+                        keepalive: true
+                    });
+                } catch (err) {}
+            }
+            // Animate and remove from the list
+            this.style.transition = 'all 0.25s ease';
+            this.style.opacity = '0';
+            this.style.transform = 'translateX(20px)';
+            setTimeout(() => {
+                const list = item.closest('.notif-list');
+                item.remove();
+                // Decrement or remove badge
+                const badge = document.querySelector('.notif-badge');
+                if (badge) {
+                    let count = parseInt(badge.textContent.trim(), 10) || 0;
+                    count = Math.max(0, count - 1);
+                    if (count > 0) {
+                        badge.textContent = count;
+                    } else {
+                        badge.remove();
+                    }
+                }
+                if (list && list.children.length === 0) {
+                    const parent = list.parentElement;
+                    if (parent && !parent.querySelector('.notif-empty')) {
+                        const empty = document.createElement('div');
+                        empty.className = 'notif-empty';
+                        empty.innerHTML = '<div style="font-size:1.8rem">🔔</div><p class="muted" style="font-size:.85rem">No notifications yet.</p>';
+                        parent.appendChild(empty);
+                    }
+                    const markAllForm = document.querySelector('.notif-mark-all-form');
+                    if (markAllForm) markAllForm.remove();
+                }
+            }, 250);
         });
     });
+
+    // ============================================================
+    // 8b. AUTO LOGOUT ON SCREEN LOCK / INACTIVITY (Item 17)
+    // ============================================================
+    let screenHiddenTime = null;
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden') {
+            screenHiddenTime = Date.now();
+        } else if (document.visibilityState === 'visible' && screenHiddenTime) {
+            const secondsHidden = (Date.now() - screenHiddenTime) / 1000;
+            // Screen locked / off for 15+ minutes -> auto logout
+            if (secondsHidden >= 900) {
+                window.location.href = '/logout';
+            }
+            screenHiddenTime = null;
+        }
+    });
+
+    let idleTimeout;
+    function resetIdleTimer() {
+        clearTimeout(idleTimeout);
+        // 25 minutes of inactivity -> auto logout
+        idleTimeout = setTimeout(function() {
+            if (document.querySelector('.user-menu')) {
+                window.location.href = '/logout';
+            }
+        }, 1500000);
+    }
+    ['mousemove', 'keydown', 'touchstart', 'scroll', 'click'].forEach(evt => {
+        window.addEventListener(evt, resetIdleTimer, { passive: true });
+    });
+    resetIdleTimer();
 
     // ============================================================
     // 9. SHOW / HIDE PASSWORD TOGGLE

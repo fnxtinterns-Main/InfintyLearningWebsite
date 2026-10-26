@@ -135,10 +135,8 @@ final class Mailer
             $domain = parse_url($config['app']['url'] ?? 'https://infintylearning.net', PHP_URL_HOST) ?: 'infintylearning.net';
             $mail->Hostname = $domain;
 
-            // 3. Transactional Headers
-            $mail->XMailer = 'Infinity Learning Mailer';
-            $mail->addCustomHeader('Auto-Submitted', 'auto-generated');
-            $mail->addCustomHeader('X-Auto-Response-Suppress', 'OOF, AutoReply');
+            // 3. Clean Transactional Deliverability Headers (omit X-Mailer to avoid spam heuristics)
+            $mail->XMailer = '';
             $mail->Priority = 3;
 
             $mail->addAddress($to, $toName);
@@ -200,6 +198,11 @@ final class Mailer
         <tr>
             <td align=\"center\" style=\"padding:10px 0;\">
                 {$body}
+                <div style=\"max-width:540px; margin:20px auto 0; text-align:center; font-size:11.5px; color:#8C7364; line-height:1.5;\">
+                    <strong>Infinity Learning</strong> · Educational &amp; School Portal<br>
+                    Official website: <a href=\"https://infintylearning.net\" style=\"color:#FF7A18; text-decoration:none; font-weight:600;\">infintylearning.net</a><br>
+                    This is an important transactional notification regarding your account. If you need assistance, contact <a href=\"mailto:support@infintylearning.net\" style=\"color:#8C7364;\">support@infintylearning.net</a>.
+                </div>
             </td>
         </tr>
     </table>
@@ -248,10 +251,10 @@ final class Mailer
     public static function otpEmail(string $name, string $otp, string $purpose = 'registration'): string
     {
         $title = match ($purpose) {
-            'registration'   => 'Verify your phone number',
-            'password_reset' => 'Reset your password',
+            'registration'   => 'Verify your account & email address',
+            'password_reset' => 'Reset your account password',
             'phone_change'   => 'Verify your new phone number',
-            default          => 'Your one-time password',
+            default          => 'Your one-time verification code',
         };
         return "
         <div style='font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#FFF9F4;padding:24px;border-radius:12px'>
@@ -261,11 +264,100 @@ final class Mailer
             </div>
             <div style='background:#fff;border:1px solid #F3DECB;border-radius:12px;padding:24px'>
                 <h2 style='color:#2B1B12;font-size:18px;margin:0 0 12px'>Hi " . htmlspecialchars($name) . ",</h2>
-                <p style='color:#7A5C4A;font-size:14px;line-height:1.6;margin:0 0 16px'>$title. Enter the code below to continue:</p>
+                <p style='color:#7A5C4A;font-size:14px;line-height:1.6;margin:0 0 16px'>$title. Enter the secure verification code below to proceed:</p>
                 <div style='text-align:center;background:#FFF3E7;border-radius:12px;padding:20px;margin:16px 0'>
                     <div style='font-family:Courier,monospace;font-size:36px;font-weight:800;letter-spacing:.3em;color:#FF7A18'>" . htmlspecialchars($otp) . "</div>
                 </div>
-                <p style='color:#7A5C4A;font-size:13px;margin:16px 0 0'>This code expires in 10 minutes. If you didn't request it, you can safely ignore this email.</p>
+                <p style='color:#7A5C4A;font-size:13px;margin:16px 0 0'>This code expires in 10 minutes. If you did not request this, you can safely ignore this email.</p>
+            </div>
+            <p style='text-align:center;color:#7A5C4A;font-size:12px;margin-top:24px'>© " . date('Y') . " Infinity Learning</p>
+        </div>";
+    }
+
+    /**
+     * Account suspension notification.
+     */
+    public static function accountSuspendedEmail(string $name, string $role, ?string $reason = null): string
+    {
+        $roleLabel = ucfirst($role);
+        $reasonHtml = !empty($reason)
+            ? "<div style='background:#FEE2E2;border:1px solid #FCA5A5;border-radius:8px;padding:12px;margin:16px 0;color:#991B1B;font-size:13px;'><strong>Reason provided:</strong> " . htmlspecialchars($reason) . "</div>"
+            : '';
+
+        return "
+        <div style='font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#FFF9F4;padding:24px;border-radius:12px'>
+            <div style='text-align:center;margin-bottom:24px'>
+                <h1 style='color:#DC2626;font-size:24px;margin:0'>Account Status Notice</h1>
+                <p style='color:#7A5C4A;font-size:14px;margin:4px 0 0'>Infinity Learning Platform</p>
+            </div>
+            <div style='background:#fff;border:1px solid #F3DECB;border-radius:12px;padding:24px'>
+                <h2 style='color:#2B1B12;font-size:18px;margin:0 0 12px'>Dear " . htmlspecialchars($name) . ",</h2>
+                <p style='color:#4B5563;font-size:14px;line-height:1.6;margin:0 0 14px'>
+                    This email is to notify you that your {$roleLabel} account on Infinity Learning has been <strong>suspended</strong> by school administration.
+                </p>
+                {$reasonHtml}
+                <p style='color:#4B5563;font-size:13px;line-height:1.6;margin:0 0 14px'>
+                    While suspended, you will not be able to log in or access your portal. If you believe this is in error or wish to appeal this action, please contact your school administrator or school office directly.
+                </p>
+            </div>
+            <p style='text-align:center;color:#7A5C4A;font-size:12px;margin-top:24px'>© " . date('Y') . " Infinity Learning</p>
+        </div>";
+    }
+
+    /**
+     * Account rejection notification.
+     */
+    public static function accountRejectedEmail(string $name, string $role, ?string $reason = null): string
+    {
+        $roleLabel = ucfirst($role);
+        $reasonHtml = !empty($reason)
+            ? "<div style='background:#FEE2E2;border:1px solid #FCA5A5;border-radius:8px;padding:12px;margin:16px 0;color:#991B1B;font-size:13px;'><strong>Note from administration:</strong> " . htmlspecialchars($reason) . "</div>"
+            : '';
+
+        return "
+        <div style='font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#FFF9F4;padding:24px;border-radius:12px'>
+            <div style='text-align:center;margin-bottom:24px'>
+                <h1 style='color:#B91C1C;font-size:24px;margin:0'>Registration Status Notice</h1>
+                <p style='color:#7A5C4A;font-size:14px;margin:4px 0 0'>Infinity Learning Platform</p>
+            </div>
+            <div style='background:#fff;border:1px solid #F3DECB;border-radius:12px;padding:24px'>
+                <h2 style='color:#2B1B12;font-size:18px;margin:0 0 12px'>Dear " . htmlspecialchars($name) . ",</h2>
+                <p style='color:#4B5563;font-size:14px;line-height:1.6;margin:0 0 14px'>
+                    We are writing to inform you that your registration application for a {$roleLabel} account on Infinity Learning was not approved by the school administrator.
+                </p>
+                {$reasonHtml}
+                <p style='color:#4B5563;font-size:13px;line-height:1.6;margin:0 0 14px'>
+                    For inquiries regarding registration verification, please contact your school administration office.
+                </p>
+            </div>
+            <p style='text-align:center;color:#7A5C4A;font-size:12px;margin-top:24px'>© " . date('Y') . " Infinity Learning</p>
+        </div>";
+    }
+
+    /**
+     * School suspension notification.
+     */
+    public static function schoolSuspendedEmail(string $schoolName, string $adminName, ?string $reason = null): string
+    {
+        $reasonHtml = !empty($reason)
+            ? "<div style='background:#FEE2E2;border:1px solid #FCA5A5;border-radius:8px;padding:12px;margin:16px 0;color:#991B1B;font-size:13px;'><strong>Reason provided:</strong> " . htmlspecialchars($reason) . "</div>"
+            : '';
+
+        return "
+        <div style='font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#FFF9F4;padding:24px;border-radius:12px'>
+            <div style='text-align:center;margin-bottom:24px'>
+                <h1 style='color:#DC2626;font-size:24px;margin:0'>School Portal Notice</h1>
+                <p style='color:#7A5C4A;font-size:14px;margin:4px 0 0'>Infinity Learning Administration</p>
+            </div>
+            <div style='background:#fff;border:1px solid #F3DECB;border-radius:12px;padding:24px'>
+                <h2 style='color:#2B1B12;font-size:18px;margin:0 0 12px'>Dear " . htmlspecialchars($adminName) . ",</h2>
+                <p style='color:#4B5563;font-size:14px;line-height:1.6;margin:0 0 14px'>
+                    The institutional portal for <strong>" . htmlspecialchars($schoolName) . "</strong> has been temporarily suspended by the platform administrator.
+                </p>
+                {$reasonHtml}
+                <p style='color:#4B5563;font-size:13px;line-height:1.6;margin:0 0 14px'>
+                    Please contact our support team at <a href='mailto:support@infintylearning.net'>support@infintylearning.net</a> for reactivation details.
+                </p>
             </div>
             <p style='text-align:center;color:#7A5C4A;font-size:12px;margin-top:24px'>© " . date('Y') . " Infinity Learning</p>
         </div>";

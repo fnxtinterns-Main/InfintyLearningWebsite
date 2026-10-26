@@ -67,7 +67,11 @@ try {
         Session::flash('success', 'Batch updated.');
         Helper::redirect('/teacher/batch?id=' . $id);
     } else {
-        // ---- Creating a new batch ----
+        // ---- Creating a new batch (Admin only) ----
+        if ($role === 'teacher') {
+            Session::flash('error', 'Batch creation is restricted to School Administration.');
+            Helper::redirect('/teacher/batches');
+        }
         $newId = Batch::create($data, (int)$me['id']);
         Session::flash('success', 'Batch created.');
         Helper::redirect('/teacher/batch?id=' . $newId);

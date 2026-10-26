@@ -29,7 +29,7 @@ $success = Session::flash('success');
 require VIEW_PATH . '/layouts/header.php';
 ?>
 <section class="section-sm">
-    <div class="container-narrow">
+    <div class="container-narrow" style="max-width:760px; margin:0 auto; width:100%;">
         <div class="profile-header">
             <div class="profile-avatar">
                 <?php if (!empty($profile['profile_image'])): ?>
@@ -62,130 +62,154 @@ require VIEW_PATH . '/layouts/header.php';
             <h3>👤 Profile Information</h3>
             <div class="divider"></div>
 
-            <form method="post" action="/profile-handler.php" enctype="multipart/form-data">
-                <input type="hidden" name="csrf" value="<?= Helper::e(Session::csrfToken()) ?>">
+            <?php if ($role === 'student'): ?>
+                <div class="alert alert-info" style="margin-bottom:18px; border-left:4px solid #2563EB; background:rgba(37,99,235,0.06); color:var(--il-text);">
+                    <strong style="color:#2563EB;">🔒 Official School Student Record (Read-Only)</strong>
+                    <p style="margin:4px 0 0; font-size:13px; line-height:1.5; color:var(--il-muted);">
+                        Your student profile is maintained by your school administration and cannot be edited directly. To request updates to your official student record, please contact your school office or class teacher.
+                    </p>
+                </div>
 
+                <?php 
+                $autoAge = Helper::calculateStudentAge(!empty($profile['age']) ? (int)$profile['age'] : null, $profile['created_at'] ?? null);
+                ?>
                 <div class="form-row">
                     <div class="form-group">
                         <label>Email</label>
-                        <input type="email" value="<?= Helper::e($user['email']) ?>" disabled>
+                        <input type="email" value="<?= Helper::e($user['email']) ?>" readonly style="background:var(--surface-2); cursor:not-allowed;">
                     </div>
                     <div class="form-group">
                         <label>Phone</label>
-                        <input type="tel" value="<?= Helper::e(Helper::displayPhone($user['phone'])) ?>" disabled>
+                        <input type="tel" value="<?= Helper::e(Helper::displayPhone($user['phone'])) ?>" readonly style="background:var(--surface-2); cursor:not-allowed;">
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Profile Image</label>
-                    <input type="file" name="profile_image" accept="image/jpeg,image/png,image/webp">
-                    <small>JPG/PNG/WebP, max 4MB.</small>
-                </div>
-
-                <div class="form-group">
-                    <label>Full Name *</label>
-                    <input type="text" name="full_name" required value="<?= Helper::e($profile['full_name'] ?? '') ?>">
+                    <label>Full Name</label>
+                    <input type="text" value="<?= Helper::e($profile['full_name'] ?? '') ?>" readonly style="background:var(--surface-2); cursor:not-allowed;">
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label>Gender</label>
-                        <select name="gender">
-                            <option value="">— select —</option>
-                            <?php foreach (['male'=>'Male','female'=>'Female','other'=>'Other','prefer_not_to_say'=>'Prefer not to say'] as $k => $v): ?>
-                                <option value="<?= $k ?>" <?= ($profile['gender'] ?? '') === $k ? 'selected' : '' ?>><?= $v ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <input type="text" value="<?= Helper::e(ucfirst(str_replace('_',' ',(string)($profile['gender'] ?? '—')))) ?>" readonly style="background:var(--surface-2); cursor:not-allowed;">
                     </div>
-                    <?php if ($role === 'student'): ?>
-                        <div class="form-group">
-                            <label>Age</label>
-                            <input type="number" name="age" min="4" max="80" value="<?= Helper::e((string)($profile['age'] ?? '')) ?>">
-                        </div>
-                    <?php endif; ?>
+                    <div class="form-group">
+                        <label>Age (Auto-updated)</label>
+                        <input type="text" value="<?= $autoAge ? (int)$autoAge . ' years' : '—' ?>" readonly style="background:var(--surface-2); cursor:not-allowed;">
+                    </div>
                 </div>
 
                 <div class="form-group">
                     <label>School Name</label>
-                    <input type="text" name="school_name" value="<?= Helper::e($profile['school_name'] ?? '') ?>">
+                    <input type="text" value="<?= Helper::e($profile['school_name'] ?? '—') ?>" readonly style="background:var(--surface-2); cursor:not-allowed;">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Current Class</label>
+                        <input type="text" value="<?= Helper::e($profile['current_class'] ?? '—') ?>" readonly style="background:var(--surface-2); cursor:not-allowed;">
+                    </div>
+                    <div class="form-group">
+                        <label>School Board</label>
+                        <input type="text" value="<?= Helper::e($profile['school_board'] ?? '—') ?>" readonly style="background:var(--surface-2); cursor:not-allowed;">
+                    </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label>City</label>
-                        <input type="text" name="city" value="<?= Helper::e($profile['city'] ?? '') ?>">
+                        <input type="text" value="<?= Helper::e($profile['city'] ?? '—') ?>" readonly style="background:var(--surface-2); cursor:not-allowed;">
                     </div>
                     <div class="form-group">
                         <label>State</label>
-                        <input type="text" name="state" value="<?= Helper::e($profile['state'] ?? '') ?>">
+                        <input type="text" value="<?= Helper::e($profile['state'] ?? '—') ?>" readonly style="background:var(--surface-2); cursor:not-allowed;">
                     </div>
                 </div>
 
-                <?php if ($role === 'student'): ?>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>School Board</label>
-                            <select name="school_board">
-                                <option value="">— select —</option>
-                                <?php foreach (['CBSE','ICSE','State Board','IB','IGCSE','Other'] as $b): ?>
-                                    <option value="<?= $b ?>" <?= ($profile['school_board'] ?? '') === $b ? 'selected' : '' ?>><?= $b ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Academic Year</label>
-                            <input type="text" name="academic_year" value="<?= Helper::e($profile['academic_year'] ?? '') ?>">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Current Class</label>
-                        <input type="text" name="current_class" value="<?= Helper::e($profile['current_class'] ?? '') ?>">
-                    </div>
-                    <div class="form-group">
-                        <label>Interests</label>
-                        <input type="text" name="interests" value="<?= Helper::e($profile['interests'] ?? '') ?>">
-                    </div>
-
+                <?php if (!empty($parent)): ?>
                     <div class="divider"></div>
                     <h3 style="font-size:1rem;margin-bottom:.5rem">Parent / Guardian</h3>
-
                     <div class="form-row">
                         <div class="form-group">
                             <label>Parent Name</label>
-                            <input type="text" name="guardian_name" value="<?= Helper::e($parent['full_name'] ?? '') ?>">
+                            <input type="text" value="<?= Helper::e($parent['full_name'] ?? '—') ?>" readonly style="background:var(--surface-2); cursor:not-allowed;">
                         </div>
                         <div class="form-group">
                             <label>Relationship</label>
-                            <select name="guardian_relationship">
-                                <option value="">— select —</option>
-                                <?php foreach (['father'=>'Father','mother'=>'Mother','guardian'=>'Guardian','other'=>'Other'] as $k => $v): ?>
-                                    <option value="<?= $k ?>" <?= ($parent['relationship'] ?? '') === $k ? 'selected' : '' ?>><?= $v ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <input type="text" value="<?= Helper::e(ucfirst($parent['relationship'] ?? '—')) ?>" readonly style="background:var(--surface-2); cursor:not-allowed;">
                         </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Parent Phone</label>
+                            <input type="text" value="<?= Helper::e($parent['phone'] ?? '—') ?>" readonly style="background:var(--surface-2); cursor:not-allowed;">
+                        </div>
+                        <div class="form-group">
+                            <label>Parent Email</label>
+                            <input type="text" value="<?= Helper::e($parent['email'] ?? '—') ?>" readonly style="background:var(--surface-2); cursor:not-allowed;">
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+            <?php else: ?>
+                <form method="post" action="/profile-handler.php" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf" value="<?= Helper::e(Session::csrfToken()) ?>">
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" value="<?= Helper::e($user['email']) ?>" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="tel" value="<?= Helper::e(Helper::displayPhone($user['phone'])) ?>" disabled>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Profile Image</label>
+                        <input type="file" name="profile_image" accept="image/jpeg,image/png,image/webp">
+                        <small>JPG/PNG/WebP, max 4MB.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" name="full_name" required value="<?= Helper::e($profile['full_name'] ?? '') ?>">
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Parent Phone</label>
-                            <input type="tel" name="guardian_phone" value="<?= Helper::e($parent['phone'] ?? '') ?>">
-                        </div>
-                        <div class="form-group">
-                            <label>Parent Email</label>
-                            <input type="email" name="guardian_email" value="<?= Helper::e($parent['email'] ?? '') ?>">
-                        </div>
-                    </div>
-                <?php elseif ($role === 'teacher'): ?>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Expert Field</label>
-                            <input type="text" name="expert_field" value="<?= Helper::e($profile['expert_field'] ?? '') ?>">
+                            <label>Gender</label>
+                            <select name="gender">
+                                <option value="">— select —</option>
+                                <?php foreach (['male'=>'Male','female'=>'Female','other'=>'Other','prefer_not_to_say'=>'Prefer not to say'] as $k => $v): ?>
+                                    <option value="<?= $k ?>" <?= ($profile['gender'] ?? '') === $k ? 'selected' : '' ?>><?= $v ?></option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Years of Experience</label>
                             <input type="number" name="years_experience" min="0" max="60" value="<?= Helper::e((string)($profile['years_experience'] ?? '')) ?>">
                         </div>
                     </div>
+
+                    <div class="form-group">
+                        <label>Expert Field</label>
+                        <input type="text" name="expert_field" value="<?= Helper::e($profile['expert_field'] ?? '') ?>">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>City</label>
+                            <input type="text" name="city" value="<?= Helper::e($profile['city'] ?? '') ?>">
+                        </div>
+                        <div class="form-group">
+                            <label>State</label>
+                            <input type="text" name="state" value="<?= Helper::e($profile['state'] ?? '') ?>">
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label>Additional Expertise</label>
                         <input type="text" name="additional_expertise" value="<?= Helper::e($profile['additional_expertise'] ?? '') ?>">
@@ -194,10 +218,10 @@ require VIEW_PATH . '/layouts/header.php';
                         <label>Short Bio</label>
                         <textarea name="bio" rows="3"><?= Helper::e($profile['bio'] ?? '') ?></textarea>
                     </div>
-                <?php endif; ?>
 
-                <button type="submit" class="btn btn-primary btn-block btn-lg mt-2">Save changes</button>
-            </form>
+                    <button type="submit" class="btn btn-primary btn-block btn-lg mt-2">Save changes</button>
+                </form>
+            <?php endif; ?>
         </div>
 
         <!-- ============ CHANGE PASSWORD ============ -->

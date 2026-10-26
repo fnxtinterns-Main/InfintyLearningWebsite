@@ -104,4 +104,52 @@ final class Helper
         $slug = strtolower($slug ?? '');
         return $slug ?: 'n-a';
     }
+
+    /**
+     * Get accurate client IP supporting Cloudflare & Reverse Proxies.
+     */
+    public static function clientIp(): string
+    {
+        if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+            return trim($_SERVER['HTTP_CF_CONNECTING_IP']);
+        }
+        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $parts = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+            return trim($parts[0]);
+        }
+        return $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+    }
+
+    /**
+     * Human-readable relative time (e.g. Just now, 5m ago, Yesterday).
+     */
+    public static function timeAgo(?string $datetime): string
+    {
+        if (empty($datetime)) return 'Just now';
+        $time = strtotime($datetime);
+        if (!$time) return 'Just now';
+        $diff = time() - $time;
+        if ($diff < 15) return 'Just now';
+        if ($diff < 60) return $diff . 's ago';
+        if ($diff < 3600) return (int)floor($diff / 60) . 'm ago';
+        if ($diff < 86400) return (int)floor($diff / 3600) . 'h ago';
+        if ($diff < 172800) return 'Yesterday, ' . date('h:i A', $time);
+        if ($diff < 604800) return (int)floor($diff / 86400) . 'd ago';
+        return date('d M Y, h:i A', $time);
+    }
+
+    /**
+     * Automatically update student age every year based on profile registration date.
+     */
+    public static function calculateStudentAge(?int $baseAge, ?string $createdAt): ?int
+    {
+        if ($baseAge === null || $baseAge <= 0) return null;
+        if (empty($createdAt)) return $baseAge;
+        $createdTime = strtotime($createdAt);
+        if (!$createdTime) return $baseAge;
+        $createdYear = (int)date('Y', $createdTime);
+        $currentYear = (int)date('Y');
+        $yearsElapsed = max(0, $currentYear - $createdYear);
+        return $baseAge + $yearsElapsed;
+    }
 }

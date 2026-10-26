@@ -13,7 +13,7 @@ $pageTitle = 'My Tests & Homework — Infinity Learning';
 require VIEW_PATH . '/layouts/header.php';
 ?>
 <section class="section-sm">
-    <div class="container-narrow">
+    <div class="container-narrow" style="max-width:820px; margin:0 auto;">
         <div class="dashboard-header" style="flex-wrap:wrap; gap:16px;">
             <div>
                 <span class="kicker">📝 MY ACADEMIC EVALUATIONS</span>

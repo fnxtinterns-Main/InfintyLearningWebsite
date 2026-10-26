@@ -22,8 +22,18 @@ $classes = Timetable::getClassesForSchool($schoolId);
 $sectionsList = Timetable::getSectionsForSchool($schoolId);
 $periods = Timetable::getPeriodsForSchool($schoolId);
 
-$selectedClass = $_GET['class'] ?? ($classes[0] ?? 'Grade 8');
-$selectedSection = strtoupper($_GET['section'] ?? ($sectionsList[0] ?? 'A'));
+$selectedClass = trim((string)($_GET['class'] ?? $_SESSION['last_timetable_class'] ?? ($classes[0] ?? 'Grade 1')));
+$selectedSection = strtoupper(trim((string)($_GET['section'] ?? $_SESSION['last_timetable_section'] ?? ($sectionsList[0] ?? 'A'))));
+
+if ($selectedClass !== '' && !in_array($selectedClass, $classes, true)) {
+    $classes[] = $selectedClass;
+}
+if ($selectedSection !== '' && !in_array($selectedSection, $sectionsList, true)) {
+    $sectionsList[] = $selectedSection;
+}
+
+$_SESSION['last_timetable_class'] = $selectedClass;
+$_SESSION['last_timetable_section'] = $selectedSection;
 
 $grid = Timetable::getGridForClass($schoolId, $selectedClass, $selectedSection);
 
@@ -188,10 +198,26 @@ require VIEW_PATH . '/layouts/header.php';
 
         <form method="post" action="/school/timetable-save-handler.php">
             <input type="hidden" name="action" value="save">
-            <input type="hidden" name="class_level" value="<?= Helper::e($selectedClass) ?>">
-            <input type="hidden" name="class" value="<?= Helper::e($selectedClass) ?>">
-            <input type="hidden" name="section" value="<?= Helper::e($selectedSection) ?>">
             <input type="hidden" name="csrf" value="<?= Helper::e(\App\Session::csrfToken()) ?>">
+
+            <div class="grid grid-2" style="margin-bottom:14px; gap:12px;">
+                <div>
+                    <label class="form-label" style="font-weight:600; display:block; margin-bottom:4px;">Class / Grade *</label>
+                    <select name="class_level" id="modalClassSelect" class="form-control" required style="width:100%;">
+                        <?php foreach ($classes as $c): ?>
+                            <option value="<?= Helper::e($c) ?>" <?= strcasecmp($selectedClass, $c) === 0 ? 'selected' : '' ?>><?= Helper::e($c) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label" style="font-weight:600; display:block; margin-bottom:4px;">Section *</label>
+                    <select name="section" id="modalSectionSelect" class="form-control" required style="width:100%;">
+                        <?php foreach ($sectionsList as $sec): ?>
+                            <option value="<?= Helper::e($sec) ?>" <?= strcasecmp($selectedSection, $sec) === 0 ? 'selected' : '' ?>>Section <?= Helper::e($sec) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
 
             <div class="grid grid-2" style="margin-bottom:14px; gap:12px;">
                 <div>
@@ -371,6 +397,10 @@ require VIEW_PATH . '/layouts/header.php';
 function openSlotModal(day, period) {
     if (day) document.getElementById('modalDaySelect').value = day;
     if (period) document.getElementById('modalPeriodSelect').value = period;
+    const modalCls = document.getElementById('modalClassSelect');
+    if (modalCls) modalCls.value = <?= json_encode($selectedClass) ?>;
+    const modalSec = document.getElementById('modalSectionSelect');
+    if (modalSec) modalSec.value = <?= json_encode($selectedSection) ?>;
     document.getElementById('slotModal').style.display = 'flex';
 }
 function closeSlotModal() { document.getElementById('slotModal').style.display = 'none'; }
@@ -501,7 +531,7 @@ function fetchFreeTeachers() {
         .then(r => r.json())
         .then(data => {
             if (!data.success) {
-                container.innerHTML = '<div class="alert alert-error">Failed to load teacher availability.</div>';
+                container.innerHTML = '<div class="alert alert-error" style="margin:10px 0;">' + (data.error || 'Failed to load teacher availability.') + '</div>';
                 return;
             }
             let html = '';

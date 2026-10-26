@@ -491,7 +491,7 @@ select option {
                                         <?php if (!empty($n['body'])): ?>
                                             <div class="notif-text"><?= Helper::e(mb_substr($n['body'], 0, 100)) ?></div>
                                         <?php endif; ?>
-                                        <div class="notif-time"><?= date('d M · H:i', strtotime($n['created_at'])) ?></div>
+                                        <div class="notif-time"><?= Helper::timeAgo($n['created_at']) ?></div>
                                     </div>
                                 </a>
                             <?php endforeach; ?>

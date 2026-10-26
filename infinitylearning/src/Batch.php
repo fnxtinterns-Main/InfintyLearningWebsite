@@ -15,10 +15,11 @@ final class Batch
                 FROM batches b
                 LEFT JOIN users u ON u.id = b.teacher_id
                 LEFT JOIN teachers t ON t.user_id = u.id
-                WHERE b.teacher_id = ? AND b.status='active'
+                WHERE (b.teacher_id = ? OR b.teacher_id IN (SELECT id FROM teachers WHERE user_id = ?))
+                  AND b.status='active'
                 ORDER BY b.created_at DESC
             ");
-            $stmt->execute([$teacherUserId]);
+            $stmt->execute([$teacherUserId, $teacherUserId]);
         } else {
             $stmt = $db->query("
                 SELECT b.*, u.email AS teacher_email, t.full_name AS teacher_name,

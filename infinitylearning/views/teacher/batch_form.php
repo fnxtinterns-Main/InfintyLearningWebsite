@@ -12,6 +12,11 @@ if (!in_array($role, ['teacher','admin'], true)) {
 }
 
 $editing = isset($_GET['id']);
+if ($role === 'teacher' && !$editing) {
+    Session::flash('error', 'Batch creation is restricted to School Administration. Please contact your school administrator to configure new batches.');
+    Helper::redirect('/teacher/batches');
+}
+
 $batch = $editing ? Batch::find((int)$_GET['id']) : null;
 if ($editing && !$batch) { Helper::redirect('/teacher/batches'); }
 

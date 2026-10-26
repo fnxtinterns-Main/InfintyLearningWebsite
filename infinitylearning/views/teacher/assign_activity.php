@@ -29,7 +29,7 @@ $preselectedBatchId = (int)($_GET['batch_id'] ?? 0);
 $pageTitle = ($editing ? 'Edit Assignment' : 'Assign Activity') . ' — Infinity Learning';
 require VIEW_PATH . '/layouts/header.php';
 ?>
-<section class="section" style="max-width:760px">
+<section class="section" style="max-width:760px; margin: 0 auto;">
     <a href="/teacher/assignments" class="muted">← All assignments</a>
     <div class="card mt-2">
         <h1><?= $editing ? 'Edit assignment' : 'Assign an activity' ?></h1>

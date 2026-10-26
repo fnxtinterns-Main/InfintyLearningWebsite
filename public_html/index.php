@@ -101,11 +101,14 @@ $routes = [
     '/aiverse/unenroll'          => '/views/aiverse/unenroll_handler.php',
 
     // Teacher
+    '/teacher'                      => '/views/teacher/dashboard.php',
+    '/teacher/dashboard'            => '/views/teacher/dashboard.php',
     '/teacher/chess'                => '/views/teacher/chess.php',
     '/teacher/batches'              => '/views/teacher/batches.php',
     '/teacher/batch'                => '/views/teacher/batch_view.php',
     '/teacher/batch/new'            => '/views/teacher/batch_form.php',
     '/teacher/batch/edit'           => '/views/teacher/batch_form.php',
+    '/teacher/attendance'           => '/views/teacher/attendance.php',
     '/teacher/batch/attendance'     => '/views/teacher/attendance.php',
     '/teacher/batch/import'         => '/views/teacher/import_students.php',
     '/teacher/questions'            => '/views/teacher/question_bank.php',

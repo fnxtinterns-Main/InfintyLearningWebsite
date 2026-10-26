@@ -14,7 +14,7 @@ if (!Session::verifyCsrf($_POST['csrf'] ?? null)) {
     Helper::redirect('/register');
 }
 
-$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+$ip = Helper::clientIp();
 if (!RateLimiter::hit($ip, 'register', 50, 3600)) {
     Session::flash('error', 'Too many registration attempts. Please try later.');
     Helper::redirect('/register');
@@ -54,6 +54,7 @@ $data = [
     'years_experience'      => $_POST['years_experience'] ?? null,
     'additional_expertise'  => trim($_POST['additional_expertise'] ?? ''),
     'bio'                   => trim($_POST['bio'] ?? ''),
+    'registration_number'   => trim($_POST['registration_number'] ?? ''),
 ];
 
 // Validate school
@@ -82,7 +83,8 @@ $v->required('full_name', $data['full_name'], 'Full name')
   ->phone('phone', $data['phone'])
   ->required('password', $data['password'], 'Password')
   ->password('password', $data['password'])
-  ->matches('password_confirm', $data['password_confirm'], $data['password']);
+  ->matches('password_confirm', $data['password_confirm'], $data['password'])
+  ->required('registration_number', $data['registration_number'], 'Registration number');
 
 if ($role === 'student') {
     if ($isAiverse) {

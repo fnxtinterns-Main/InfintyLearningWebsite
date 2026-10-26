@@ -37,16 +37,23 @@ if ($viewerRole === 'admin' || $viewerRole === 'school_admin') {
         $canView = (bool)$q->fetch();
     } catch (\Throwable $e) {}
 } elseif ($viewerRole === 'teacher') {
-    // Only if the student is in one of the teacher's batches
+    // Teachers can view students in their school, their batches, or their mentees
     try {
         $db = Database::connect();
         $q = $db->prepare("
-            SELECT 1 FROM batch_students bs
-            JOIN batches b ON b.id = bs.batch_id
-            WHERE bs.student_user_id = ? AND b.teacher_id = ?
+            SELECT 1 FROM users u
+            WHERE u.id = ? AND (
+                u.school_id = (SELECT school_id FROM users WHERE id = ?)
+                OR EXISTS (SELECT 1 FROM students s WHERE s.user_id = u.id AND s.mentor_user_id = ?)
+                OR EXISTS (
+                    SELECT 1 FROM batch_students bs
+                    JOIN batches b ON b.id = bs.batch_id
+                    WHERE bs.student_user_id = u.id AND b.teacher_id = ?
+                )
+            )
             LIMIT 1
         ");
-        $q->execute([$studentId, (int)$viewer['id']]);
+        $q->execute([$studentId, (int)$viewer['id'], (int)$viewer['id'], (int)$viewer['id']]);
         $canView = (bool)$q->fetch();
     } catch (\Throwable $e) {}
 }
@@ -88,6 +95,9 @@ $achievements = $p['achievements'] ?? [];
 $achievementCounts = StudentProfile::achievementCounts($achievements);
 $nameForInit = !empty($p['full_name']) ? (string)$p['full_name'] : (!empty($p['email']) ? (string)$p['email'] : 'Student');
 $initial = mb_strtoupper(mb_substr($nameForInit, 0, 1));
+
+// Dynamic age
+$computedAge = Helper::calculateStudentAge(!empty($p['age']) ? (int)$p['age'] : null, $p['created_at'] ?? null);
 
 // Data extract
 $att = $p['attendance']['raw'] ?? ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0];
@@ -149,11 +159,20 @@ $examSummary = $exams['summary'] ?? ['total_tests'=>0,'average_pct'=>0];
                 </div>
 
                 <div class="flex mt-2" style="flex-wrap:wrap;gap:.5rem; align-items:center;">
+                    <?php if (!empty($p['registration_number'])): ?>
+                        <span class="pill" style="font-weight:600; background:rgba(37,99,235,0.08); color:var(--il-primary);">Reg No: <?= Helper::e($p['registration_number']) ?></span>
+                    <?php endif; ?>
+                    <?php if (!empty($p['roll_number'])): ?>
+                        <span class="pill" style="font-weight:600;">Roll: <?= Helper::e($p['roll_number']) ?></span>
+                    <?php endif; ?>
                     <?php if (!empty($p['gender'])): ?>
                         <span class="pill"><?= Helper::e(ucfirst(str_replace('_',' ',(string)$p['gender']))) ?></span>
                     <?php endif; ?>
-                    <?php if (!empty($p['age'])): ?>
-                        <span class="pill">Age <?= (int)$p['age'] ?></span>
+                    <?php if ($computedAge): ?>
+                        <span class="pill">Age <?= (int)$computedAge ?></span>
+                    <?php endif; ?>
+                    <?php if (!empty($p['mentor_name'])): ?>
+                        <span class="pill" style="background:#f3e8ff; color:#6b21a8; font-weight:600;">👨‍🏫 Mentor: <?= Helper::e($p['mentor_name']) ?></span>
                     <?php endif; ?>
                     <?php if (!empty($p['city'])): ?>
                         <span class="pill">📍 <?= Helper::e($p['city']) ?><?= !empty($p['state']) ? ', '.Helper::e($p['state']) : '' ?></span>
@@ -168,7 +187,8 @@ $examSummary = $exams['summary'] ?? ['total_tests'=>0,'average_pct'=>0];
 
                 <div class="flex mt-2" style="gap:8px; flex-wrap:wrap; align-items:center;">
                     <?php if ($isOwnProfile): ?>
-                        <a href="/profile" class="btn btn-secondary btn-sm">Edit my profile</a>
+                        <a href="/profile" class="btn btn-secondary btn-sm">👁️ View Bio</a>
+                        <span class="badge badge-info" style="font-size:11px; padding:4px 8px; border-radius:6px;">🔒 Verified by School</span>
                     <?php endif; ?>
                     <a href="/student/doubts?student_id=<?= (int)$studentId ?>" class="btn btn-outline-primary btn-sm" style="font-weight:700;">
                         💬 Doubt Portal

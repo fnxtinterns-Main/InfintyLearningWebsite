@@ -416,12 +416,14 @@ final class Timetable
         self::ensureTable();
         $db = Database::connect();
 
-        // 1. All teachers of this school
+        // 1. All active teachers of this school
         $qAll = $db->prepare("
-            SELECT u.id AS teacher_user_id, t.full_name AS teacher_name, t.primary_subject, u.email
+            SELECT u.id AS teacher_user_id, t.full_name AS teacher_name,
+                   COALESCE(t.expert_field, 'General Studies') AS primary_subject,
+                   t.expert_field, u.email
             FROM teachers t
             JOIN users u ON u.id = t.user_id
-            WHERE u.school_id = ?
+            WHERE u.school_id = ? AND u.status = 'active'
             ORDER BY t.full_name ASC
         ");
         $qAll->execute([$schoolId]);

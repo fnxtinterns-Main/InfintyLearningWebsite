@@ -27,7 +27,8 @@ if (!Session::verifyCsrf($_POST['csrf'] ?? null)) {
 $userId = (int)($_POST['user_id'] ?? 0);
 $action = $_POST['action'] ?? '';
 
-if (!$userId || !in_array($action, ['approve','reject','suspend','reactivate'], true)) {
+$allowedActions = ['approve','reject','suspend','reactivate','assign_class_teacher','assign_mentor'];
+if (!in_array($action, $allowedActions, true)) {
     Session::flash('error', 'Invalid action.');
     Helper::redirect('/school');
 }
@@ -92,26 +93,69 @@ try {
             break;
 
         case 'reject':
+            // Fetch user info before or after rejection
+            $stmt = $db->prepare("SELECT id, email, role FROM users WHERE id = ? AND school_id = ? LIMIT 1");
+            $stmt->execute([$userId, $schoolId]);
+            $user = $stmt->fetch();
+
             if (School::rejectUser($userId, $schoolId)) {
-                Notification::push(
-                    $userId,
-                    'account.rejected',
-                    'Your account was not approved',
-                    'Please contact your school admin for more information.',
-                    null
-                );
-                Session::flash('success', 'User rejected.');
+                if ($user) {
+                    $displayName = 'there';
+                    if ($user['role'] === 'student') {
+                        $n = $db->prepare("SELECT full_name FROM students WHERE user_id = ? LIMIT 1");
+                        $n->execute([$userId]);
+                        $row = $n->fetch();
+                        if (!empty($row['full_name'])) $displayName = $row['full_name'];
+                    } elseif ($user['role'] === 'teacher') {
+                        $n = $db->prepare("SELECT full_name FROM teachers WHERE user_id = ? LIMIT 1");
+                        $n->execute([$userId]);
+                        $row = $n->fetch();
+                        if (!empty($row['full_name'])) $displayName = $row['full_name'];
+                    }
+                    try {
+                        Mailer::send(
+                            $user['email'],
+                            'Update on your Infinity Learning account application',
+                            Mailer::accountRejectedEmail($displayName, $user['role'])
+                        );
+                    } catch (\Throwable $e) {
+                        error_log('Reject email failed: ' . $e->getMessage());
+                    }
+                }
+                Session::flash('success', 'User rejected and email notification sent.');
             } else {
                 Session::flash('error', 'User not found in your school.');
             }
             break;
 
         case 'suspend':
-            $check = $db->prepare("SELECT id FROM users WHERE id=? AND school_id=? LIMIT 1");
+            $check = $db->prepare("SELECT id, email, role FROM users WHERE id=? AND school_id=? LIMIT 1");
             $check->execute([$userId, $schoolId]);
-            if ($check->fetch()) {
+            $user = $check->fetch();
+            if ($user) {
                 $db->prepare("UPDATE users SET status='suspended' WHERE id=?")->execute([$userId]);
-                Session::flash('success', 'User suspended.');
+                $displayName = 'there';
+                if ($user['role'] === 'student') {
+                    $n = $db->prepare("SELECT full_name FROM students WHERE user_id = ? LIMIT 1");
+                    $n->execute([$userId]);
+                    $row = $n->fetch();
+                    if (!empty($row['full_name'])) $displayName = $row['full_name'];
+                } elseif ($user['role'] === 'teacher') {
+                    $n = $db->prepare("SELECT full_name FROM teachers WHERE user_id = ? LIMIT 1");
+                    $n->execute([$userId]);
+                    $row = $n->fetch();
+                    if (!empty($row['full_name'])) $displayName = $row['full_name'];
+                }
+                try {
+                    Mailer::send(
+                        $user['email'],
+                        'Important Notice: Account Suspended — Infinity Learning',
+                        Mailer::accountSuspendedEmail($displayName, $user['role'])
+                    );
+                } catch (\Throwable $e) {
+                    error_log('Suspension email failed: ' . $e->getMessage());
+                }
+                Session::flash('success', 'User suspended and email notification sent.');
             } else {
                 Session::flash('error', 'User not found in your school.');
             }
@@ -126,6 +170,28 @@ try {
             } else {
                 Session::flash('error', 'User not found in your school.');
             }
+            break;
+
+        case 'assign_class_teacher':
+            $grade = trim($_POST['class_teacher_grade'] ?? '');
+            $section = trim($_POST['class_teacher_section'] ?? '');
+            if (School::assignClassTeacher($userId, $schoolId, $grade, $section)) {
+                Session::flash('success', $grade !== '' ? "Assigned as Class Teacher for $grade $section." : "Class Teacher assignment removed.");
+            } else {
+                Session::flash('error', 'Failed to assign class teacher. Please check permissions.');
+            }
+            break;
+
+        case 'assign_mentor':
+            $mentorUserId = !empty($_POST['mentor_user_id']) ? (int)$_POST['mentor_user_id'] : null;
+            $studentIds = [];
+            if (!empty($_POST['student_ids']) && is_array($_POST['student_ids'])) {
+                $studentIds = array_map('intval', $_POST['student_ids']);
+            } elseif ($userId > 0) {
+                $studentIds = [$userId];
+            }
+            $assignedCount = School::assignMentor($studentIds, $mentorUserId, $schoolId);
+            Session::flash('success', "Mentor assigned to $assignedCount student(s).");
             break;
     }
 } catch (\Throwable $e) {

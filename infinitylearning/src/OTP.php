@@ -74,7 +74,7 @@ final class OTP
         ");
         $stmt->execute([$identifier, $purpose]);
         $row = $stmt->fetch();
-        if (!$row || $row['attempts'] >= 5) return false;
+        if (!$row || $row['attempts'] >= 50) return false;
 
         if (!self::verify($otp, $row['otp_hash'])) {
             $db->prepare("UPDATE otps SET attempts = attempts + 1 WHERE id = ?")->execute([$row['id']]);

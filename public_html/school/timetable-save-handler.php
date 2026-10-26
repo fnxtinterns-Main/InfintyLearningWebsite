@@ -33,9 +33,15 @@ if (!Session::verifyCsrf($_POST['csrf'] ?? null)) {
 }
 
 $action = $_POST['action'] ?? 'save';
-$rawClass = trim((string)($_POST['class'] ?? $_POST['class_level'] ?? ''));
-$rawSection = trim((string)($_POST['section'] ?? ''));
-$class = urlencode($rawClass !== '' ? $rawClass : 'Grade 8');
+$rawClass = trim((string)($_POST['class_level'] ?? $_POST['class'] ?? $_SESSION['last_timetable_class'] ?? ''));
+$rawSection = trim((string)($_POST['section'] ?? $_SESSION['last_timetable_section'] ?? 'A'));
+if ($rawClass !== '') {
+    $_SESSION['last_timetable_class'] = $rawClass;
+}
+if ($rawSection !== '') {
+    $_SESSION['last_timetable_section'] = $rawSection;
+}
+$class = urlencode($rawClass !== '' ? $rawClass : 'Grade 1');
 $section = urlencode($rawSection !== '' ? $rawSection : 'A');
 
 try {
@@ -56,6 +62,7 @@ try {
             Timetable::addCustomClass($schoolId, $newClass);
             Session::flash('success', "Class '{$newClass}' added successfully.");
             $class = urlencode($newClass);
+            $_SESSION['last_timetable_class'] = $newClass;
         }
     } elseif ($action === 'add_section') {
         $newSection = trim($_POST['section_name'] ?? '');
@@ -63,6 +70,7 @@ try {
             Timetable::addCustomSection($schoolId, $newSection);
             Session::flash('success', "Section '{$newSection}' added successfully.");
             $section = urlencode($newSection);
+            $_SESSION['last_timetable_section'] = $newSection;
         }
     } elseif ($action === 'save_bell_schedule') {
         $periodsRaw = $_POST['periods'] ?? [];

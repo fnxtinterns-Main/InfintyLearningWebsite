@@ -19,14 +19,18 @@ require VIEW_PATH . '/layouts/header.php';
     <div class="flex between" style="align-items:flex-start">
         <div>
             <h1>My Batches</h1>
-            <p class="muted">Create and manage batches of students you teach.</p>
+            <p class="muted">Batches assigned to you by School Administration.</p>
         </div>
-        <a href="/teacher/batch/new" class="btn btn-primary">+ New batch</a>
+        <?php if (Auth::role() === 'admin'): ?>
+            <a href="/teacher/batch/new" class="btn btn-primary">+ New batch</a>
+        <?php endif; ?>
     </div>
 
     <?php if (!$batches): ?>
-        <div class="card text-center mt-3">
-            <p class="muted">No batches yet. Click "New batch" to create your first one.</p>
+        <div class="card text-center mt-3" style="padding:40px 20px;">
+            <div style="font-size:2.5rem; margin-bottom:10px;">🏫</div>
+            <h3>No assigned batches found</h3>
+            <p class="muted">You currently do not have any batches assigned. Your School Administrator will assign batches to your profile.</p>
         </div>
     <?php else: ?>
         <div class="grid grid-3 mt-3">

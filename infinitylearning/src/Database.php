@@ -103,7 +103,8 @@ final class Database
                 PDO::ATTR_EMULATE_PREPARES   => false,
                 PDO::ATTR_TIMEOUT            => $timeout,
                 PDO::MYSQL_ATTR_INIT_COMMAND =>
-                    "SET SESSION innodb_lock_wait_timeout = $timeout, " .
+                    "SET SESSION time_zone = '+05:30', " .
+                    "SESSION innodb_lock_wait_timeout = $timeout, " .
                     "SESSION lock_wait_timeout = $timeout, " .
                     "SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION', " .
                     "SESSION collation_connection = 'utf8mb4_unicode_ci', " .
