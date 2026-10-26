@@ -242,6 +242,8 @@ final class FeeManagement
         $fee['crest_logo']          = $school['crest_logo'] ?? ($school['logo'] ?? '');
         $fee['brand_primary_color'] = $school['brand_primary_color'] ?? '#FF7A18';
         $fee['admission_number']    = $fee['admission_number'] ?? ('IL-' . str_pad((string)$fee['student_user_id'], 5, '0', STR_PAD_LEFT));
+        $fee['principal_signature'] = $school['principal_signature'] ?? null;
+        $fee['principal_name']      = $school['principal_name'] ?? null;
 
         return $fee;
     }

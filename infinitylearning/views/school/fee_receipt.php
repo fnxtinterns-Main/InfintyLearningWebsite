@@ -234,31 +234,59 @@ table.receipt-table th.tar, table.receipt-table td.tar { text-align: right; }
         </div>
 
         <!-- BREAKDOWN TABLE -->
+        <?php
+        $due = (float)$fee['amount_due'];
+        $itemTuition = round($due * 0.60, 2);
+        $itemLab     = round($due * 0.20, 2);
+        $itemLibrary = round($due * 0.10, 2);
+        $itemExam    = round($due - ($itemTuition + $itemLab + $itemLibrary), 2);
+        ?>
         <table class="receipt-table">
             <thead>
                 <tr>
-                    <th>Description</th>
+                    <th>Itemized Fee Particulars</th>
                     <th>Fee Month</th>
-                    <th class="tar">Amount Due</th>
-                    <th class="tar">Discount</th>
-                    <th class="tar">Net Paid</th>
+                    <th class="tar">Amount (₹)</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td>
-                        <strong><?= ucfirst(Helper::e($fee['fee_type'])) ?> Fee</strong>
+                        <strong>Tuition &amp; Academic Curriculum Fee</strong>
+                        <div style="font-size:11.5px; color:#8A7667;">Core classroom instruction, syllabus delivery, and mentor guidance</div>
+                    </td>
+                    <td><?= Helper::e($fee['fee_month']) ?></td>
+                    <td class="tar">₹<?= number_format($itemTuition, 2) ?></td>
+                </tr>
+                <tr>
+                    <td>
+                        <strong>Technology, Lab &amp; Digital Learning Resources</strong>
+                        <div style="font-size:11.5px; color:#8A7667;">Interactive platform, AI question bank access, and digital content</div>
+                    </td>
+                    <td><?= Helper::e($fee['fee_month']) ?></td>
+                    <td class="tar">₹<?= number_format($itemLab, 2) ?></td>
+                </tr>
+                <tr>
+                    <td>
+                        <strong>Library, Reading &amp; Co-Curricular Resources</strong>
+                        <div style="font-size:11.5px; color:#8A7667;">Reading materials, study packages, and academic assets</div>
+                    </td>
+                    <td><?= Helper::e($fee['fee_month']) ?></td>
+                    <td class="tar">₹<?= number_format($itemLibrary, 2) ?></td>
+                </tr>
+                <tr>
+                    <td>
+                        <strong>Examination &amp; Assessment Composite Charges</strong>
+                        <div style="font-size:11.5px; color:#8A7667;">Continuous evaluation, Unit Tests, and term examinations</div>
                         <?php if (!empty($fee['batch_name'])): ?>
-                            <div style="font-size:12px; color:#8A7667;">Batch: <?= Helper::e($fee['batch_name']) ?></div>
+                            <div style="font-size:11px; color:#2563EB; margin-top:2px;">Batch: <?= Helper::e($fee['batch_name']) ?></div>
                         <?php endif; ?>
                         <?php if (!empty($fee['notes'])): ?>
-                            <div style="font-size:12px; color:#8A7667;">Note: <?= Helper::e($fee['notes']) ?></div>
+                            <div style="font-size:11px; color:#8A7667; margin-top:2px;">Note: <?= Helper::e($fee['notes']) ?></div>
                         <?php endif; ?>
                     </td>
                     <td><?= Helper::e($fee['fee_month']) ?></td>
-                    <td class="tar">₹<?= number_format((float)$fee['amount_due'], 2) ?></td>
-                    <td class="tar">₹<?= number_format((float)$fee['discount'], 2) ?></td>
-                    <td class="tar" style="font-weight:700; color:#15803D;">₹<?= number_format((float)$fee['amount_paid'], 2) ?></td>
+                    <td class="tar">₹<?= number_format($itemExam, 2) ?></td>
                 </tr>
             </tbody>
         </table>
@@ -267,12 +295,12 @@ table.receipt-table th.tar, table.receipt-table td.tar { text-align: right; }
         <div class="total-section">
             <div class="total-box">
                 <div class="total-row">
-                    <span>Subtotal:</span>
+                    <span>Gross Fee Total:</span>
                     <span>₹<?= number_format((float)$fee['amount_due'], 2) ?></span>
                 </div>
                 <?php if ((float)$fee['discount'] > 0): ?>
                     <div class="total-row">
-                        <span>Concession / Discount:</span>
+                        <span>Concession / Scholarship:</span>
                         <span>-₹<?= number_format((float)$fee['discount'], 2) ?></span>
                     </div>
                 <?php endif; ?>
@@ -290,12 +318,17 @@ table.receipt-table th.tar, table.receipt-table td.tar { text-align: right; }
         <!-- FOOTER & SIGNATURE -->
         <div class="receipt-footer">
             <div>
-                <div class="stamp-box">PAID & VERIFIED</div>
+                <div class="stamp-box">PAID &amp; VERIFIED</div>
                 <div style="margin-top:6px; font-size:11px;">System generated valid electronic receipt · Infinity Learning EduOS</div>
             </div>
 
             <div style="text-align:center;">
-                <div class="sig-line">Authorized Signatory / Bursar</div>
+                <?php if (!empty($fee['principal_signature'])): ?>
+                    <img src="<?= Helper::e($fee['principal_signature']) ?>" alt="Signature" style="max-height:48px; margin-bottom:4px; max-width:150px; object-fit:contain; display:block; margin-left:auto; margin-right:auto;">
+                <?php endif; ?>
+                <div class="sig-line">
+                    <?= !empty($fee['principal_name']) ? Helper::e($fee['principal_name']) . '<br><span style="font-size:11px; font-weight:normal; color:#8A7667;">Authorized Signatory / Principal</span>' : 'Authorized Signatory / Bursar' ?>
+                </div>
             </div>
         </div>
     </div>

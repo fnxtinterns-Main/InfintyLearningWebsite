@@ -140,7 +140,8 @@ require VIEW_PATH . '/layouts/header.php';
                 <h1 style="margin:2px 0 0; font-size:26px; font-weight:800;">Direct Marks Entry Grid</h1>
                 <p class="muted">Enter marks for Unit Tests, Pen &amp; Paper Class Tests, Mid-Term, and Final Exams. Marks flow dynamically to student profiles and school report cards.</p>
             </div>
-            <div style="display:flex; gap:10px;">
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <a href="/teacher/assessment/new" class="btn btn-primary btn-sm">+ Create New Assessment / Quiz</a>
                 <a href="/teacher/assessments" class="btn btn-outline-secondary btn-sm">📝 All Assessments</a>
             </div>
         </div>

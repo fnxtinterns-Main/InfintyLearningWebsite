@@ -90,12 +90,12 @@ require VIEW_PATH . '/layouts/header.php';
                             </tr>
                         </thead>
                         <tbody>
-                        <?php foreach ($students as $s): ?>
+                        <?php $sIdx = 1; foreach ($students as $s): ?>
                             <tr>
                                 <td style="text-align:center;">
                                     <input type="checkbox" name="student_ids[]" value="<?= (int)$s['id'] ?>" class="student-chk" style="cursor:pointer;">
                                 </td>
-                                <td><?= (int)$s['id'] ?></td>
+                                <td><?= $sIdx++ ?></td>
                                 <td>
                                     <div class="flex" style="gap:.6rem; align-items:center;">
                                         <?php if (!empty($s['avatar'])): ?>
@@ -157,6 +157,7 @@ require VIEW_PATH . '/layouts/header.php';
 
                                         <?php if ($s['status'] === 'active'): ?>
                                             <a class="btn btn-ghost btn-sm" href="/student?id=<?= (int)$s['id'] ?>">View</a>
+                                            <a class="btn btn-outline-primary btn-sm" href="/profile?user_id=<?= (int)$s['id'] ?>" title="Edit Student Profile">✏️ Edit</a>
                                             <a class="btn btn-secondary btn-sm" href="/school/report-card?student_id=<?= (int)$s['id'] ?>" target="_blank" title="Generate Academic Report Card">📄 Report Card</a>
                                             <button type="submit" form="actionFormSuspend_<?= (int)$s['id'] ?>" class="btn btn-ghost btn-sm" onclick="return confirm('Suspend this student account?')">Suspend</button>
                                         <?php endif; ?>

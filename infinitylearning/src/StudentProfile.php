@@ -15,24 +15,30 @@ final class StudentProfile
 
         // --- Base user + profile (support lookup by users.id or students.id) ---
         $stmt = $db->prepare("
-            SELECT u.id, u.email, u.phone, u.role, u.status, u.created_at, u.last_login_at,
-                   s.*, s.id AS student_table_id, s.user_id AS student_user_id
+            SELECT u.id AS u_user_id, u.id AS user_id, u.email, u.phone, u.role, u.status, u.created_at, u.last_login_at,
+                   s.id AS s_student_id, s.id AS student_table_id, s.user_id AS student_user_id,
+                   s.full_name, s.school_id, s.city, s.state, s.gender, s.profile_image,
+                   s.age, s.date_of_birth, s.school_board, s.academic_year, s.current_class, s.interests,
+                   s.registration_number, s.roll_number, s.mentor_user_id, s.district, s.pincode
             FROM users u
             LEFT JOIN students s ON s.user_id = u.id
             WHERE (u.id = ? OR s.id = ?) AND u.role = 'student'
+            ORDER BY (u.id = ?) DESC, (s.id = ?) DESC
             LIMIT 1
         ");
-        $stmt->execute([$studentUserId, $studentUserId]);
+        $stmt->execute([$studentUserId, $studentUserId, $studentUserId, $studentUserId]);
         $student = $stmt->fetch();
         if (!$student) return null;
 
-        $actualUserId = (int)$student['id'];
-        $studentTableId = (int)($student['student_table_id'] ?? 0);
+        $actualUserId = (int)($student['u_user_id'] ?? $student['user_id'] ?? $studentUserId);
+        $studentTableId = (int)($student['s_student_id'] ?? $student['student_table_id'] ?? 0);
         $candidateIds = array_values(array_unique(array_filter([$actualUserId, $studentTableId, $studentUserId])));
         $inClause = implode(',', array_fill(0, count($candidateIds), '?'));
 
-        // Ensure user_id is explicitly set
+        // Ensure user_id and id are explicitly the users.id
+        $student['id'] = $actualUserId;
         $student['user_id'] = $actualUserId;
+        $student['student_table_id'] = $studentTableId;
 
         // --- Parents ---
         $student['parents'] = [];
@@ -95,7 +101,7 @@ final class StudentProfile
             ");
             $stmt->execute($candidateIds);
             $lp = $stmt->fetch() ?: ['started'=>0,'completed'=>0];
-            $availableLessons = Lesson::list([], -1, $actualUserId) ?: [];
+            $availableLessons = Lesson::list([], -1, $actualUserId, 'student') ?: [];
         } catch (\Throwable $e) {
             error_log('StudentProfile lesson_progress query error: ' . $e->getMessage());
         }

@@ -57,9 +57,9 @@ require VIEW_PATH . '/layouts/header.php';
                         </tr>
                     </thead>
                     <tbody>
-                    <?php foreach ($teachers as $t): ?>
+                    <?php $idx = 1; foreach ($teachers as $t): ?>
                         <tr>
-                            <td><?= (int)$t['id'] ?></td>
+                            <td><?= $idx++ ?></td>
                             <td>
                                 <div class="flex" style="gap:.6rem; align-items:center;">
                                     <?php if (!empty($t['avatar'])): ?>

@@ -781,10 +781,17 @@ function renderCmdResults() {
 }
 
 function selectCmdIndex(idx) {
+    if (!filteredCmdItems || filteredCmdItems.length === 0) return;
+    if (idx < 0) idx = filteredCmdItems.length - 1;
+    if (idx >= filteredCmdItems.length) idx = 0;
     selectedCmdIndex = idx;
     const items = document.querySelectorAll('.cmd-item');
     items.forEach((el, i) => {
-        el.classList.toggle('selected', i === idx);
+        const isSel = (i === idx);
+        el.classList.toggle('selected', isSel);
+        if (isSel) {
+            el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
     });
 }
 
@@ -822,16 +829,10 @@ document.addEventListener('keydown', function(e) {
             closeCommandPalette();
         } else if (e.key === 'ArrowDown') {
             e.preventDefault();
-            if (filteredCmdItems.length > 0) {
-                selectedCmdIndex = (selectedCmdIndex + 1) % filteredCmdItems.length;
-                renderCmdResults();
-            }
+            selectCmdIndex(selectedCmdIndex + 1);
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
-            if (filteredCmdItems.length > 0) {
-                selectedCmdIndex = (selectedCmdIndex - 1 + filteredCmdItems.length) % filteredCmdItems.length;
-                renderCmdResults();
-            }
+            selectCmdIndex(selectedCmdIndex - 1);
         } else if (e.key === 'Enter') {
             e.preventDefault();
             executeCmdItem(selectedCmdIndex);

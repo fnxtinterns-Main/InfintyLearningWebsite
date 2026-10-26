@@ -188,8 +188,15 @@ require VIEW_PATH . '/layouts/header.php';
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label>Current Class *</label>
-                                <input type="text" name="current_class" id="currentClassInput" required value="<?= Helper::old('current_class') ?>" placeholder="e.g. Grade 8">
+                                <label>Current Class / Grade *</label>
+                                <select name="current_class" id="currentClassInput" required>
+                                    <option value="">— select grade / class —</option>
+                                    <option value="Kindergarten" <?= Helper::old('current_class') === 'Kindergarten' ? 'selected' : '' ?>>Kindergarten / Pre-K</option>
+                                    <?php for ($g = 1; $g <= 12; $g++): ?>
+                                        <?php $gVal = "Grade {$g}"; ?>
+                                        <option value="<?= $gVal ?>" <?= Helper::old('current_class') === $gVal ? 'selected' : '' ?>><?= $gVal ?></option>
+                                    <?php endfor; ?>
+                                </select>
                             </div>
                             <div class="form-group">
                                 <label>Registration Number *</label>

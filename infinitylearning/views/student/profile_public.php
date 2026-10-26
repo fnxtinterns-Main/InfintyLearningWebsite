@@ -21,8 +21,20 @@ if (!$studentId) {
 $canView = false;
 if ($viewerRole === 'admin' || $viewerRole === 'school_admin') {
     $canView = true;
-} elseif ($viewerRole === 'student' && (int)$viewer['id'] === $studentId) {
-    $canView = true;
+} elseif ($viewerRole === 'student') {
+    if ((int)$viewer['id'] === $studentId) {
+        $canView = true;
+    } else {
+        try {
+            $db = Database::connect();
+            $chk = $db->prepare("SELECT 1 FROM students WHERE (id = ? OR user_id = ?) AND user_id = ? LIMIT 1");
+            $chk->execute([$studentId, $studentId, (int)$viewer['id']]);
+            if ($chk->fetch()) {
+                $canView = true;
+                $studentId = (int)$viewer['id'];
+            }
+        } catch (\Throwable $e) {}
+    }
 } elseif ($viewerRole === 'parent') {
     // Parents can view their registered children
     try {
@@ -118,6 +130,11 @@ $examSummary = $exams['summary'] ?? ['total_tests'=>0,'average_pct'=>0];
             ← Back
         </a>
         <div style="display:flex; gap:8px;">
+            <?php if ($viewerRole === 'admin' || $viewerRole === 'school_admin'): ?>
+                <a href="/profile?user_id=<?= (int)$studentId ?>" class="btn btn-secondary btn-sm" style="font-weight:700;">
+                    ✏️ Edit Student Profile
+                </a>
+            <?php endif; ?>
             <a href="/student/report-card?student_id=<?= (int)$studentId ?>" class="btn btn-primary btn-sm" style="font-weight:700;">
                 📄 Official Report Card
             </a>
@@ -239,7 +256,7 @@ $examSummary = $exams['summary'] ?? ['total_tests'=>0,'average_pct'=>0];
         <div class="flex between" style="align-items:center; flex-wrap:wrap; gap:12px;">
             <div>
                 <h3 style="margin:0; display:flex; align-items:center; gap:8px;">
-                    <span>📅</span> Daily Attendance Bar Graph &amp; Timeline
+                    <span>📅</span> Daily Attendance Graph &amp; Timeline
                 </h3>
                 <p class="muted" style="margin:2px 0 0; font-size:13px;">Complete day-by-day attendance history recorded by teachers and mentors.</p>
             </div>
@@ -365,7 +382,7 @@ $examSummary = $exams['summary'] ?? ['total_tests'=>0,'average_pct'=>0];
         <div class="flex between" style="align-items:center; flex-wrap:wrap; gap:12px;">
             <div>
                 <h3 style="margin:0; display:flex; align-items:center; gap:8px;">
-                    <span>📊</span> Academic Examination Bar Graphs &amp; Results
+                    <span>📊</span> Academic Examination Graphs &amp; Results
                 </h3>
                 <p class="muted" style="margin:2px 0 0; font-size:13px;">Performance comparison across Unit Tests, Pen &amp; Paper Tests, Mid-Term, and Final Exams.</p>
             </div>
@@ -649,7 +666,7 @@ $examSummary = $exams['summary'] ?? ['total_tests'=>0,'average_pct'=>0];
         <div class="flex between" style="align-items:center; flex-wrap:wrap; gap:10px;">
             <div>
                 <h3 style="margin:0; display:flex; align-items:center; gap:8px;">
-                    <span>🌱</span> Holistic Growth &amp; Development Bar Graph
+                    <span>🌱</span> Holistic Growth &amp; Development Graph
                 </h3>
                 <p class="muted" style="margin:2px 0 0; font-size:13px;">Scholar participation across the 5 core personality and experiential growth pillars.</p>
             </div>

@@ -464,8 +464,8 @@ html[data-theme="light"] .kicker,
 </div>
 
 <!-- MODAL TO GENERATE QUESTIONS WITH AI (ENHANCED PREMISE & COGNITIVE CONTROLS) -->
-<div id="aiQuestionModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9999; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(6px);">
-    <div class="card" style="width:100%; max-width:780px; max-height:92vh; overflow-y:auto; padding:26px 30px; border-radius:18px; box-shadow:0 24px 60px rgba(0,0,0,0.4); border:1px solid var(--il-border);">
+<div id="aiQuestionModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:99999; align-items:flex-start; justify-content:center; padding:50px 16px; overflow-y:auto; backdrop-filter:blur(6px);">
+    <div class="card" style="width:100%; max-width:780px; max-height:calc(100vh - 100px); overflow-y:auto; padding:26px 30px; border-radius:18px; box-shadow:0 24px 60px rgba(0,0,0,0.4); border:1px solid var(--il-border); margin:0 auto;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--il-border); padding-bottom:12px;">
             <div>
                 <h3 style="margin:0; font-size:19px; display:flex; align-items:center; gap:8px;">

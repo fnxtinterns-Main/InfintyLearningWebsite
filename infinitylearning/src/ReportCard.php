@@ -19,11 +19,15 @@ final class ReportCard
                    s.current_class, s.profile_image, s.city, s.state, s.school_board, s.academic_year,
                    sch.name AS school_name, sch.crest_logo, sch.address AS school_address,
                    sch.phone AS school_phone, sch.contact_email AS school_email,
-                   sch.principal_signature, sch.official_seal
+                   sch.principal_signature, sch.principal_name, sch.official_seal,
+                   t.signature_image AS teacher_signature, t.full_name AS teacher_name
             FROM users u
             LEFT JOIN students s ON s.user_id = u.id
             LEFT JOIN schools sch ON sch.id = u.school_id
+            LEFT JOIN teachers t ON t.user_id = s.mentor_user_id
+                                 OR (t.class_teacher_grade = s.current_class AND t.user_id IN (SELECT id FROM users WHERE school_id = u.school_id))
             WHERE u.id = ? OR s.id = ?
+            ORDER BY t.signature_image DESC
             LIMIT 1
         ");
         $stmt->execute([$studentUserId, $studentUserId]);

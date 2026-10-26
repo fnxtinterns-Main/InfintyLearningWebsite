@@ -576,8 +576,8 @@ function fetchFreeTeachers() {
 </script>
 
 <!-- MODAL FOR TEACHER SUBSTITUTION & FREE PERIODS -->
-<div id="subModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9999; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(5px);">
-    <div class="card modal" style="background:var(--surface-1); color:var(--il-text); border:1px solid var(--il-border); border-radius:18px; max-width:680px; width:100%; max-height:90vh; overflow-y:auto; padding:26px; box-shadow:0 24px 60px rgba(0,0,0,0.35);">
+<div id="subModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:99999; align-items:flex-start; justify-content:center; padding:50px 20px; overflow-y:auto; backdrop-filter:blur(5px);">
+    <div class="card modal" style="background:var(--surface-1); color:var(--il-text); border:1px solid var(--il-border); border-radius:18px; max-width:680px; width:100%; max-height:calc(100vh - 100px); overflow-y:auto; padding:26px; box-shadow:0 24px 60px rgba(0,0,0,0.35); margin:0 auto;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
             <div>
                 <h3 style="margin:0; font-size:19px;">🔄 Teacher Substitution & Free Periods</h3>

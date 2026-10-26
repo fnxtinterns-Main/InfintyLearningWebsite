@@ -299,8 +299,21 @@ final class DoubtFeed
             self::ensureTable();
             $db = Database::connect();
 
-            $where = ['d.student_user_id = ?'];
-            $params = [$studentUserId];
+            $ids = [$studentUserId];
+            try {
+                $s = $db->prepare("SELECT user_id, id FROM students WHERE user_id = ? OR id = ? LIMIT 1");
+                $s->execute([$studentUserId, $studentUserId]);
+                $sRow = $s->fetch();
+                if ($sRow) {
+                    if (!empty($sRow['user_id'])) $ids[] = (int)$sRow['user_id'];
+                    if (!empty($sRow['id'])) $ids[] = (int)$sRow['id'];
+                }
+            } catch (\Throwable $e) {}
+            $ids = array_values(array_unique(array_filter($ids)));
+            $inClause = implode(',', array_fill(0, count($ids), '?'));
+
+            $where = ["d.student_user_id IN ($inClause)"];
+            $params = $ids;
 
             if (!empty($filters['status'])) {
                 $where[] = 'd.status = ?';
@@ -350,15 +363,28 @@ final class DoubtFeed
             self::ensureTable();
             $db = Database::connect();
 
+            $ids = [$studentUserId];
+            try {
+                $s = $db->prepare("SELECT user_id, id FROM students WHERE user_id = ? OR id = ? LIMIT 1");
+                $s->execute([$studentUserId, $studentUserId]);
+                $sRow = $s->fetch();
+                if ($sRow) {
+                    if (!empty($sRow['user_id'])) $ids[] = (int)$sRow['user_id'];
+                    if (!empty($sRow['id'])) $ids[] = (int)$sRow['id'];
+                }
+            } catch (\Throwable $e) {}
+            $ids = array_values(array_unique(array_filter($ids)));
+            $inClause = implode(',', array_fill(0, count($ids), '?'));
+
             $stmt = $db->prepare("
                 SELECT 
                     COUNT(*) AS total,
                     SUM(CASE WHEN status = 'answered' THEN 1 ELSE 0 END) AS answered,
                     SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) AS open
                 FROM lesson_doubts
-                WHERE student_user_id = ?
+                WHERE student_user_id IN ($inClause)
             ");
-            $stmt->execute([$studentUserId]);
+            $stmt->execute($ids);
             $row = $stmt->fetch() ?: [];
             return [
                 'total'    => (int)($row['total'] ?? 0),

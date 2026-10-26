@@ -449,14 +449,24 @@ table.marks-table td.tar, table.marks-table th.tar { text-align: right; }
         <!-- SIGNATURES -->
         <div class="sig-container">
             <div class="sig-box">
-                <div class="sig-line">Instructor / Faculty Lead</div>
+                <?php if (!empty($student['teacher_signature'])): ?>
+                    <img src="<?= Helper::e($student['teacher_signature']) ?>" alt="Teacher Signature" style="max-height:40px; margin-bottom:4px; max-width:140px; object-fit:contain;">
+                <?php endif; ?>
+                <div class="sig-line">
+                    <?= !empty($student['teacher_name']) ? Helper::e($student['teacher_name']) . '<br><span style="font-size:11px; font-weight:normal; color:#6E5C4F;">Class Teacher</span>' : 'Class Teacher / Faculty Lead' ?>
+                </div>
             </div>
             <div class="sig-box">
                 <div class="school-seal">Official<br>Seal</div>
                 <div class="sig-line">Academic Dean / Controller</div>
             </div>
             <div class="sig-box">
-                <div class="sig-line">Head of Academy</div>
+                <?php if (!empty($student['principal_signature'])): ?>
+                    <img src="<?= Helper::e($student['principal_signature']) ?>" alt="Principal Signature" style="max-height:40px; margin-bottom:4px; max-width:140px; object-fit:contain;">
+                <?php endif; ?>
+                <div class="sig-line">
+                    <?= !empty($student['principal_name']) ? Helper::e($student['principal_name']) . '<br><span style="font-size:11px; font-weight:normal; color:#6E5C4F;">Principal</span>' : 'Principal' ?>
+                </div>
             </div>
         </div>
     </div>

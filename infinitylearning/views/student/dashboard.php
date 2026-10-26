@@ -385,7 +385,7 @@ $latestTest = !empty($studentExams['all_tests'][0]) ? $studentExams['all_tests']
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                 <div>
                     <h3 style="margin:0; display:flex; align-items:center; gap:8px;">
-                        <span>📊</span> Attendance Bar Graph
+                        <span>📊</span> Attendance Graph
                     </h3>
                     <p class="muted" style="margin:2px 0 0; font-size:12.5px;">Visual breakdown of recorded attendance status across all enrolled batches.</p>
                 </div>

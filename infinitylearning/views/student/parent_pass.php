@@ -96,41 +96,38 @@ try {
     $gamification = StudentProfile::calculateStreakAndXP($studentUserId);
 } catch (\Throwable $e) {}
 
-// Attendance Summary
-$attCounts = ['present' => 0, 'absent' => 0, 'late' => 0];
+// Complete Student Profile Data (Attendance, Exam categories)
+$stdProfile = null;
 try {
-    $attStmt = $db->prepare("
-        SELECT status, COUNT(*) as cnt 
-        FROM attendance 
-        WHERE student_user_id = ? 
-        GROUP BY status
-    ");
-    $attStmt->execute([$studentUserId]);
-    foreach ($attStmt->fetchAll() as $r) {
-        if (isset($attCounts[$r['status']])) {
-            $attCounts[$r['status']] = (int)$r['cnt'];
-        }
-    }
-} catch (\Throwable $e) {}
-$totalAttDays = array_sum($attCounts);
-$attPercentage = $totalAttDays > 0 ? (int)round(($attCounts['present'] / $totalAttDays) * 100) : 100;
+    $stdProfile = StudentProfile::build($studentUserId);
+} catch (\Throwable $e) {
+    error_log('Parent pass StudentProfile::build error: ' . $e->getMessage());
+}
 
-// Academic Assessments / Recent Tests
-$recentTests = [];
-try {
-    $testsStmt = $db->prepare("
-        SELECT sub.score_obtained as marks_obtained, sub.submitted_at, sub.teacher_feedback as feedback,
-               a.title, a.assessment_type, a.total_marks, sub.status,
-               sub.id as submission_id
-        FROM assessment_submissions sub
-        JOIN academic_assessments a ON a.id = sub.assessment_id
-        WHERE sub.student_user_id = ?
-        ORDER BY sub.submitted_at DESC
-        LIMIT 5
-    ");
-    $testsStmt->execute([$studentUserId]);
-    $recentTests = $testsStmt->fetchAll();
-} catch (\Throwable $e) {}
+// Attendance breakdown
+$attCounts = $stdProfile['attendance']['raw'] ?? ['present' => 0, 'absent' => 0, 'late' => 0, 'excused' => 0];
+$totalAttDays = max(0, (int)($stdProfile['attendance']['total'] ?? array_sum($attCounts)));
+$attPercentage = (int)($stdProfile['attendance']['present_pct'] ?? ($totalAttDays > 0 ? round(($attCounts['present'] / $totalAttDays) * 100) : 100));
+
+// Exam categories and tests
+$examCats = $stdProfile['exams']['categories'] ?? [];
+$recentTests = $stdProfile['exams']['all_tests'] ?? [];
+if (empty($recentTests)) {
+    try {
+        $testsStmt = $db->prepare("
+            SELECT sub.score_obtained as marks_obtained, sub.submitted_at, sub.teacher_feedback as feedback,
+                   a.title, a.assessment_type, a.total_marks, sub.status,
+                   sub.id as submission_id
+            FROM assessment_submissions sub
+            JOIN academic_assessments a ON a.id = sub.assessment_id
+            WHERE sub.student_user_id = ?
+            ORDER BY sub.submitted_at DESC
+            LIMIT 5
+        ");
+        $testsStmt->execute([$studentUserId]);
+        $recentTests = $testsStmt->fetchAll();
+    } catch (\Throwable $e) {}
+}
 
 // Monthly Fee Status
 $fees = [];
@@ -140,18 +137,6 @@ try {
     ]);
 } catch (\Throwable $e) {}
 $latestFee = $fees[0] ?? null;
-
-// Today's Routine / Class Timetable
-$dayOfWeek = date('l');
-$routine = [];
-try {
-    if (!empty($studentUserId)) {
-        $routine = Timetable::getStudentSchedule($studentUserId);
-    }
-    if (empty($routine) && $schoolId && !empty($student['current_class'])) {
-        $routine = Timetable::getForClass($schoolId, (string)$student['current_class'], $dayOfWeek, (string)($student['section'] ?? 'A'));
-    }
-} catch (\Throwable $e) {}
 
 $pageTitle = 'Parent Progress Pass — ' . ($student['full_name'] ?? 'Student');
 require VIEW_PATH . '/layouts/header.php';
@@ -233,52 +218,155 @@ require VIEW_PATH . '/layouts/header.php';
                 </div>
             </div>
 
-            <!-- ATTENDANCE OVERVIEW -->
-            <div class="card" style="padding:16px; margin:0 0 18px; border-radius:12px; background:var(--surface-1); border:1px solid var(--il-border);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <div style="font-size:13px; font-weight:700; color:var(--il-text);">📊 Attendance Metric</div>
-                    <div style="font-size:16px; font-weight:800; color:<?= $attPercentage >= 75 ? '#10b981' : '#ef4444' ?>;">
-                        <?= $attPercentage ?>% Overall
+            <!-- ==========================================
+                 1. ATTENDANCE GRAPH (VERTICAL BARS)
+                 ========================================== -->
+            <?php
+            $presentW = $totalAttDays > 0 ? round((($attCounts['present'] ?? 0) / $totalAttDays) * 100, 1) : 0;
+            $absentW  = $totalAttDays > 0 ? round((($attCounts['absent'] ?? 0)  / $totalAttDays) * 100, 1) : 0;
+            $lateW    = $totalAttDays > 0 ? round((($attCounts['late'] ?? 0)    / $totalAttDays) * 100, 1) : 0;
+            $excusedW = $totalAttDays > 0 ? round((($attCounts['excused'] ?? 0) / $totalAttDays) * 100, 1) : 0;
+
+            $attBars = [
+                ['label' => 'Present', 'count' => (int)($attCounts['present'] ?? 0), 'pct' => $presentW, 'color' => '#16A34A', 'gradient' => 'linear-gradient(180deg, #22C55E 0%, #16A34A 100%)', 'icon' => '✅'],
+                ['label' => 'Absent',  'count' => (int)($attCounts['absent'] ?? 0),  'pct' => $absentW,  'color' => '#DC2626', 'gradient' => 'linear-gradient(180deg, #EF4444 0%, #DC2626 100%)', 'icon' => '✕'],
+                ['label' => 'Late',    'count' => (int)($attCounts['late'] ?? 0),    'pct' => $lateW,    'color' => '#F59E0B', 'gradient' => 'linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%)', 'icon' => '⏱️'],
+                ['label' => 'Excused', 'count' => (int)($attCounts['excused'] ?? 0), 'pct' => $excusedW, 'color' => '#2563EB', 'gradient' => 'linear-gradient(180deg, #3B82F6 0%, #2563EB 100%)', 'icon' => 'ℹ️'],
+            ];
+            ?>
+            <div class="card" style="padding:16px; margin:0 0 18px; border-radius:14px; background:var(--surface-1); border:1px solid var(--il-border);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <div>
+                        <div style="font-size:14px; font-weight:800; color:var(--il-text); display:flex; align-items:center; gap:6px;">
+                            <span>📊</span> Attendance Graph
+                        </div>
+                        <div style="font-size:11.5px; color:var(--il-muted); margin-top:2px;">
+                            Total Recorded: <?= $totalAttDays ?> days
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <span style="font-size:18px; font-weight:800; color:<?= $attPercentage >= 75 ? '#10b981' : '#ef4444' ?>;">
+                            <?= $attPercentage ?>%
+                        </span>
+                        <div style="font-size:10.5px; color:var(--il-muted);">Present Rate</div>
                     </div>
                 </div>
-                <div style="background:var(--surface-2); border-radius:999px; height:8px; overflow:hidden; border:1px solid var(--il-border);">
-                    <div style="background:<?= $attPercentage >= 75 ? '#10b981' : '#ef4444' ?>; height:100%; width:<?= $attPercentage ?>%;"></div>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--il-muted); margin-top:6px;">
-                    <span>Present: <strong><?= $attCounts['present'] ?></strong> days</span>
-                    <span>Late: <strong><?= $attCounts['late'] ?></strong> days</span>
-                    <span>Absent: <strong><?= $attCounts['absent'] ?></strong> days</span>
-                </div>
-            </div>
 
-            <!-- TODAY'S CLASS ROUTINE -->
-            <div class="card" style="padding:16px; margin:0 0 18px; border-radius:12px; background:var(--surface-1); border:1px solid var(--il-border);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <div style="font-size:13px; font-weight:700; color:var(--il-text);">🗓️ Today's Routine (<?= $dayOfWeek ?>)</div>
-                    <a href="/timetable" style="font-size:11px; color:var(--primary); text-decoration:none; font-weight:600;">Full Timetable →</a>
-                </div>
-                <?php if (!empty($routine)): ?>
-                    <div style="display:flex; flex-direction:column; gap:8px;">
-                        <?php foreach ($routine as $slot): ?>
-                            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--surface-2); border-radius:8px; font-size:12px; border:1px solid var(--il-border);">
-                                <div style="display:flex; align-items:center; gap:8px;">
-                                    <span class="badge badge-secondary" style="font-size:10px;">P<?= (int)$slot['period_number'] ?></span>
-                                    <strong style="color:var(--il-text);"><?= Helper::e($slot['subject_name'] ?? 'Class') ?></strong>
-                                    <?php if (!empty($slot['teacher_name'])): ?>
-                                        <span class="muted" style="font-size:11px;">(<?= Helper::e($slot['teacher_name']) ?>)</span>
-                                    <?php endif; ?>
+                <!-- Vertical Attendance Bars -->
+                <div style="position:relative; padding:18px 10px 10px 42px; background:var(--surface-0); border-radius:10px; border:1px solid var(--il-border);">
+                    <!-- Y-Axis Gridlines & Labels -->
+                    <div style="position:absolute; left:8px; top:18px; bottom:38px; display:flex; flex-direction:column; justify-content:space-between; font-size:9px; color:var(--il-muted); font-family:monospace; text-align:right; width:26px;">
+                        <span>100%</span>
+                        <span>50%</span>
+                        <span>0%</span>
+                    </div>
+                    <div style="position:absolute; left:42px; right:10px; top:18px; bottom:38px; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none;">
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1.5px solid var(--il-border); height:0;"></div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-around; align-items:flex-end; height:130px; position:relative; z-index:2;">
+                        <?php foreach ($attBars as $item): 
+                            $barH = $item['pct'] > 0 ? max(8, min(100, $item['pct'])) : 0;
+                        ?>
+                            <div style="display:flex; flex-direction:column; align-items:center; width:22%; max-width:80px; height:100%; justify-content:flex-end;">
+                                <div style="font-size:10.5px; font-weight:800; color:<?= $item['color'] ?>; margin-bottom:4px; white-space:nowrap;">
+                                    <?= $item['pct'] ?>%
                                 </div>
-                                <span class="muted" style="font-family:monospace; font-size:11px;">
-                                    <?= substr($slot['start_time'], 0, 5) ?> - <?= substr($slot['end_time'], 0, 5) ?>
-                                </span>
+                                <div style="width:100%; max-width:44px; height:<?= $barH ?>%; background:<?= $item['gradient'] ?>; border-radius:6px 6px 2px 2px; box-shadow:0 3px 8px <?= $item['color'] ?>33; min-height:<?= $item['pct'] > 0 ? '6px' : '3px' ?>; transition:height 0.5s ease;">
+                                </div>
+                                <div style="margin-top:8px; text-align:center;">
+                                    <div style="font-weight:700; font-size:11px; color:var(--il-text);">
+                                        <?= $item['label'] ?>
+                                    </div>
+                                    <div class="muted" style="font-size:10px;">
+                                        <?= $item['count'] ?>d
+                                    </div>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                     </div>
-                <?php else: ?>
-                    <div style="font-size:12px; color:var(--il-muted); text-align:center; padding:10px 0;">
-                        No classes scheduled for today or weekend break.
+                </div>
+            </div>
+
+            <!-- ==========================================
+                 2. MARKS TREND GRAPH (EXAMS & TESTS)
+                 ========================================== -->
+            <?php
+            $examMeta = [
+                'unit_test'  => ['label' => 'Unit Tests', 'code' => 'UT',  'color' => '#2563EB', 'gradient' => 'linear-gradient(180deg, #3B82F6 0%, #2563EB 100%)'],
+                'pen_paper'  => ['label' => 'Pen & Paper', 'code' => 'PPT', 'color' => '#7C3AED', 'gradient' => 'linear-gradient(180deg, #8B5CF6 0%, #7C3AED 100%)'],
+                'mid_term'   => ['label' => 'Mid Term',    'code' => 'MID', 'color' => '#059669', 'gradient' => 'linear-gradient(180deg, #10B981 0%, #059669 100%)'],
+                'final_term' => ['label' => 'Final Term',  'code' => 'FIN', 'color' => '#D97706', 'gradient' => 'linear-gradient(180deg, #F59E0B 0%, #D97706 100%)'],
+            ];
+            ?>
+            <div class="card" style="padding:16px; margin:0 0 18px; border-radius:14px; background:var(--surface-1); border:1px solid var(--il-border);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <div>
+                        <div style="font-size:14px; font-weight:800; color:var(--il-text); display:flex; align-items:center; gap:6px;">
+                            <span>📈</span> Marks Trend Graph
+                        </div>
+                        <div style="font-size:11.5px; color:var(--il-muted); margin-top:2px;">
+                            Assessment &amp; Examination performance breakdown
+                        </div>
                     </div>
-                <?php endif; ?>
+                    <a href="/school/report-card?student_id=<?= $studentUserId ?>" style="font-size:11px; color:var(--primary); text-decoration:none; font-weight:700;">Full Report Card →</a>
+                </div>
+
+                <!-- Vertical Exam Trend Bars -->
+                <div style="position:relative; padding:18px 10px 10px 42px; background:var(--surface-0); border-radius:10px; border:1px solid var(--il-border); margin-bottom:12px;">
+                    <div style="position:absolute; left:8px; top:18px; bottom:38px; display:flex; flex-direction:column; justify-content:space-between; font-size:9px; color:var(--il-muted); font-family:monospace; text-align:right; width:26px;">
+                        <span>100%</span>
+                        <span>50%</span>
+                        <span>0%</span>
+                    </div>
+                    <div style="position:absolute; left:42px; right:10px; top:18px; bottom:38px; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none;">
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1.5px solid var(--il-border); height:0;"></div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-around; align-items:flex-end; height:130px; position:relative; z-index:2;">
+                        <?php foreach ($examMeta as $mKey => $mInfo): 
+                            $mCat = $examCats[$mKey] ?? ['avg_pct' => 0, 'records' => []];
+                            $mPct = (float)($mCat['avg_pct'] ?? 0);
+                            $mCount = count($mCat['records'] ?? []);
+                            $mBarH = $mPct > 0 ? max(8, min(100, $mPct)) : 0;
+                        ?>
+                            <div style="display:flex; flex-direction:column; align-items:center; width:22%; max-width:80px; height:100%; justify-content:flex-end;">
+                                <div style="font-size:10.5px; font-weight:800; color:<?= $mInfo['color'] ?>; margin-bottom:4px; white-space:nowrap;">
+                                    <?= $mPct ?>%
+                                </div>
+                                <div style="width:100%; max-width:44px; height:<?= $mBarH ?>%; background:<?= $mInfo['gradient'] ?>; border-radius:6px 6px 2px 2px; box-shadow:0 3px 8px <?= $mInfo['color'] ?>33; min-height:<?= $mPct > 0 ? '6px' : '3px' ?>; transition:height 0.5s ease;">
+                                </div>
+                                <div style="margin-top:8px; text-align:center;">
+                                    <div style="font-weight:700; font-size:11px; color:var(--il-text);">
+                                        <?= $mInfo['label'] ?>
+                                    </div>
+                                    <div class="muted" style="font-size:10px;">
+                                        <?= $mCount ?> <?= $mCount === 1 ? 'test' : 'tests' ?>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <!-- Mini summary pills for exam types -->
+                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:6px;">
+                    <?php foreach ($examMeta as $mKey => $mInfo): 
+                        $mCat = $examCats[$mKey] ?? ['avg_pct' => 0, 'records' => []];
+                        $mPct = (float)($mCat['avg_pct'] ?? 0);
+                    ?>
+                        <div style="background:var(--surface-2); border-radius:8px; padding:6px; text-align:center; border:1px solid var(--il-border);">
+                            <div style="font-size:10px; color:var(--il-muted); font-weight:600;"><?= $mInfo['code'] ?></div>
+                            <div style="font-size:12px; font-weight:800; color:<?= $mInfo['color'] ?>; margin-top:2px;">
+                                <?= $mPct > 0 ? "{$mPct}%" : '—' ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
 
             <!-- RECENT ACADEMIC EXAMS & QUIZZES -->

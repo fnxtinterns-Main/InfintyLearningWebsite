@@ -509,13 +509,19 @@ table.data tr:hover td{background:#FFFAF5}
 
 .admin-side{
   background:var(--surface-1);border:1px solid var(--il-border);border-radius:var(--r-lg);
-  padding:.75rem;position:sticky;top:80px;box-shadow:var(--elev-1);
-  max-height:calc(100vh - 96px);
-  overflow-y:auto;
-  overscroll-behavior:contain;
+  padding:.75rem;position:sticky;top:75px;box-shadow:var(--elev-1);
+  max-height:calc(100vh - 85px);
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(255,122,24,.45) var(--surface-2);
 }
-.admin-side::-webkit-scrollbar{width:4px}
-.admin-side::-webkit-scrollbar-thumb{background:var(--il-border);border-radius:4px}
+.admin-side::-webkit-scrollbar{width:6px}
+.admin-side::-webkit-scrollbar-track{background:var(--surface-2);border-radius:6px}
+.admin-side::-webkit-scrollbar-thumb{background:rgba(255,122,24,.4);border-radius:6px}
+.admin-side::-webkit-scrollbar-thumb:hover{background:var(--il-primary)}
 .admin-side a{
   display:flex;align-items:center;gap:.65rem;padding:.7rem .85rem;border-radius:var(--r-md);
   color:var(--il-text);font-weight:600;font-size:.9rem;
@@ -3130,3 +3136,20 @@ html[data-theme="dark"] .school-nav-pill{
   transform: translateX(23px);
   background-color: #FFFFFF;
 }
+
+/* =========================================================
+   UNIVERSAL MODAL POPUP FIX (Never cut off top & high z-index)
+   ========================================================= */
+.modal, #subModal, #aiQuestionModal, #slotModal, #bellModal, #addClassModal, #addSectionModal, #editClassModal, #newClassModal {
+  align-items: flex-start !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  padding-top: 50px !important;
+  padding-bottom: 50px !important;
+  z-index: 99999 !important;
+}
+.modal > .card, #subModal > .card, #aiQuestionModal > .card, #slotModal > .card, #bellModal > .card, #editClassModal > .card, #newClassModal > .card {
+  margin: 0 auto !important;
+  max-height: calc(100vh - 100px) !important;
+  overflow-y: auto !important;
+}

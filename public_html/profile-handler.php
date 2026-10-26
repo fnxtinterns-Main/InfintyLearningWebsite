@@ -16,28 +16,60 @@ if (!Session::verifyCsrf($_POST['csrf'] ?? null)) {
     Helper::redirect('/profile');
 }
 
-$user = Auth::user();
-$role = $user['role'];
+$loggedInUser = Auth::user();
+$loggedInRole = $loggedInUser['role'];
+
+// Determine target user to update
+$targetUserId = !empty($_POST['target_user_id']) ? (int)$_POST['target_user_id'] : (int)$loggedInUser['id'];
+$isManagingStudent = false;
+
+if ($targetUserId !== (int)$loggedInUser['id']) {
+    if (!in_array($loggedInRole, ['admin', 'school'], true)) {
+        Session::flash('error', 'Unauthorized action.');
+        Helper::redirect('/profile');
+    }
+    $targetUser = Auth::findById($targetUserId);
+    if (!$targetUser || ($loggedInRole === 'school' && (int)$targetUser['school_id'] !== (int)$loggedInUser['school_id'])) {
+        Session::flash('error', 'Student not found or unauthorized.');
+        Helper::redirect('/profile');
+    }
+    $user = $targetUser;
+    $role = $targetUser['role'];
+    $isManagingStudent = ($role === 'student');
+} else {
+    $user = $loggedInUser;
+    $role = $loggedInRole;
+}
+
+$redirectUrl = $isManagingStudent ? "/profile?user_id={$user['id']}" : '/profile';
 
 // ---------- Validate ----------
 $v = new Validator();
 $v->required('full_name', $_POST['full_name'] ?? '', 'Full name');
 if ($v->fails()) {
     Session::flash('error', implode(' ', $v->errors()));
-    Helper::redirect('/profile');
+    Helper::redirect($redirectUrl);
 }
 
 $db = Database::connect();
+\App\School::ensureSchema();
 
-// ---------- Handle optional image upload ----------
+// ---------- Handle optional image & signature uploads ----------
 $imagePath = null;
+$sigPath = null;
 try {
     if (!empty($_FILES['profile_image']['tmp_name'])) {
         $imagePath = Uploader::image($_FILES['profile_image'], 'profiles');
     }
+    if (!empty($_FILES['signature_image']['tmp_name'])) {
+        $sigPath = Uploader::image($_FILES['signature_image'], 'signatures');
+    }
+    if (!empty($_FILES['principal_signature']['tmp_name'])) {
+        $sigPath = Uploader::image($_FILES['principal_signature'], 'signatures');
+    }
 } catch (\Throwable $e) {
     Session::flash('error', $e->getMessage());
-    Helper::redirect('/profile');
+    Helper::redirect($redirectUrl);
 }
 
 // ---------- Common normalized inputs ----------
@@ -57,6 +89,7 @@ try {
         $sql = "UPDATE students SET
                     full_name = ?, gender = ?, age = ?, school_name = ?,
                     school_board = ?, current_class = ?, academic_year = ?,
+                    registration_number = ?, roll_number = ?,
                     city = ?, state = ?, interests = ?"
              . ($imagePath ? ", profile_image = ?" : "")
              . " WHERE user_id = ?";
@@ -69,6 +102,8 @@ try {
             trim($_POST['school_board'] ?? '') ?: null,
             trim($_POST['current_class'] ?? '') ?: null,
             trim($_POST['academic_year'] ?? '') ?: null,
+            trim($_POST['registration_number'] ?? '') ?: null,
+            trim($_POST['roll_number'] ?? '') ?: null,
             $city,
             $state,
             trim($_POST['interests'] ?? '') ?: null,
@@ -80,7 +115,6 @@ try {
         // ---- Update (or create) parent record ----
         $gName = trim($_POST['guardian_name'] ?? '');
         if ($gName !== '') {
-            // Find existing primary parent link
             $q = $db->prepare("
                 SELECT p.id FROM parents p
                 JOIN student_parents sp ON sp.parent_id = p.id
@@ -135,6 +169,7 @@ try {
                     city = ?, state = ?, expert_field = ?, years_experience = ?,
                     additional_expertise = ?, bio = ?"
              . ($imagePath ? ", profile_image = ?" : "")
+             . ($sigPath ? ", signature_image = ?" : "")
              . " WHERE user_id = ?";
 
         $params = [
@@ -149,18 +184,39 @@ try {
             trim($_POST['bio'] ?? '') ?: null,
         ];
         if ($imagePath) $params[] = $imagePath;
+        if ($sigPath)   $params[] = $sigPath;
         $params[] = $user['id'];
         $db->prepare($sql)->execute($params);
+
+    } elseif ($role === 'school') {
+        // ---- Update school principal info ----
+        $schoolId = (int)($user['school_id'] ?? 0);
+        if ($schoolId > 0) {
+            $princName = trim($_POST['principal_name'] ?? '');
+            $sql = "UPDATE schools SET name = COALESCE(NULLIF(?, ''), name)";
+            $params = [$fullName];
+            if ($princName !== '') {
+                $sql .= ", principal_name = ?";
+                $params[] = $princName;
+            }
+            if ($sigPath) {
+                $sql .= ", principal_signature = ?";
+                $params[] = $sigPath;
+            }
+            $sql .= " WHERE id = ?";
+            $params[] = $schoolId;
+            $db->prepare($sql)->execute($params);
+        }
     }
 
     $db->commit();
     Audit::log('profile.updated', 'user', (int)$user['id']);
-    Session::flash('success', 'Profile updated.');
-    Helper::redirect('/profile');
+    Session::flash('success', 'Profile updated successfully.');
+    Helper::redirect($redirectUrl);
 
 } catch (\Throwable $e) {
     if ($db->inTransaction()) $db->rollBack();
     error_log('Profile update failed: ' . $e->getMessage());
     Session::flash('error', 'Could not save profile: ' . $e->getMessage());
-    Helper::redirect('/profile');
+    Helper::redirect($redirectUrl);
 }

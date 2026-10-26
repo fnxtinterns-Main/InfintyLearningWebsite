@@ -188,6 +188,13 @@ final class School
                 $db->exec("ALTER TABLE `schools` ADD COLUMN `weekly_summary_enabled` tinyint(1) NOT NULL DEFAULT 1");
             }
 
+            if (!in_array('principal_signature', $schoolCols, true)) {
+                $db->exec("ALTER TABLE `schools` ADD COLUMN `principal_signature` varchar(255) NULL");
+            }
+            if (!in_array('principal_name', $schoolCols, true)) {
+                $db->exec("ALTER TABLE `schools` ADD COLUMN `principal_name` varchar(150) NULL");
+            }
+
             // 2. students table columns
             $studentCols = $db->query("SHOW COLUMNS FROM `students`")->fetchAll(\PDO::FETCH_COLUMN);
             if (!in_array('district', $studentCols, true)) {
@@ -219,6 +226,15 @@ final class School
             }
             if (!in_array('class_teacher_section', $teacherCols, true)) {
                 $db->exec("ALTER TABLE `teachers` ADD COLUMN `class_teacher_section` varchar(20) NULL");
+            }
+            if (!in_array('signature_image', $teacherCols, true)) {
+                $db->exec("ALTER TABLE `teachers` ADD COLUMN `signature_image` varchar(255) NULL");
+            }
+
+            // 4. batches table columns
+            $batchCols = $db->query("SHOW COLUMNS FROM `batches`")->fetchAll(\PDO::FETCH_COLUMN);
+            if (!in_array('school_id', $batchCols, true)) {
+                $db->exec("ALTER TABLE `batches` ADD COLUMN `school_id` bigint(20) UNSIGNED NULL AFTER `id`");
             }
         } catch (\Throwable $e) {
             error_log('ensureSchema error: ' . $e->getMessage());
