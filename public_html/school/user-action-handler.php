@@ -2,11 +2,26 @@
 declare(strict_types=1);
 
 // Find the app folder regardless of depth
-$appRoot = is_dir(__DIR__ . '/../../infinitylearning')
-    ? __DIR__ . '/../../infinitylearning'   // subfolder (admin/, teacher/, school/)
-    : __DIR__ . '/../infinitylearning';     // public_html/ root
+if (!defined('APP_ROOT')) {
+    $appRoot = is_dir(__DIR__ . '/../../infinitylearning')
+        ? __DIR__ . '/../../infinitylearning'   // subfolder (admin/, teacher/, school/)
+        : (is_dir(__DIR__ . '/../infinitylearning')
+            ? __DIR__ . '/../infinitylearning'     // public_html/ root or nested
+            : dirname(__DIR__, 2) . '/infinitylearning');
+    define('APP_ROOT', $appRoot);
+}
 
-define('APP_ROOT', $appRoot);
+if (!file_exists(APP_ROOT . '/config/constants.php') || !file_exists(APP_ROOT . '/src/autoload.php')) {
+    http_response_code(503);
+    $mFile = dirname(__DIR__) . '/maintenance.html';
+    if (file_exists($mFile)) {
+        readfile($mFile);
+    } else {
+        echo 'Maintenance Break. Please check back shortly.';
+    }
+    exit;
+}
+
 require_once APP_ROOT . '/config/constants.php';
 require_once APP_ROOT . '/src/autoload.php';
 

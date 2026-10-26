@@ -1,6 +1,36 @@
 <?php
 declare(strict_types=1);
 
+// ---- Maintenance Break fallback for 403, 500, and fatal errors ----
+if (!function_exists('render_maintenance_break')) {
+    function render_maintenance_break(): void {
+        if (!headers_sent()) {
+            http_response_code(503);
+            header('Retry-After: 300');
+        }
+        $maintenanceFile = __DIR__ . '/maintenance.html';
+        if (file_exists($maintenanceFile)) {
+            readfile($maintenanceFile);
+        } else {
+            echo '<!DOCTYPE html><html><head><title>Maintenance Break - Infinity Learning</title></head><body style="font-family:sans-serif;text-align:center;padding:50px;"><h1>Maintenance Break</h1><p>We are currently updating our systems. Please check back shortly.</p></body></html>';
+        }
+        exit;
+    }
+}
+
+set_exception_handler(function (\Throwable $e) {
+    error_log("Unhandled exception: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+    render_maintenance_break();
+});
+
+register_shutdown_function(function () {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        error_log("Fatal shutdown error: " . $error['message'] . " in " . $error['file'] . ":" . $error['line']);
+        render_maintenance_break();
+    }
+});
+
 // ---- Path to app folder (prefer one level up outside public_html, fallback if inside) ----
 if (is_dir(__DIR__ . '/../infinitylearning')) {
     define('APP_ROOT', __DIR__ . '/../infinitylearning');
@@ -8,6 +38,10 @@ if (is_dir(__DIR__ . '/../infinitylearning')) {
     define('APP_ROOT', __DIR__ . '/infinitylearning');
 } else {
     define('APP_ROOT', dirname(__DIR__) . '/infinitylearning');
+}
+
+if (!file_exists(APP_ROOT . '/config/constants.php') || !file_exists(APP_ROOT . '/src/autoload.php')) {
+    render_maintenance_break();
 }
 
 require_once APP_ROOT . '/config/constants.php';

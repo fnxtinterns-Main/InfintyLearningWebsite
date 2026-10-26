@@ -1,7 +1,23 @@
 <?php
 declare(strict_types=1);
 
-define('APP_ROOT', __DIR__ . '/../infinitylearning');
+if (!defined('APP_ROOT')) {
+    $appRoot = is_dir(__DIR__ . '/../infinitylearning')
+        ? __DIR__ . '/../infinitylearning'
+        : (is_dir(__DIR__ . '/infinitylearning') ? __DIR__ . '/infinitylearning' : dirname(__DIR__) . '/infinitylearning');
+    define('APP_ROOT', $appRoot);
+}
+
+if (!file_exists(APP_ROOT . '/config/constants.php') || !file_exists(APP_ROOT . '/src/autoload.php')) {
+    http_response_code(503);
+    if (file_exists(__DIR__ . '/maintenance.html')) {
+        readfile(__DIR__ . '/maintenance.html');
+    } else {
+        echo 'Maintenance Break. Please check back shortly.';
+    }
+    exit;
+}
+
 require_once APP_ROOT . '/config/constants.php';
 require_once APP_ROOT . '/src/autoload.php';
 
