@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
-define('APP_ROOT', __DIR__ . '/../infinitylearning');
+$appRoot = is_dir(__DIR__ . '/../infinitylearning')
+    ? __DIR__ . '/../infinitylearning'
+    : (is_dir(__DIR__ . '/infinitylearning') ? __DIR__ . '/infinitylearning' : dirname(__DIR__) . '/infinitylearning');
+if (!defined('APP_ROOT')) define('APP_ROOT', $appRoot);
 
 require_once APP_ROOT . '/config/constants.php';
 require_once APP_ROOT . '/src/autoload.php';

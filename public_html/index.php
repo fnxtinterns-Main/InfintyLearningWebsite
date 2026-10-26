@@ -1,8 +1,14 @@
 <?php
 declare(strict_types=1);
 
-// ---- Path to app folder (one level up from public_html) ----
-define('APP_ROOT', __DIR__ . '/../infinitylearning');
+// ---- Path to app folder (prefer one level up outside public_html, fallback if inside) ----
+if (is_dir(__DIR__ . '/../infinitylearning')) {
+    define('APP_ROOT', __DIR__ . '/../infinitylearning');
+} elseif (is_dir(__DIR__ . '/infinitylearning')) {
+    define('APP_ROOT', __DIR__ . '/infinitylearning');
+} else {
+    define('APP_ROOT', dirname(__DIR__) . '/infinitylearning');
+}
 
 require_once APP_ROOT . '/config/constants.php';
 require_once APP_ROOT . '/src/autoload.php';
