@@ -69,6 +69,27 @@ try {
     ");
     $stmt->execute([$studentUserId]);
     $student = $stmt->fetch();
+
+    if (!$student) {
+        $stmt2 = $db->prepare("
+            SELECT u.id as user_id, u.email, u.phone, s.full_name,
+                   s.current_class, s.school_name, s.school_board, s.profile_image as avatar,
+                   sch.id as school_id, sch.name as official_school_name,
+                   COALESCE(sch.crest_logo, sch.logo) as school_logo, sch.phone as school_phone,
+                   sch.contact_email as school_email,
+                   sch.brand_primary_color as primary_color
+            FROM students s
+            LEFT JOIN users u ON u.id = s.user_id
+            LEFT JOIN schools sch ON sch.id = COALESCE(u.school_id, s.school_id)
+            WHERE s.id = ? OR s.user_id = ?
+            LIMIT 1
+        ");
+        $stmt2->execute([$studentUserId, $studentUserId]);
+        $student = $stmt2->fetch();
+        if ($student && !empty($student['user_id'])) {
+            $studentUserId = (int)$student['user_id'];
+        }
+    }
 } catch (\Throwable $e) {
     error_log('Parent pass student query error: ' . $e->getMessage());
 }
@@ -109,9 +130,37 @@ $attCounts = $stdProfile['attendance']['raw'] ?? ['present' => 0, 'absent' => 0,
 $totalAttDays = max(0, (int)($stdProfile['attendance']['total'] ?? array_sum($attCounts)));
 $attPercentage = (int)($stdProfile['attendance']['present_pct'] ?? ($totalAttDays > 0 ? round(($attCounts['present'] / $totalAttDays) * 100) : 100));
 
+// Fallback: If total attendance days is 0, query attendance summary directly
+if ($totalAttDays === 0) {
+    try {
+        $attDirect = Attendance::summaryForStudent($studentUserId);
+        if (array_sum($attDirect) > 0) {
+            $attCounts = $attDirect;
+            $totalAttDays = array_sum($attCounts);
+            $attPercentage = (int)round(($attCounts['present'] / $totalAttDays) * 100);
+        }
+    } catch (\Throwable $e) {}
+}
+
 // Exam categories and tests
 $examCats = $stdProfile['exams']['categories'] ?? [];
 $recentTests = $stdProfile['exams']['all_tests'] ?? [];
+if (empty($examCats)) {
+    try {
+        $examHistory = AcademicAssessment::getStudentExamHistory($studentUserId);
+        $examCats = $examHistory['categories'] ?? [];
+        if (empty($recentTests)) {
+            $recentTests = $examHistory['all_tests'] ?? [];
+        }
+    } catch (\Throwable $e) {}
+}
+
+$candidateIdsForTests = array_values(array_unique(array_filter([
+    (int)$studentUserId,
+    (int)($student['user_id'] ?? 0)
+])));
+$inClauseTests = implode(',', array_fill(0, count($candidateIdsForTests), '?'));
+
 if (empty($recentTests)) {
     try {
         $testsStmt = $db->prepare("
@@ -120,11 +169,11 @@ if (empty($recentTests)) {
                    sub.id as submission_id
             FROM assessment_submissions sub
             JOIN academic_assessments a ON a.id = sub.assessment_id
-            WHERE sub.student_user_id = ?
+            WHERE sub.student_user_id IN ($inClauseTests)
             ORDER BY sub.submitted_at DESC
             LIMIT 5
         ");
-        $testsStmt->execute([$studentUserId]);
+        $testsStmt->execute($candidateIdsForTests);
         $recentTests = $testsStmt->fetchAll();
     } catch (\Throwable $e) {}
 }

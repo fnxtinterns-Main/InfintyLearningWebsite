@@ -22,23 +22,49 @@ final class StudentProfile
                    s.registration_number, s.roll_number, s.mentor_user_id, s.district, s.pincode
             FROM users u
             LEFT JOIN students s ON s.user_id = u.id
-            WHERE (u.id = ? OR s.id = ?) AND u.role = 'student'
-            ORDER BY (u.id = ?) DESC, (s.id = ?) DESC
+            WHERE u.id = ?
             LIMIT 1
         ");
-        $stmt->execute([$studentUserId, $studentUserId, $studentUserId, $studentUserId]);
+        $stmt->execute([$studentUserId]);
         $student = $stmt->fetch();
+
+        // Fallback: lookup by students.id if not found or if student profile not yet attached
+        if (!$student || empty($student['s_student_id'])) {
+            $stmt2 = $db->prepare("
+                SELECT u.id AS u_user_id, u.id AS user_id, u.email, u.phone, u.role, u.status, u.created_at, u.last_login_at,
+                       s.id AS s_student_id, s.id AS student_table_id, s.user_id AS student_user_id,
+                       s.full_name, s.school_id, s.city, s.state, s.gender, s.profile_image,
+                       s.age, s.date_of_birth, s.school_board, s.academic_year, s.current_class, s.interests,
+                       s.registration_number, s.roll_number, s.mentor_user_id, s.district, s.pincode
+                FROM students s
+                LEFT JOIN users u ON u.id = s.user_id
+                WHERE s.id = ?
+                LIMIT 1
+            ");
+            $stmt2->execute([$studentUserId]);
+            $alt = $stmt2->fetch();
+            if ($alt) {
+                $student = $alt;
+            }
+        }
+
         if (!$student) return null;
 
-        $actualUserId = (int)($student['u_user_id'] ?? $student['user_id'] ?? $studentUserId);
+        $actualUserId = (int)($student['u_user_id'] ?? $student['user_id'] ?? $student['student_user_id'] ?? $studentUserId);
         $studentTableId = (int)($student['s_student_id'] ?? $student['student_table_id'] ?? 0);
+        if ($actualUserId <= 0 && $studentTableId > 0) {
+            $actualUserId = $studentTableId;
+        }
         $candidateIds = array_values(array_unique(array_filter([$actualUserId, $studentTableId, $studentUserId])));
         $inClause = implode(',', array_fill(0, count($candidateIds), '?'));
 
-        // Ensure user_id and id are explicitly the users.id
+        // Ensure user_id and id are explicitly set
         $student['id'] = $actualUserId;
         $student['user_id'] = $actualUserId;
         $student['student_table_id'] = $studentTableId;
+        if (empty($student['full_name'])) {
+            $student['full_name'] = !empty($student['email']) ? explode('@', $student['email'])[0] : 'Student';
+        }
 
         // --- Parents ---
         $student['parents'] = [];

@@ -19,7 +19,7 @@ if (!$studentId) {
 
 // Access control
 $canView = false;
-if ($viewerRole === 'admin' || $viewerRole === 'school_admin') {
+if (in_array($viewerRole, ['admin', 'school_admin', 'school'], true)) {
     $canView = true;
 } elseif ($viewerRole === 'student') {
     if ((int)$viewer['id'] === $studentId) {
@@ -27,7 +27,7 @@ if ($viewerRole === 'admin' || $viewerRole === 'school_admin') {
     } else {
         try {
             $db = Database::connect();
-            $chk = $db->prepare("SELECT 1 FROM students WHERE (id = ? OR user_id = ?) AND user_id = ? LIMIT 1");
+            $chk = $db->prepare("SELECT user_id FROM students WHERE (id = ? OR user_id = ?) AND user_id = ? LIMIT 1");
             $chk->execute([$studentId, $studentId, (int)$viewer['id']]);
             if ($chk->fetch()) {
                 $canView = true;
@@ -40,23 +40,30 @@ if ($viewerRole === 'admin' || $viewerRole === 'school_admin') {
     try {
         $db = Database::connect();
         $q = $db->prepare("
-            SELECT 1 FROM student_parents sp
+            SELECT sp.student_user_id FROM student_parents sp
             JOIN parents p ON p.id = sp.parent_id
-            WHERE p.user_id = ? AND sp.student_user_id = ?
+            WHERE p.user_id = ? AND (
+                sp.student_user_id = ? 
+                OR sp.student_user_id = (SELECT user_id FROM students WHERE id = ? LIMIT 1)
+            )
             LIMIT 1
         ");
-        $q->execute([(int)$viewer['id'], $studentId]);
-        $canView = (bool)$q->fetch();
+        $q->execute([(int)$viewer['id'], $studentId, $studentId]);
+        if ($row = $q->fetch()) {
+            $canView = true;
+            $studentId = (int)$row['student_user_id'];
+        }
     } catch (\Throwable $e) {}
 } elseif ($viewerRole === 'teacher') {
     // Teachers can view students in their school, their batches, or their mentees
     try {
         $db = Database::connect();
         $q = $db->prepare("
-            SELECT 1 FROM users u
-            WHERE u.id = ? AND (
+            SELECT u.id FROM users u
+            LEFT JOIN students s ON s.user_id = u.id
+            WHERE (u.id = ? OR s.id = ?) AND (
                 u.school_id = (SELECT school_id FROM users WHERE id = ?)
-                OR EXISTS (SELECT 1 FROM students s WHERE s.user_id = u.id AND s.mentor_user_id = ?)
+                OR EXISTS (SELECT 1 FROM students st WHERE st.user_id = u.id AND st.mentor_user_id = ?)
                 OR EXISTS (
                     SELECT 1 FROM batch_students bs
                     JOIN batches b ON b.id = bs.batch_id
@@ -65,8 +72,11 @@ if ($viewerRole === 'admin' || $viewerRole === 'school_admin') {
             )
             LIMIT 1
         ");
-        $q->execute([$studentId, (int)$viewer['id'], (int)$viewer['id'], (int)$viewer['id']]);
-        $canView = (bool)$q->fetch();
+        $q->execute([$studentId, $studentId, (int)$viewer['id'], (int)$viewer['id'], (int)$viewer['id']]);
+        if ($row = $q->fetch()) {
+            $canView = true;
+            $studentId = (int)$row['id'];
+        }
     } catch (\Throwable $e) {}
 }
 
