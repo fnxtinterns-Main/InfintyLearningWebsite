@@ -100,6 +100,15 @@ final class StudentProfile
         $student['batches'] = [];
         try {
             $student['batches'] = Batch::forStudent($actualUserId) ?: [];
+            if (empty($student['batches'])) {
+                foreach ($candidateIds as $cid) {
+                    $b = Batch::forStudent($cid);
+                    if (!empty($b)) {
+                        $student['batches'] = $b;
+                        break;
+                    }
+                }
+            }
         } catch (\Throwable $e) {
             error_log('StudentProfile batches query error: ' . $e->getMessage());
         }
@@ -109,8 +118,22 @@ final class StudentProfile
         $dailyAttendance = [];
         try {
             $att = Attendance::summaryForStudent($actualUserId) ?: $att;
+            if (array_sum($att) === 0) {
+                foreach ($candidateIds as $cid) {
+                    $aSum = Attendance::summaryForStudent($cid);
+                    if (array_sum($aSum) > 0) {
+                        $att = $aSum;
+                        break;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('StudentProfile attendance summary error: ' . $e->getMessage());
+        }
+
+        try {
             $attStmt = $db->prepare("
-                SELECT a.id, a.batch_id, a.attendance_date, a.status, a.remarks, b.name AS batch_name
+                SELECT a.id, a.batch_id, a.attendance_date, a.status, a.remarks, COALESCE(b.name, '') AS batch_name
                 FROM attendance a
                 LEFT JOIN batches b ON b.id = a.batch_id
                 WHERE a.student_user_id IN ($inClause)
@@ -119,7 +142,30 @@ final class StudentProfile
             $attStmt->execute($candidateIds);
             $dailyAttendance = $attStmt->fetchAll() ?: [];
         } catch (\Throwable $e) {
-            error_log('StudentProfile attendance query error: ' . $e->getMessage());
+            try {
+                $attStmt2 = $db->prepare("
+                    SELECT a.id, a.batch_id, a.attendance_date, a.status, a.remarks, '' AS batch_name
+                    FROM attendance a
+                    WHERE a.student_user_id IN ($inClause)
+                    ORDER BY a.attendance_date ASC
+                ");
+                $attStmt2->execute($candidateIds);
+                $dailyAttendance = $attStmt2->fetchAll() ?: [];
+            } catch (\Throwable $e2) {
+                error_log('StudentProfile attendance daily query error: ' . $e2->getMessage());
+            }
+        }
+
+        // If summary count was zero but daily attendance records exist, tally them directly
+        if (array_sum($att) === 0 && !empty($dailyAttendance)) {
+            foreach ($dailyAttendance as $da) {
+                $st = strtolower(trim((string)($da['status'] ?? 'present')));
+                if (isset($att[$st])) {
+                    $att[$st]++;
+                } else {
+                    $att['present']++;
+                }
+            }
         }
         $totalAtt = array_sum($att);
         $student['attendance'] = [
@@ -143,6 +189,15 @@ final class StudentProfile
             $stmt->execute($candidateIds);
             $lp = $stmt->fetch() ?: ['started'=>0,'completed'=>0];
             $availableLessons = Lesson::list([], -1, $actualUserId, 'student') ?: [];
+            if (empty($availableLessons)) {
+                foreach ($candidateIds as $cid) {
+                    $av = Lesson::list([], -1, $cid, 'student') ?: [];
+                    if (!empty($av)) {
+                        $availableLessons = $av;
+                        break;
+                    }
+                }
+            }
         } catch (\Throwable $e) {
             error_log('StudentProfile lesson_progress query error: ' . $e->getMessage());
         }
@@ -156,6 +211,15 @@ final class StudentProfile
         $student['daily_routine'] = [];
         try {
             $student['daily_routine'] = Timetable::getStudentSchedule($actualUserId) ?: [];
+            if (empty($student['daily_routine'])) {
+                foreach ($candidateIds as $cid) {
+                    $dr = Timetable::getStudentSchedule($cid) ?: [];
+                    if (!empty($dr)) {
+                        $student['daily_routine'] = $dr;
+                        break;
+                    }
+                }
+            }
         } catch (\Throwable $e) {
             error_log('StudentProfile daily_routine query error: ' . $e->getMessage());
         }
@@ -168,6 +232,15 @@ final class StudentProfile
         ];
         try {
             $student['exams'] = AcademicAssessment::getStudentExamHistory($actualUserId);
+            if (empty($student['exams']['all_tests'])) {
+                foreach ($candidateIds as $cid) {
+                    $ex = AcademicAssessment::getStudentExamHistory($cid);
+                    if (!empty($ex['all_tests'])) {
+                        $student['exams'] = $ex;
+                        break;
+                    }
+                }
+            }
         } catch (\Throwable $e) {
             error_log('StudentProfile exams query error: ' . $e->getMessage());
         }
@@ -251,6 +324,16 @@ final class StudentProfile
         try {
             $student['doubts_stats'] = DoubtFeed::getStudentStats($actualUserId);
             $student['recent_doubts'] = DoubtFeed::listForStudent($actualUserId);
+            if (empty($student['doubts_stats']['total'])) {
+                foreach ($candidateIds as $cid) {
+                    $ds = DoubtFeed::getStudentStats($cid);
+                    if (!empty($ds['total'])) {
+                        $student['doubts_stats'] = $ds;
+                        $student['recent_doubts'] = DoubtFeed::listForStudent($cid);
+                        break;
+                    }
+                }
+            }
         } catch (\Throwable $e) {
             $student['doubts_stats'] = ['total' => 0, 'answered' => 0, 'open' => 0];
             $student['recent_doubts'] = [];

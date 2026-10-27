@@ -404,7 +404,7 @@ final class AcademicAssessment
                    b.name AS batch_name, t.full_name AS teacher_name
             FROM assessment_submissions sub
             JOIN academic_assessments a ON a.id = sub.assessment_id
-            JOIN subjects s ON s.id = a.subject_id
+            LEFT JOIN subjects s ON s.id = a.subject_id
             LEFT JOIN batches b ON b.id = a.batch_id
             LEFT JOIN teachers t ON t.user_id = a.teacher_user_id
             WHERE sub.student_user_id IN ($inClause) AND sub.score_obtained IS NOT NULL

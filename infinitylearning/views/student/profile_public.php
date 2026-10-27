@@ -3,6 +3,11 @@ use App\Auth;
 use App\Helper;
 use App\StudentProfile;
 use App\Database;
+use App\Attendance;
+use App\AcademicAssessment;
+use App\Batch;
+use App\Timetable;
+use App\DoubtFeed;
 
 Auth::requireLogin();
 
@@ -121,15 +126,141 @@ $initial = mb_strtoupper(mb_substr($nameForInit, 0, 1));
 // Dynamic age
 $computedAge = Helper::calculateStudentAge(!empty($p['age']) ? (int)$p['age'] : null, $p['created_at'] ?? null);
 
+// Resolve canonical user ID and all candidate IDs
+$resolvedStudentUserId = (int)($p['u_user_id'] ?? $p['user_id'] ?? $p['id'] ?? $studentId);
+$candidateIds = array_values(array_unique(array_filter([
+    $resolvedStudentUserId,
+    (int)($p['student_table_id'] ?? 0),
+    (int)($p['s_student_id'] ?? 0),
+    (int)$studentId
+])));
+
 // Data extract
 $att = $p['attendance']['raw'] ?? ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0];
-$totalAtt = max(1, (int)($p['attendance']['total'] ?? 0));
 $dailyAtt = $p['attendance']['daily_records'] ?? [];
 $routine = $p['daily_routine'] ?? [];
 $exams = $p['exams'] ?? ['categories'=>[], 'all_tests'=>[], 'summary'=>['total_tests'=>0,'average_pct'=>0]];
 $examCats = $exams['categories'] ?? [];
 $allTests = $exams['all_tests'] ?? [];
 $examSummary = $exams['summary'] ?? ['total_tests'=>0,'average_pct'=>0];
+
+// Fallback 1: Attendance Summary
+if (empty($p['attendance']['total']) || (int)$p['attendance']['total'] === 0 || array_sum($att) === 0) {
+    try {
+        foreach ($candidateIds as $cid) {
+            $attDirect = Attendance::summaryForStudent($cid);
+            if (array_sum($attDirect) > 0) {
+                $att = $attDirect;
+                $p['attendance']['raw'] = $att;
+                $p['attendance']['total'] = array_sum($att);
+                $p['attendance']['present_pct'] = (int)round(($att['present'] / $p['attendance']['total']) * 100);
+                break;
+            }
+        }
+    } catch (\Throwable $e) {}
+}
+
+// Fallback 2: Daily Attendance Records
+if (empty($dailyAtt)) {
+    try {
+        $inClause = implode(',', array_fill(0, count($candidateIds), '?'));
+        $db = Database::connect();
+        $attStmt = $db->prepare("
+            SELECT a.id, a.batch_id, a.attendance_date, a.status, a.remarks, COALESCE(b.name, '') AS batch_name
+            FROM attendance a
+            LEFT JOIN batches b ON b.id = a.batch_id
+            WHERE a.student_user_id IN ($inClause)
+            ORDER BY a.attendance_date ASC
+        ");
+        $attStmt->execute($candidateIds);
+        $dailyAtt = $attStmt->fetchAll() ?: [];
+    } catch (\Throwable $e) {
+        try {
+            $attStmt2 = $db->prepare("
+                SELECT a.id, a.batch_id, a.attendance_date, a.status, a.remarks, '' AS batch_name
+                FROM attendance a
+                WHERE a.student_user_id IN ($inClause)
+                ORDER BY a.attendance_date ASC
+            ");
+            $attStmt2->execute($candidateIds);
+            $dailyAtt = $attStmt2->fetchAll() ?: [];
+        } catch (\Throwable $e2) {}
+    }
+
+    if (!empty($dailyAtt)) {
+        $p['attendance']['daily_records'] = $dailyAtt;
+        if (array_sum($att) === 0) {
+            $att = ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0];
+            foreach ($dailyAtt as $da) {
+                $st = strtolower(trim((string)($da['status'] ?? 'present')));
+                if (isset($att[$st])) $att[$st]++; else $att['present']++;
+            }
+            $p['attendance']['raw'] = $att;
+            $p['attendance']['total'] = array_sum($att);
+            $p['attendance']['present_pct'] = (int)round(($att['present'] / $p['attendance']['total']) * 100);
+        }
+    }
+}
+
+$totalAtt = max(1, (int)($p['attendance']['total'] ?? array_sum($att)));
+
+// Fallback 3: Exams & Tests
+if (empty($examCats) || (int)($examSummary['total_tests'] ?? 0) === 0) {
+    try {
+        foreach ($candidateIds as $cid) {
+            $examHistory = AcademicAssessment::getStudentExamHistory($cid);
+            if (!empty($examHistory['all_tests'])) {
+                $exams = $examHistory;
+                $examCats = $exams['categories'] ?? [];
+                $allTests = $exams['all_tests'] ?? [];
+                $examSummary = $exams['summary'] ?? ['total_tests'=>0,'average_pct'=>0];
+                $p['exams'] = $exams;
+                break;
+            }
+        }
+    } catch (\Throwable $e) {}
+}
+
+// Fallback 4: Batches
+if (empty($p['batches'])) {
+    try {
+        foreach ($candidateIds as $cid) {
+            $bList = Batch::forStudent($cid);
+            if (!empty($bList)) {
+                $p['batches'] = $bList;
+                break;
+            }
+        }
+    } catch (\Throwable $e) {}
+}
+
+// Fallback 5: Daily Routine
+if (empty($routine)) {
+    try {
+        foreach ($candidateIds as $cid) {
+            $r = Timetable::getStudentSchedule($cid);
+            if (!empty($r)) {
+                $routine = $r;
+                $p['daily_routine'] = $routine;
+                break;
+            }
+        }
+    } catch (\Throwable $e) {}
+}
+
+// Fallback 6: Doubts
+if (empty($p['doubts_stats']['total'])) {
+    try {
+        foreach ($candidateIds as $cid) {
+            $ds = DoubtFeed::getStudentStats($cid);
+            if (!empty($ds['total'])) {
+                $p['doubts_stats'] = $ds;
+                $p['recent_doubts'] = DoubtFeed::listForStudent($cid);
+                break;
+            }
+        }
+    } catch (\Throwable $e) {}
+}
 ?>
 
 <section class="section" style="max-width:1160px; margin:0 auto; padding-bottom:50px;">
