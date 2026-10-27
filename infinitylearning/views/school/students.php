@@ -108,6 +108,7 @@ require VIEW_PATH . '/layouts/header.php';
                                         <div>
                                             <strong><?= Helper::e($s['full_name'] ?: '—') ?></strong><br>
                                             <span class="muted" style="font-size:.82rem"><?= Helper::e($s['email']) ?></span>
+                                            <span class="muted" style="font-size:.75rem; margin-left:4px;">(ID: #<?= (int)$s['id'] ?>)</span>
                                         </div>
                                     </div>
                                 </td>

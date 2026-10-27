@@ -14,37 +14,42 @@ final class StudentProfile
         $db = Database::connect();
 
         // --- Base user + profile (support lookup by users.id or students.id) ---
-        $stmt = $db->prepare("
-            SELECT u.id AS u_user_id, u.id AS user_id, u.email, u.phone, u.role, u.status, u.created_at, u.last_login_at,
-                   s.id AS s_student_id, s.id AS student_table_id, s.user_id AS student_user_id,
-                   s.full_name, s.school_id, s.city, s.state, s.gender, s.profile_image,
-                   s.age, s.date_of_birth, s.school_board, s.academic_year, s.current_class, s.interests,
-                   s.registration_number, s.roll_number, s.mentor_user_id, s.district, s.pincode
-            FROM users u
-            LEFT JOIN students s ON s.user_id = u.id
-            WHERE u.id = ?
-            LIMIT 1
-        ");
-        $stmt->execute([$studentUserId]);
-        $student = $stmt->fetch();
+        $student = null;
+        try {
+            $stmt = $db->prepare("
+                SELECT u.id AS u_user_id, u.id AS user_id, u.email, u.phone, u.role, u.status, u.school_id, u.created_at, u.last_login_at,
+                       s.id AS s_student_id, s.id AS student_table_id, s.user_id AS student_user_id,
+                       s.*
+                FROM users u
+                LEFT JOIN students s ON s.user_id = u.id
+                WHERE u.id = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$studentUserId]);
+            $student = $stmt->fetch();
+        } catch (\Throwable $e) {
+            error_log('StudentProfile build user query error: ' . $e->getMessage());
+        }
 
         // Fallback: lookup by students.id if not found or if student profile not yet attached
         if (!$student || empty($student['s_student_id'])) {
-            $stmt2 = $db->prepare("
-                SELECT u.id AS u_user_id, u.id AS user_id, u.email, u.phone, u.role, u.status, u.created_at, u.last_login_at,
-                       s.id AS s_student_id, s.id AS student_table_id, s.user_id AS student_user_id,
-                       s.full_name, s.school_id, s.city, s.state, s.gender, s.profile_image,
-                       s.age, s.date_of_birth, s.school_board, s.academic_year, s.current_class, s.interests,
-                       s.registration_number, s.roll_number, s.mentor_user_id, s.district, s.pincode
-                FROM students s
-                LEFT JOIN users u ON u.id = s.user_id
-                WHERE s.id = ?
-                LIMIT 1
-            ");
-            $stmt2->execute([$studentUserId]);
-            $alt = $stmt2->fetch();
-            if ($alt) {
-                $student = $alt;
+            try {
+                $stmt2 = $db->prepare("
+                    SELECT u.id AS u_user_id, u.id AS user_id, u.email, u.phone, u.role, u.status, u.school_id, u.created_at, u.last_login_at,
+                           s.id AS s_student_id, s.id AS student_table_id, s.user_id AS student_user_id,
+                           s.*
+                    FROM students s
+                    LEFT JOIN users u ON u.id = s.user_id
+                    WHERE s.id = ?
+                    LIMIT 1
+                ");
+                $stmt2->execute([$studentUserId]);
+                $alt = $stmt2->fetch();
+                if ($alt) {
+                    $student = $alt;
+                }
+            } catch (\Throwable $e) {
+                error_log('StudentProfile build alt student query error: ' . $e->getMessage());
             }
         }
 
@@ -58,13 +63,23 @@ final class StudentProfile
         $candidateIds = array_values(array_unique(array_filter([$actualUserId, $studentTableId, $studentUserId])));
         $inClause = implode(',', array_fill(0, count($candidateIds), '?'));
 
-        // Ensure user_id and id are explicitly set
+        // Ensure essential fields always exist
         $student['id'] = $actualUserId;
         $student['user_id'] = $actualUserId;
         $student['student_table_id'] = $studentTableId;
         if (empty($student['full_name'])) {
             $student['full_name'] = !empty($student['email']) ? explode('@', $student['email'])[0] : 'Student';
         }
+        $student['registration_number'] = $student['registration_number'] ?? null;
+        $student['roll_number'] = $student['roll_number'] ?? null;
+        $student['mentor_user_id'] = $student['mentor_user_id'] ?? null;
+        $student['district'] = $student['district'] ?? null;
+        $student['pincode'] = $student['pincode'] ?? null;
+        $student['school_board'] = $student['school_board'] ?? null;
+        $student['academic_year'] = $student['academic_year'] ?? null;
+        $student['current_class'] = $student['current_class'] ?? null;
+        $student['interests'] = $student['interests'] ?? null;
+        $student['date_of_birth'] = $student['date_of_birth'] ?? null;
 
         // --- Parents ---
         $student['parents'] = [];
@@ -245,10 +260,16 @@ final class StudentProfile
         $student['mentor_name'] = null;
         if (!empty($student['mentor_user_id'])) {
             try {
-                $mStmt = $db->prepare("SELECT full_name, email FROM users WHERE id = ?");
+                $mStmt = $db->prepare("
+                    SELECT COALESCE(t.full_name, u.email) AS mentor_name
+                    FROM users u
+                    LEFT JOIN teachers t ON t.user_id = u.id
+                    WHERE u.id = ?
+                    LIMIT 1
+                ");
                 $mStmt->execute([(int)$student['mentor_user_id']]);
                 if ($mRow = $mStmt->fetch()) {
-                    $student['mentor_name'] = $mRow['full_name'] ?: $mRow['email'];
+                    $student['mentor_name'] = $mRow['mentor_name'] ?: null;
                 }
             } catch (\Throwable $e) {}
         }
