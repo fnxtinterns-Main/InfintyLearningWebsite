@@ -373,7 +373,7 @@
         </div>
     </div>
 </footer>
-<script src="/assets/js/app.js?v=2.9"></script>
+<script src="/assets/js/app.js?v=3.0"></script>
 </body>
 </html>
 <?php \App\Helper::clearOld(); ?>

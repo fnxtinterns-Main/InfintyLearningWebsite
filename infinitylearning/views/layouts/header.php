@@ -62,7 +62,7 @@ if ($user && !empty($user['school_id'])) {
 <noscript>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </noscript>
-<link rel="stylesheet" href="/assets/css/style.css?v=2.9">
+<link rel="stylesheet" href="/assets/css/style.css?v=3.0">
 <?php if (!empty($schoolBranding['brand_primary_color'])): ?>
 <style>
 :root {
@@ -88,32 +88,65 @@ if ($user && !empty($user['school_id'])) {
 })();
 </script>
 <style>
-/* Lock top navbar and prevent scroll jitter / internal shifts */
-header,
-.navbar,
-.nav-brand,
-.brand-link,
-.nav-links,
-.nav-actions {
-    overflow: visible !important;
-    overscroll-behavior: none !important;
+/* Prevent document-level horizontal overflow and navbar blowout */
+html, body {
+    max-width: 100vw;
+    overflow-x: hidden !important;
 }
+header,
 .navbar {
     display: flex !important;
     align-items: center !important;
+    justify-content: space-between !important;
     height: 64px !important;
     min-height: 64px !important;
     max-height: 64px !important;
+    width: 100% !important;
+    max-width: 100vw !important;
     box-sizing: border-box !important;
-    padding: 0 1.5rem !important;
+    padding: 0 1rem !important;
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+}
+.nav-brand {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    flex-shrink: 0 !important;
+}
+.nav-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+    margin-left: auto !important;
 }
 @media (min-width: 821px) {
     .nav-links {
         display: flex !important;
         align-items: center !important;
-        flex-wrap: nowrap !important;
-        overflow: visible !important;
+        gap: 0.2rem !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        margin: 0 0.5rem !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+        white-space: nowrap !important;
         height: 100% !important;
+    }
+    .nav-links::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+    .nav-links a {
+        padding: 0.32rem 0.62rem !important;
+        font-size: 0.84rem !important;
+        font-weight: 600 !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
     }
 }
 
