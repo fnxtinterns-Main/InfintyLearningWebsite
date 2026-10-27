@@ -105,8 +105,11 @@ header,
     max-width: 100vw !important;
     box-sizing: border-box !important;
     padding: 0 1rem !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     overscroll-behavior: none !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1000 !important;
 }
 .nav-brand {
     display: flex !important;
@@ -125,29 +128,82 @@ header,
     .nav-links {
         display: flex !important;
         align-items: center !important;
-        gap: 0.2rem !important;
+        gap: 3px !important;
         flex: 1 1 auto !important;
         min-width: 0 !important;
+        justify-content: center !important;
         margin: 0 0.5rem !important;
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
-        scrollbar-width: none !important;
-        -ms-overflow-style: none !important;
         white-space: nowrap !important;
         height: 100% !important;
     }
-    .nav-links::-webkit-scrollbar {
-        display: none !important;
-        width: 0 !important;
-        height: 0 !important;
-    }
     .nav-links a {
-        padding: 0.32rem 0.62rem !important;
-        font-size: 0.84rem !important;
+        padding: 4px 8px !important;
+        font-size: 12px !important;
         font-weight: 600 !important;
         white-space: nowrap !important;
         flex-shrink: 0 !important;
+        border-radius: 999px !important;
     }
+}
+@media (max-width: 820px) {
+    .navbar { padding: 0 0.75rem !important; }
+    .school-nav-pill, .cmd-kbd-badge { display: none !important; }
+    .nav-toggle {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: none !important;
+        border: none !important;
+        font-size: 1.4rem !important;
+        cursor: pointer !important;
+        color: var(--il-primary) !important;
+        padding: 4px 6px !important;
+        order: 3 !important;
+        margin-left: 4px !important;
+    }
+    .nav-links {
+        display: none !important;
+        position: absolute !important;
+        top: 64px !important;
+        left: 0.75rem !important;
+        right: 0.75rem !important;
+        background: var(--surface-1) !important;
+        border: 1px solid var(--il-border) !important;
+        border-radius: var(--r-lg) !important;
+        padding: 0.75rem 0.5rem !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 4px !important;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.22) !important;
+        z-index: 9999 !important;
+        max-height: 80vh !important;
+        overflow-y: auto !important;
+    }
+    .nav-links.open {
+        display: flex !important;
+    }
+    .nav-links a {
+        text-align: left !important;
+        padding: 0.65rem 1rem !important;
+        font-size: 0.92rem !important;
+        border-radius: var(--r-md) !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .user-dropdown, .notif-dropdown {
+        max-width: calc(100vw - 20px) !important;
+        right: 0 !important;
+    }
+}
+@media (max-width: 480px) {
+    .nav-brand img { height: 32px !important; }
+    .theme-toggle-btn { width: 32px !important; height: 32px !important; font-size: 13px !important; }
+    .cmd-trigger-btn { padding: 4px 6px !important; font-size: 13px !important; }
+    .notif-trigger { padding: 4px !important; }
+    .avatar { width: 32px !important; height: 32px !important; }
 }
 
 /* Light / Dark Mode Toggle Button */
@@ -477,16 +533,11 @@ select option {
                 <a href="/student/fees"<?= $isActive('/student/fees') ?>>💳 Course Fees</a>
             <?php endif; ?>
         <?php else: ?>
-            <a href="/chess"<?= $isActive('/chess') ?>>♟️ Chess</a>
-            <a href="/counseling"<?= $isActive('/counseling') ?>>Counseling</a>
-            <a href="/activities"<?= $isActive('/activities') ?>>Activities</a>
-            <a href="/lessons"<?= $isActive('/lessons') ?>>Learn</a>
-
             <?php if ($user): ?>
                 <a href="/dashboard"<?= $isActive('/dashboard') ?>>Dashboard</a>
                 <?php if ($role === 'student'): ?>
-                    <a href="/student/assessments"<?= $isActive('/student/assessments') ?>>📝 Tests & HW</a>
-                    <a href="/student/timetable"<?= $isActive('/student/timetable') ?>>🗓️ Weekly Routine</a>
+                    <a href="/student/assessments"<?= $isActive('/student/assessments') ?>>📝 Tests</a>
+                    <a href="/student/timetable"<?= $isActive('/student/timetable') ?>>🗓️ Routine</a>
                     <a href="/student/doubts"<?= $isActive('/student/doubts') ?>>💬 Doubts</a>
                     <a href="/student/fees"<?= $isActive('/student/fees') ?>>💳 Fees</a>
                 <?php endif; ?>
@@ -495,6 +546,15 @@ select option {
                         <?= Auth::isSchoolAdmin() ? 'School' : 'Admin' ?>
                     </a>
                 <?php endif; ?>
+                <a href="/lessons"<?= $isActive('/lessons') ?>>Learn</a>
+                <a href="/activities"<?= $isActive('/activities') ?>>Activities</a>
+                <a href="/chess"<?= $isActive('/chess') ?>>♟️ Chess</a>
+                <a href="/counseling"<?= $isActive('/counseling') ?>>Counseling</a>
+            <?php else: ?>
+                <a href="/lessons"<?= $isActive('/lessons') ?>>Learn</a>
+                <a href="/activities"<?= $isActive('/activities') ?>>Activities</a>
+                <a href="/chess"<?= $isActive('/chess') ?>>♟️ Chess</a>
+                <a href="/counseling"<?= $isActive('/counseling') ?>>Counseling</a>
             <?php endif; ?>
         <?php endif; ?>
     </div>

@@ -39,7 +39,24 @@ document.addEventListener('DOMContentLoaded', function () {
     const navToggle = document.querySelector('.nav-toggle');
     const navLinks  = document.querySelector('.nav-links');
     if (navToggle && navLinks) {
-        navToggle.addEventListener('click', () => navLinks.classList.toggle('open'));
+        navToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            navLinks.classList.toggle('open');
+        });
+
+        // Close on click outside
+        document.addEventListener('click', (e) => {
+            if (!navLinks.contains(e.target) && !navToggle.contains(e.target)) {
+                navLinks.classList.remove('open');
+            }
+        });
+
+        // Close when a link inside mobile nav is clicked
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('open');
+            });
+        });
     }
 
     // ============================================================
