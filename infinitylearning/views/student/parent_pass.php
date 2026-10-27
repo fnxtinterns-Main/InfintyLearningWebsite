@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use App\{Auth, Database, Helper, StudentProfile, Timetable, FeeManagement, AcademicAssessment};
+use App\{Auth, Database, Helper, StudentProfile, Timetable, FeeManagement, AcademicAssessment, Attendance};
 
 $currentUser = Auth::user();
 
