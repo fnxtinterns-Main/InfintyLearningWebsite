@@ -18,6 +18,16 @@ document.addEventListener('DOMContentLoaded', function () {
         };
         updateNav();
         window.addEventListener('scroll', updateNav, { passive: true });
+
+        // Prevent navbar from capturing mouse wheel and shifting inner container
+        navbar.addEventListener('wheel', function (e) {
+            navbar.scrollLeft = 0;
+            navbar.scrollTop = 0;
+            if (e.deltaY !== 0) {
+                window.scrollBy({ top: e.deltaY, left: 0, behavior: 'auto' });
+                e.preventDefault();
+            }
+        }, { passive: false });
     }
 
     // ============================================================

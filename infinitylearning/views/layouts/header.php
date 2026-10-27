@@ -62,7 +62,7 @@ if ($user && !empty($user['school_id'])) {
 <noscript>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </noscript>
-<link rel="stylesheet" href="/assets/css/style.css?v=2.8">
+<link rel="stylesheet" href="/assets/css/style.css?v=2.9">
 <?php if (!empty($schoolBranding['brand_primary_color'])): ?>
 <style>
 :root {
@@ -88,6 +88,35 @@ if ($user && !empty($user['school_id'])) {
 })();
 </script>
 <style>
+/* Lock top navbar and prevent scroll jitter / internal shifts */
+header,
+.navbar,
+.nav-brand,
+.brand-link,
+.nav-links,
+.nav-actions {
+    overflow: visible !important;
+    overscroll-behavior: none !important;
+}
+.navbar {
+    display: flex !important;
+    align-items: center !important;
+    height: 64px !important;
+    min-height: 64px !important;
+    max-height: 64px !important;
+    box-sizing: border-box !important;
+    padding: 0 1.5rem !important;
+}
+@media (min-width: 821px) {
+    .nav-links {
+        display: flex !important;
+        align-items: center !important;
+        flex-wrap: nowrap !important;
+        overflow: visible !important;
+        height: 100% !important;
+    }
+}
+
 /* Light / Dark Mode Toggle Button */
 .theme-toggle-btn {
     background: var(--surface-1);
