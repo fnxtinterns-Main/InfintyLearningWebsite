@@ -204,7 +204,7 @@ table.receipt-table th.tar, table.receipt-table td.tar { text-align: right; }
                     <div class="school-title"><?= Helper::e($fee['school_name'] ?: 'Infinity Learning Partner School') ?></div>
                     <div class="school-meta">
                         <?= Helper::e($fee['school_address'] ?: 'Academic Campus · Department of Accounts & Fees') ?><br>
-                        Contact: <?= Helper::e($fee['school_phone'] ?: '+91 98765 43210') ?> · <?= Helper::e($fee['school_email'] ?: 'support@infinitylearning.net') ?>
+                        Contact: <?= Helper::e($fee['school_phone'] ?: '+91 98765 43210') ?> · <?= Helper::e($fee['school_email'] ?: 'info@infintylearning.net') ?>
                     </div>
                 </div>
             </div>

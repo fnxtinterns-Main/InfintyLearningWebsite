@@ -194,7 +194,7 @@ require VIEW_PATH . '/layouts/header.php';
             </ul>
             <p style="margin-top:1rem">
                 To exercise these rights, email
-                <a href="mailto:privacy@infintylearning.net">privacy@infintylearning.net</a>
+                <a href="mailto:info@infintylearning.net">info@infintylearning.net</a>
                 or contact your school admin. We aim to respond within 30 days.
             </p>
         </div>
@@ -228,7 +228,7 @@ require VIEW_PATH . '/layouts/header.php';
             </ul>
             <p style="margin-top:1rem">
                 No system is perfectly secure. If you believe your account has been compromised,
-                email <a href="mailto:privacy@infintylearning.net">privacy@infintylearning.net</a> immediately.
+                email <a href="mailto:info@infintylearning.net">info@infintylearning.net</a> immediately.
             </p>
         </div>
 
@@ -256,7 +256,7 @@ require VIEW_PATH . '/layouts/header.php';
             <h2 class="detail-h2">12. Contact us</h2>
             <p>
                 For any privacy-related question:<br>
-                <strong>Email:</strong> <a href="mailto:privacy@infintylearning.net">privacy@infintylearning.net</a><br>
+                <strong>Email:</strong> <a href="mailto:info@infintylearning.net">info@infintylearning.net</a><br>
                 <strong>Website:</strong> <a href="https://infintylearning.net">infintylearning.net</a>
             </p>
         </div>

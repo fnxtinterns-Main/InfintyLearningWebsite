@@ -68,7 +68,7 @@ require VIEW_PATH . '/layouts/header.php';
             </div>
         </div>
 
-        <div class="card" style="padding:0; overflow:hidden;">
+        <div class="card" style="padding:0; overflow-x:auto; -webkit-overflow-scrolling:touch;">
             <?php if (empty($fees)): ?>
                 <div style="padding:48px 24px; text-align:center; color:var(--il-muted);">
                     <div style="font-size:40px; margin-bottom:8px;">🧾</div>
@@ -76,7 +76,7 @@ require VIEW_PATH . '/layouts/header.php';
                     <p class="muted">All tuition and extracurricular dues are clear.</p>
                 </div>
             <?php else: ?>
-                <table class="table" style="width:100%; border-collapse:collapse; font-size:14px;">
+                <table class="table" style="width:100%; border-collapse:collapse; font-size:14px; min-width:580px;">
                     <thead>
                         <tr style="border-bottom:2px solid var(--il-border); text-align:left; background:var(--surface-0); color:var(--il-muted); font-size:12px; text-transform:uppercase;">
                             <th style="padding:12px 18px;"><?= $isAiverse ? 'Course & Program' : 'Month & Type' ?></th>

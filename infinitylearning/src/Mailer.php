@@ -201,7 +201,7 @@ final class Mailer
                 <div style=\"max-width:540px; margin:20px auto 0; text-align:center; font-size:11.5px; color:#8C7364; line-height:1.5;\">
                     <strong>Infinity Learning</strong> · Educational &amp; School Portal<br>
                     Official website: <a href=\"https://infintylearning.net\" style=\"color:#FF7A18; text-decoration:none; font-weight:600;\">infintylearning.net</a><br>
-                    This is an important transactional notification regarding your account. If you need assistance, contact <a href=\"mailto:support@infintylearning.net\" style=\"color:#8C7364;\">support@infintylearning.net</a>.
+                    This is an important transactional notification regarding your account. If you need assistance, contact <a href=\"mailto:info@infintylearning.net\" style=\"color:#8C7364;\">info@infintylearning.net</a>.
                 </div>
             </td>
         </tr>
@@ -356,7 +356,7 @@ final class Mailer
                 </p>
                 {$reasonHtml}
                 <p style='color:#4B5563;font-size:13px;line-height:1.6;margin:0 0 14px'>
-                    Please contact our support team at <a href='mailto:support@infintylearning.net'>support@infintylearning.net</a> for reactivation details.
+                    Please contact our support team at <a href='mailto:info@infintylearning.net'>info@infintylearning.net</a> for reactivation details.
                 </p>
             </div>
             <p style='text-align:center;color:#7A5C4A;font-size:12px;margin-top:24px'>© " . date('Y') . " Infinity Learning</p>
