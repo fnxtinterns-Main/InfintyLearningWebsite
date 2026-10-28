@@ -16,15 +16,27 @@ final class Env
             return;
         }
 
-        $baseDir = $dir ?: (defined('BASE_PATH') ? BASE_PATH : dirname(__DIR__));
-        $filePath = $baseDir . '/.env';
+        $candidates = array_filter([
+            $dir ? rtrim($dir, '/\\') . '/.env' : null,
+            defined('BASE_PATH') ? BASE_PATH . '/.env' : null,
+            defined('BASE_PATH') ? dirname(BASE_PATH) . '/.env' : null,
+            defined('BASE_PATH') ? dirname(dirname(BASE_PATH)) . '/.env' : null,
+            dirname(__DIR__) . '/.env',
+            dirname(dirname(__DIR__)) . '/.env',
+            !empty($_SERVER['DOCUMENT_ROOT']) ? rtrim($_SERVER['DOCUMENT_ROOT'], '/\\') . '/.env' : null,
+            !empty($_SERVER['DOCUMENT_ROOT']) ? rtrim($_SERVER['DOCUMENT_ROOT'], '/\\') . '/infinitylearning/.env' : null,
+            !empty($_SERVER['DOCUMENT_ROOT']) ? dirname(rtrim($_SERVER['DOCUMENT_ROOT'], '/\\')) . '/.env' : null,
+        ]);
 
-        // Check root parent directory if not found in baseDir
-        if (!is_file($filePath) && is_file(dirname($baseDir) . '/.env')) {
-            $filePath = dirname($baseDir) . '/.env';
+        $filePath = null;
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                $filePath = $candidate;
+                break;
+            }
         }
 
-        if (!is_file($filePath)) {
+        if (!$filePath) {
             self::$loaded = true;
             return;
         }
