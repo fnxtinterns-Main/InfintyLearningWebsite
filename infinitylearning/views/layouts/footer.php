@@ -377,6 +377,12 @@
     </div>
 </footer>
 <script src="/assets/js/app.js?v=3.0"></script>
+<?php
+// Infinity.ai Agentic AI Chat Widget (Infinity Learning website only, strictly excluded on FutureNxt portal)
+$isFnx = str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/futurenxt');
+if (!$isFnx): ?>
+    <script src="https://app.aiautoagent.in/chat-widget-embed.js" data-widget-uid="34ee2fbf8172a5089f19b0d3" data-api-url="https://myappzbackend.com/functions/v1/chat-widget-public"></script>
+<?php endif; ?>
 </body>
 </html>
 <?php \App\Helper::clearOld(); ?>
