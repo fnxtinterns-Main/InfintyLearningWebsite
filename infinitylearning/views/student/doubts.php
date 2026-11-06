@@ -23,6 +23,7 @@ $stats = DoubtFeed::getStudentStats($targetStudentId);
 // Fetch lessons available for this student so they can ask a new doubt
 $db = Database::connect();
 $lessons = [];
+$teachers = [];
 try {
     $lq = $db->query("
         SELECT l.id, l.title, s.name as subject_name 
@@ -33,6 +34,27 @@ try {
         LIMIT 100
     ");
     $lessons = $lq->fetchAll();
+
+    $tSchoolId = $user['school_id'] ?? null;
+    if ($tSchoolId) {
+        $tStmt = $db->prepare("
+            SELECT u.id, t.full_name, t.expert_field 
+            FROM users u
+            JOIN teachers t ON t.user_id = u.id
+            WHERE u.school_id = ? AND u.role = 'teacher' AND u.status = 'active'
+            ORDER BY t.full_name ASC
+        ");
+        $tStmt->execute([$tSchoolId]);
+        $teachers = $tStmt->fetchAll();
+    } else {
+        $teachers = $db->query("
+            SELECT u.id, t.full_name, t.expert_field 
+            FROM users u
+            JOIN teachers t ON t.user_id = u.id
+            WHERE u.role = 'teacher' AND u.status = 'active'
+            ORDER BY t.full_name ASC
+        ")->fetchAll();
+    }
 } catch (\Throwable $e) {}
 
 $pageTitle = 'My Doubts & Questions — Infinity Learning';
@@ -107,6 +129,19 @@ require VIEW_PATH . '/layouts/header.php';
                             </option>
                         <?php endforeach; ?>
                     </select>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label style="font-weight:700; font-size:13px; display:block; margin-bottom:6px;">Select Teacher (Optional)</label>
+                    <select name="teacher_user_id" class="input form-control" style="width:100%;">
+                        <option value="">-- Any Available Faculty / Open to All Teachers --</option>
+                        <?php foreach ($teachers as $tc): ?>
+                            <option value="<?= (int)$tc['id'] ?>">
+                                👨‍🏫 <?= Helper::e($tc['full_name'] ?: 'Teacher') ?><?= !empty($tc['expert_field']) ? ' (' . Helper::e($tc['expert_field']) . ')' : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <small class="muted" style="font-size:11.5px;">Direct your question to a specific teacher, or leave open for any teacher to answer.</small>
                 </div>
 
                 <div class="form-group mb-3">
@@ -189,10 +224,31 @@ require VIEW_PATH . '/layouts/header.php';
                                     </div>
                                 <?php endif; ?>
                             </div>
-                            <div>
-                                <span class="badge <?= $d['status'] === 'answered' ? 'badge-success' : 'badge-warning' ?>" style="font-size:12px; padding:4px 10px;">
-                                    <?= $d['status'] === 'answered' ? '✅ Answered' : '⏳ Awaiting Teacher' ?>
-                                </span>
+                            <?php 
+                            $hasAiAnswer = !empty(array_filter($d['replies'] ?? [], fn($r) => !empty($r['is_ai']) || ($r['user_role'] ?? '') === 'ai' || strpos($r['reply_text'] ?? '', '<!-- AI_ANSWER -->') !== false));
+                            $hasTeacherAnswer = !empty(array_filter($d['replies'] ?? [], fn($r) => (!empty($r['is_teacher_endorsed']) || ($r['user_role'] ?? '') === 'teacher') && empty($r['is_ai']) && ($r['user_role'] ?? '') !== 'ai' && strpos($r['reply_text'] ?? '', '<!-- AI_ANSWER -->') === false));
+                            ?>
+                            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+                                <?php if ($hasTeacherAnswer): ?>
+                                    <span class="badge badge-success" style="font-size:12px; padding:4px 10px;">✅ Teacher Answered</span>
+                                <?php elseif ($hasAiAnswer): ?>
+                                    <span class="badge" style="background:rgba(99,102,241,0.15); color:#6366f1; border:1px solid rgba(99,102,241,0.3); font-size:12px; padding:4px 10px; font-weight:700;">
+                                        🤖 AI Answered
+                                    </span>
+                                <?php else: ?>
+                                    <span class="badge badge-warning" style="font-size:12px; padding:4px 10px;">⏳ Awaiting Answer</span>
+                                <?php endif; ?>
+
+                                <?php if (!$hasAiAnswer): ?>
+                                    <form action="/lesson-doubt-handler.php" method="POST" style="margin-top:4px;">
+                                        <input type="hidden" name="action" value="ask_ai">
+                                        <input type="hidden" name="doubt_id" value="<?= (int)$d['id'] ?>">
+                                        <input type="hidden" name="redirect" value="/student/doubts">
+                                        <button type="submit" class="btn btn-ghost btn-sm" style="color:#6366f1; font-weight:700; font-size:11.5px; padding:3px 8px; border:1px solid rgba(99,102,241,0.25); border-radius:6px;">
+                                            🤖 Ask AI to Answer
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
                             </div>
                         </div>
 
@@ -203,20 +259,37 @@ require VIEW_PATH . '/layouts/header.php';
                                     Answers & Discussion (<?= count($d['replies']) ?>)
                                 </div>
                                 <?php foreach ($d['replies'] as $rep): ?>
-                                    <div style="background:var(--surface-1); padding:12px 14px; border-radius:10px; border:1px solid <?= !empty($rep['is_teacher_endorsed']) ? 'rgba(16,185,129,0.35)' : 'var(--il-border)' ?>;">
+                                    <?php 
+                                    $isAiReply = (!empty($rep['is_ai']) || ($rep['user_role'] ?? '') === 'ai' || strpos($rep['reply_text'] ?? '', '<!-- AI_ANSWER -->') !== false);
+                                    $isTeacherReply = (!$isAiReply && (!empty($rep['is_teacher_endorsed']) || ($rep['user_role'] ?? '') === 'teacher'));
+                                    $cleanText = str_replace(['<!-- AI_ANSWER -->', '[AI_GENERATED]'], '', $rep['reply_text'] ?? '');
+                                    ?>
+                                    <div style="background:<?= $isAiReply ? 'rgba(99,102,241,0.03)' : ($isTeacherReply ? 'rgba(16,185,129,0.04)' : 'var(--surface-1)') ?>; padding:12px 14px; border-radius:10px; border:1px solid <?= $isAiReply ? 'rgba(99,102,241,0.3)' : ($isTeacherReply ? 'rgba(16,185,129,0.35)' : 'var(--il-border)') ?>; position:relative;">
                                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                                             <div style="display:flex; align-items:center; gap:8px;">
-                                                <strong style="font-size:13px; color:var(--il-text);"><?= Helper::e($rep['author_name']) ?></strong>
-                                                <?php if (!empty($rep['is_teacher_endorsed']) || ($rep['user_role'] ?? '') === 'teacher'): ?>
-                                                    <span class="badge badge-success" style="font-size:10px; padding:2px 6px;">⭐ Verified Teacher Answer</span>
-                                                <?php elseif (($rep['user_role'] ?? '') === 'student'): ?>
-                                                    <span class="pill" style="font-size:10px; padding:2px 6px;">You / Student</span>
+                                                <?php if ($isAiReply): ?>
+                                                    <span style="font-size:16px;">🤖</span>
+                                                    <strong style="font-size:13px; color:var(--il-text);">Infinity AI Tutor</strong>
+                                                <?php else: ?>
+                                                    <strong style="font-size:13px; color:var(--il-text);"><?= Helper::e($rep['author_name']) ?></strong>
+                                                    <?php if ($isTeacherReply): ?>
+                                                        <span class="badge badge-success" style="font-size:10px; padding:2px 6px;">⭐ Verified Teacher Answer</span>
+                                                    <?php elseif (($rep['user_role'] ?? '') === 'student'): ?>
+                                                        <span class="pill" style="font-size:10px; padding:2px 6px;">You / Student</span>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                             </div>
-                                            <span class="muted" style="font-size:11px;"><?= date('d M, h:i A', strtotime($rep['created_at'])) ?></span>
+                                            <div style="display:flex; align-items:center; gap:8px;">
+                                                <?php if ($isAiReply): ?>
+                                                    <span class="badge" style="background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 3px rgba(99,102,241,0.25); text-transform:uppercase; letter-spacing:0.04em;">
+                                                        ✨ Generated by AI
+                                                    </span>
+                                                <?php endif; ?>
+                                                <span class="muted" style="font-size:11px;"><?= date('d M, h:i A', strtotime($rep['created_at'])) ?></span>
+                                            </div>
                                         </div>
                                         <div style="font-size:13px; color:var(--il-text); line-height:1.5;">
-                                            <?= nl2br(Helper::e($rep['reply_text'])) ?>
+                                            <?= nl2br(Helper::e(trim($cleanText))) ?>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>

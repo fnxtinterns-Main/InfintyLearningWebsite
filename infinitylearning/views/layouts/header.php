@@ -822,6 +822,9 @@ const CMD_ITEMS = [
     { icon: '✨', title: 'Create Free Account', desc: 'Sign up as a student, parent, or teacher', url: '/register', group: 'Access', keywords: 'register signup create account join' },
     <?php endif; ?>
     { icon: '🌓', title: 'Toggle Theme (Light / Dark)', desc: 'Switch visual theme between light and dark mode', action: 'toggleTheme', group: 'Appearance', keywords: 'theme dark light mode color contrast' },
+    { icon: '💳', title: 'Refund & Cancellation Policy', desc: 'Read guidelines on course cancellations and refunds', url: '/refund-policy', group: 'Legal & Info', keywords: 'refund cancellation policy payment fee money cancel' },
+    { icon: '📄', title: 'Terms of Service', desc: 'Platform rules, account terms, and legal conditions', url: '/terms', group: 'Legal & Info', keywords: 'terms of service rules policy legal agreement' },
+    { icon: '🔒', title: 'Privacy Policy', desc: 'Data security, privacy protection, and user rights', url: '/privacy', group: 'Legal & Info', keywords: 'privacy policy data security protection gdpr dpdp' },
 ];
 
 let selectedCmdIndex = 0;

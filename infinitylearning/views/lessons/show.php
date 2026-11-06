@@ -18,6 +18,7 @@ if (!Lesson::canView($lesson, $user)) {
 if ($user) {
     Lesson::markProgress($id, (int)$user['id'], 10, 'in_progress');
 }
+$userProgress = $user ? Lesson::getProgress($id, (int)$user['id']) : null;
 
 $attachments = $lesson['attachments_array'] ?? [];
 $quizQuestions = LessonQuiz::getOrCreateQuiz($id);
@@ -30,7 +31,27 @@ require VIEW_PATH . '/layouts/header.php';
 <section class="section-sm">
     <div class="container">
 
-        <a href="/lessons" class="back-link">← All lessons</a>
+        <!-- INTERACTIVE COURSE & SUBJECT NAVIGATION -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px; font-size:13px; flex-wrap:wrap;">
+                <a href="/lessons" class="muted" style="text-decoration:none; font-weight:600;">📚 Lessons</a>
+                <span class="muted">›</span>
+                <a href="/lessons?subject=<?= (int)$lesson['subject_id'] ?>" style="color:var(--il-primary); font-weight:700; text-decoration:none; background:rgba(255,122,24,0.1); padding:3px 10px; border-radius:6px; display:inline-flex; align-items:center; gap:4px;">
+                    <span><?= Helper::e($lesson['subject_name']) ?></span>
+                </a>
+                <?php if (!empty($lesson['batch_id'])): ?>
+                    <span class="muted">›</span>
+                    <a href="/teacher/batch?id=<?= (int)$lesson['batch_id'] ?>" class="badge badge-secondary" style="font-size:12px;">
+                        🏫 <?= Helper::e($lesson['batch_name'] ?: 'Course Batch') ?>
+                    </a>
+                <?php endif; ?>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <a href="/lessons?subject=<?= (int)$lesson['subject_id'] ?>" class="btn btn-secondary btn-xs" style="font-weight:600;">
+                    Explore <?= Helper::e($lesson['subject_name']) ?> Course →
+                </a>
+            </div>
+        </div>
 
         <!-- ============ HERO ============ -->
         <div class="lesson-hero">
@@ -267,21 +288,38 @@ require VIEW_PATH . '/layouts/header.php';
                                     <?php if (!empty($d['replies'])): ?>
                                         <div class="doubt-replies" style="margin-top:.8rem;padding-left:1rem;border-left:3px solid var(--border);display:flex;flex-direction:column;gap:.6rem">
                                             <?php foreach ($d['replies'] as $rep): ?>
-                                                <div style="background:<?= $rep['is_teacher_endorsed'] ? 'rgba(34,197,94,0.08)' : 'var(--surface-2)' ?>;border:1px solid <?= $rep['is_teacher_endorsed'] ? 'rgba(34,197,94,0.3)' : 'var(--border)' ?>;border-radius:8px;padding:.6rem .8rem">
+                                                <?php 
+                                                $isAiReply = (!empty($rep['is_ai']) || ($rep['user_role'] ?? '') === 'ai' || strpos($rep['reply_text'] ?? '', '<!-- AI_ANSWER -->') !== false);
+                                                $isTeacher = (!$isAiReply && (!empty($rep['is_teacher_endorsed']) || ($rep['user_role'] ?? '') === 'teacher' || ($rep['user_role'] ?? '') === 'admin'));
+                                                $cleanText = str_replace(['<!-- AI_ANSWER -->', '[AI_GENERATED]'], '', $rep['reply_text'] ?? '');
+                                                ?>
+                                                <div style="background:<?= $isAiReply ? 'rgba(99,102,241,0.04)' : ($rep['is_teacher_endorsed'] ? 'rgba(34,197,94,0.08)' : 'var(--surface-2)') ?>;border:1px solid <?= $isAiReply ? 'rgba(99,102,241,0.3)' : ($rep['is_teacher_endorsed'] ? 'rgba(34,197,94,0.3)' : 'var(--border)') ?>;border-radius:8px;padding:.6rem .8rem;position:relative">
                                                     <div class="flex items-center justify-between" style="gap:.4rem">
                                                         <div class="flex items-center" style="gap:.4rem">
-                                                            <strong style="font-size:.85rem"><?= Helper::e($rep['author_name']) ?></strong>
-                                                            <?php if ($rep['user_role'] === 'teacher' || $rep['user_role'] === 'admin'): ?>
-                                                                <span class="badge badge-primary" style="font-size:.7rem;padding:.15rem .45rem">Teacher / Staff</span>
-                                                            <?php endif; ?>
-                                                            <?php if ($rep['is_teacher_endorsed']): ?>
-                                                                <span class="badge badge-success" style="font-size:.7rem;padding:.15rem .45rem">⭐ Verified Answer</span>
+                                                            <?php if ($isAiReply): ?>
+                                                                <span style="font-size:14px;">🤖</span>
+                                                                <strong style="font-size:.85rem">Infinity AI Tutor</strong>
+                                                            <?php else: ?>
+                                                                <strong style="font-size:.85rem"><?= Helper::e($rep['author_name']) ?></strong>
+                                                                <?php if ($isTeacher): ?>
+                                                                    <span class="badge badge-primary" style="font-size:.7rem;padding:.15rem .45rem">Teacher / Staff</span>
+                                                                <?php endif; ?>
+                                                                <?php if ($rep['is_teacher_endorsed']): ?>
+                                                                    <span class="badge badge-success" style="font-size:.7rem;padding:.15rem .45rem">⭐ Verified Answer</span>
+                                                                <?php endif; ?>
                                                             <?php endif; ?>
                                                         </div>
-                                                        <span class="muted" style="font-size:.74rem"><?= date('d M, H:i', strtotime($rep['created_at'])) ?></span>
+                                                        <div class="flex items-center" style="gap:.5rem">
+                                                            <?php if ($isAiReply): ?>
+                                                                <span class="badge" style="background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:999px; text-transform:uppercase; letter-spacing:0.04em;">
+                                                                    ✨ Generated by AI
+                                                                </span>
+                                                            <?php endif; ?>
+                                                            <span class="muted" style="font-size:.74rem"><?= date('d M, H:i', strtotime($rep['created_at'])) ?></span>
+                                                        </div>
                                                     </div>
-                                                    <div style="font-size:.88rem;margin-top:.3rem;color:var(--text)">
-                                                        <?= nl2br(Helper::e($rep['reply_text'])) ?>
+                                                    <div style="font-size:.88rem;margin-top:.3rem;color:var(--text);line-height:1.5">
+                                                        <?= nl2br(Helper::e(trim($cleanText))) ?>
                                                     </div>
                                                 </div>
                                             <?php endforeach; ?>
@@ -434,6 +472,142 @@ require VIEW_PATH . '/layouts/header.php';
             </script>
 
             <aside class="detail-side">
+                <!-- ============ INTERACTIVE LESSON PROGRESS TRACKING ============ -->
+                <?php if ($user): 
+                    $curPct = (int)($userProgress['progress_percent'] ?? 10);
+                    $curStatus = $userProgress['status'] ?? 'in_progress';
+                    $curScore = (int)($userProgress['comprehension_score'] ?? 0);
+                    $startedAt = !empty($userProgress['last_viewed_at']) ? date('d M Y, H:i', strtotime($userProgress['last_viewed_at'])) : date('d M Y, H:i');
+                ?>
+                    <div class="card" style="border-radius:14px; border:1.5px solid var(--il-primary); padding:18px 20px; margin-bottom:18px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h3 style="margin:0; font-size:16px; display:flex; align-items:center; gap:6px;">
+                                <span>🎯</span> Lesson Progress
+                            </h3>
+                            <span id="badge-lesson-status" class="badge badge-<?= $curStatus === 'completed' ? 'success' : 'primary' ?>" style="font-size:11px; text-transform:capitalize;">
+                                <?= $curStatus === 'completed' ? '✅ Completed' : '🔄 In Progress' ?>
+                            </span>
+                        </div>
+
+                        <!-- 1. Lesson Start -->
+                        <div style="font-size:12px; color:var(--il-muted); margin-bottom:12px;">
+                            <strong>⏱️ Lesson Started:</strong> <span id="label-started-at"><?= $startedAt ?></span>
+                        </div>
+
+                        <!-- 2. Progress Rate -->
+                        <div style="margin-bottom:14px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:12.5px; font-weight:700; margin-bottom:6px;">
+                                <span>Progress Rate</span>
+                                <span id="label-progress-pct" style="color:var(--il-primary);"><?= $curPct ?>%</span>
+                            </div>
+                            <div style="background:var(--surface-2); border-radius:999px; height:8px; overflow:hidden; border:1px solid var(--il-border); margin-bottom:8px;">
+                                <div id="bar-progress-fill" style="background:linear-gradient(90deg, #FF7A18, #10B981); height:100%; width:<?= $curPct ?>%; border-radius:999px; transition:width 0.4s ease;"></div>
+                            </div>
+                            <!-- Quick Rate Selector -->
+                            <div style="display:flex; gap:6px; justify-content:space-between;">
+                                <button type="button" onclick="updateLessonRate(25)" class="btn btn-ghost btn-xs" style="font-size:11px; padding:3px 6px;">25%</button>
+                                <button type="button" onclick="updateLessonRate(50)" class="btn btn-ghost btn-xs" style="font-size:11px; padding:3px 6px;">50%</button>
+                                <button type="button" onclick="updateLessonRate(75)" class="btn btn-ghost btn-xs" style="font-size:11px; padding:3px 6px;">75%</button>
+                                <button type="button" onclick="updateLessonRate(100)" class="btn btn-ghost btn-xs" style="font-size:11px; padding:3px 6px;">100%</button>
+                            </div>
+                        </div>
+
+                        <!-- 3. Lesson Completion Toggle -->
+                        <div style="margin-bottom:16px;">
+                            <button type="button" id="btn-toggle-completion" onclick="toggleCompletion()" class="btn btn-block <?= $curStatus === 'completed' ? 'btn-outline-secondary' : 'btn-primary' ?>" style="font-size:13px; font-weight:700; padding:8px 12px;">
+                                <?= $curStatus === 'completed' ? '✓ Mark as In Progress' : '✅ Mark Lesson Completed' ?>
+                            </button>
+                        </div>
+
+                        <!-- 4. Score Selection (Comprehension Self-Rating) -->
+                        <div style="border-top:1px dashed var(--il-border); padding-top:12px;">
+                            <div style="font-size:12px; font-weight:700; margin-bottom:6px; display:flex; justify-content:space-between;">
+                                <span>Comprehension Score:</span>
+                                <span id="label-score-val" style="color:#d97706; font-weight:800;"><?= $curScore ? ($curScore . '/5 ★') : 'Not rated' ?></span>
+                            </div>
+                            <div style="display:flex; gap:8px; justify-content:center;">
+                                <?php for ($s = 1; $s <= 5; $s++): ?>
+                                    <button type="button" onclick="setLessonScore(<?= $s ?>)" id="star-btn-<?= $s ?>" style="background:none; border:none; font-size:22px; cursor:pointer; color:<?= $s <= $curScore ? '#f59e0b' : '#cbd5e1' ?>; transition:transform 0.15s ease;" title="<?= $s ?> Star">
+                                        ★
+                                    </button>
+                                <?php endfor; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <script>
+                    let currentProgressPct = <?= $curPct ?>;
+                    let currentStatus = '<?= $curStatus ?>';
+                    let currentScore = <?= $curScore ?>;
+
+                    async function updateLessonRate(pct) {
+                        currentProgressPct = pct;
+                        if (pct >= 100) currentStatus = 'completed';
+                        await syncLessonProgress();
+                    }
+
+                    async function toggleCompletion() {
+                        if (currentStatus === 'completed') {
+                            currentStatus = 'in_progress';
+                            currentProgressPct = 50;
+                        } else {
+                            currentStatus = 'completed';
+                            currentProgressPct = 100;
+                        }
+                        await syncLessonProgress();
+                    }
+
+                    async function setLessonScore(score) {
+                        currentScore = score;
+                        await syncLessonProgress();
+                    }
+
+                    async function syncLessonProgress() {
+                        try {
+                            const res = await fetch('/lesson-progress-handler.php', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    lesson_id: <?= $id ?>,
+                                    progress_percent: currentProgressPct,
+                                    status: currentStatus,
+                                    score: currentScore
+                                })
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                                document.getElementById('label-progress-pct').textContent = currentProgressPct + '%';
+                                document.getElementById('bar-progress-fill').style.width = currentProgressPct + '%';
+                                
+                                const statusBadge = document.getElementById('badge-lesson-status');
+                                const toggleBtn = document.getElementById('btn-toggle-completion');
+                                if (currentStatus === 'completed') {
+                                    statusBadge.className = 'badge badge-success';
+                                    statusBadge.textContent = '✅ Completed';
+                                    toggleBtn.className = 'btn btn-block btn-outline-secondary';
+                                    toggleBtn.textContent = '✓ Mark as In Progress';
+                                } else {
+                                    statusBadge.className = 'badge badge-primary';
+                                    statusBadge.textContent = '🔄 In Progress';
+                                    toggleBtn.className = 'btn btn-block btn-primary';
+                                    toggleBtn.textContent = '✅ Mark Lesson Completed';
+                                }
+
+                                if (currentScore > 0) {
+                                    document.getElementById('label-score-val').textContent = currentScore + '/5 ★';
+                                    for (let s = 1; s <= 5; s++) {
+                                        const btn = document.getElementById('star-btn-' + s);
+                                        if (btn) btn.style.color = s <= currentScore ? '#f59e0b' : '#cbd5e1';
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Progress sync error', e);
+                        }
+                    }
+                    </script>
+                <?php endif; ?>
+
                 <div class="card">
                     <h3>📚 Lesson info</h3>
                     <div class="divider"></div>

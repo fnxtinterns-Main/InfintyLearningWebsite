@@ -166,12 +166,15 @@ require VIEW_PATH . '/layouts/header.php';
                     <h3 style="margin:0;">📅 <?= date('l, d F Y', strtotime($date)) ?></h3>
                     <span class="muted" style="font-size:13px;"><?= count($members) ?> students enrolled</span>
                 </div>
-                <div class="flex" style="gap:8px;">
+                <div class="flex" style="gap:8px; flex-wrap:wrap;">
                     <button type="button" class="btn btn-ghost btn-sm" onclick="markAll('present')" style="font-weight:700; color:#16A34A;">
                         ✅ Mark All Present
                     </button>
                     <button type="button" class="btn btn-ghost btn-sm" onclick="markAll('absent')" style="font-weight:700; color:#DC2626;">
                         ✕ Mark All Absent
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="markAll('leave')" style="font-weight:700; color:#8B5CF6;">
+                        🏖️ Mark All Leave
                     </button>
                 </div>
             </div>
@@ -193,6 +196,7 @@ require VIEW_PATH . '/layouts/header.php';
                             <th style="text-align:center; color:#DC2626;">Absent</th>
                             <th style="text-align:center; color:#F59E0B;">Late</th>
                             <th style="text-align:center; color:#2563EB;">Excused</th>
+                            <th style="text-align:center; color:#8B5CF6;">Leave</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -216,7 +220,7 @@ require VIEW_PATH . '/layouts/header.php';
                                     <span class="muted" style="font-size:12px;"><?= Helper::e($m['registration_number'] ?: '—') ?></span>
                                 </td>
                             <?php endif; ?>
-                            <?php foreach (['present','absent','late','excused'] as $s): ?>
+                            <?php foreach (['present','absent','late','excused','leave'] as $s): ?>
                                 <td style="text-align:center;">
                                     <label style="cursor:pointer; display:inline-block; padding:4px 8px;">
                                         <input type="radio" name="status[<?= $sid ?>]" value="<?= $s ?>"

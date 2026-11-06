@@ -28,6 +28,7 @@ $isAiverseSidebar = !empty($isAiverse) || School::isAiverse($schoolId) || str_co
         <a href="/school/results"<?= $active('/school/results') ?>><span class="ico">🏆</span> Results &amp; Analytics</a>
         <a href="/school/branding"<?= $active('/school/branding') ?>><span class="ico">🎨</span> School Branding</a>
         <a href="/school/teachers"<?= $active('/school/teachers') ?>><span class="ico">👩‍🏫</span> Teachers</a>
+        <a href="/school/teacher-notes"<?= $active('/school/teacher-notes') ?>><span class="ico">📝</span> Teacher Notes</a>
         <a href="/school/students"<?= $active('/school/students') ?>><span class="ico">👩‍🎓</span> Students</a>
         <a href="/school/batches"<?= $active('/school/batches') ?>><span class="ico">🎓</span> Batches</a>
         <a href="/school/chess"<?= $active('/school/chess') ?>><span class="ico">♟️</span> Chess Academy</a>

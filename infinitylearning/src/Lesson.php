@@ -361,6 +361,56 @@ final class Lesson
         return Database::connect()->query("SELECT * FROM subjects ORDER BY name")->fetchAll();
     }
 
+    public static function getProgress(int $lessonId, int $userId): ?array
+    {
+        $db = Database::connect();
+        try {
+            $stmt = $db->prepare("SELECT * FROM lesson_progress WHERE lesson_id = ? AND student_user_id = ? LIMIT 1");
+            $stmt->execute([$lessonId, $userId]);
+            $row = $stmt->fetch();
+            return $row ?: null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    public static function updateProgressRate(int $lessonId, int $userId, int $percent, ?string $status = null, ?int $score = null): array
+    {
+        $db = Database::connect();
+        try {
+            $db->exec("ALTER TABLE lesson_progress ADD COLUMN comprehension_score TINYINT UNSIGNED DEFAULT NULL");
+        } catch (\Throwable $e) {}
+
+        $cur = self::getProgress($lessonId, $userId);
+        $newStatus = $status ?: ($cur['status'] ?? 'in_progress');
+        if ($percent >= 100) $newStatus = 'completed';
+
+        $stmt = $db->prepare("
+            INSERT INTO lesson_progress (lesson_id, student_user_id, status, progress_percent, comprehension_score, last_viewed_at, completed_at)
+            VALUES (?, ?, ?, ?, ?, NOW(), IF(?='completed', NOW(), NULL))
+            ON DUPLICATE KEY UPDATE
+              status = VALUES(status),
+              progress_percent = VALUES(progress_percent),
+              comprehension_score = COALESCE(VALUES(comprehension_score), comprehension_score),
+              last_viewed_at = NOW(),
+              completed_at = IF(VALUES(status)='completed', COALESCE(completed_at, NOW()), completed_at)
+        ");
+        $stmt->execute([
+            $lessonId,
+            $userId,
+            $newStatus,
+            min(100, max(0, $percent)),
+            $score,
+            $newStatus
+        ]);
+
+        return self::getProgress($lessonId, $userId) ?: [
+            'status' => $newStatus,
+            'progress_percent' => $percent,
+            'comprehension_score' => $score
+        ];
+    }
+
     public static function markProgress(int $lessonId, int $userId, int $percent, string $status = 'in_progress'): void
     {
         $db = Database::connect();

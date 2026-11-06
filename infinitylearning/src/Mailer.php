@@ -8,10 +8,10 @@ final class Mailer
     /**
      * Send a transactional email via SMTP.
      */
-    public static function send(string $to, string $subject, string $htmlBody, string $toName = ''): bool
+    public static function send(string $to, string $subject, string $htmlBody, string $toName = '', ?array $smtpOverride = null): bool
     {
         $config = require BASE_PATH . '/config/config.php';
-        $smtp   = $config['smtp'];
+        $smtp   = !empty($smtpOverride) ? $smtpOverride : $config['smtp'];
 
         // In development, log and skip actual send
         if (($config['app']['env'] ?? 'production') === 'development') {

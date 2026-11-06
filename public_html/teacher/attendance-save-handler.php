@@ -38,7 +38,7 @@ if ($mode === 'class') {
         Session::flash('error', 'No attendance submitted.');
         Helper::redirect('/teacher/attendance?date=' . urlencode($date));
     }
-    $allowed = ['present','absent','late','excused'];
+    $allowed = ['present','absent','late','excused','leave'];
     $by = (int)$me['id'];
     $saved = 0;
     foreach ($statuses as $studentId => $status) {
@@ -64,7 +64,7 @@ if (!is_array($statuses) || !$statuses) {
     Helper::redirect('/teacher/batch/attendance?id=' . $batchId . '&date=' . urlencode($date));
 }
 
-$allowed = ['present','absent','late','excused'];
+$allowed = ['present','absent','late','excused','leave'];
 $by = (int)Auth::user()['id'];
 $saved = 0;
 

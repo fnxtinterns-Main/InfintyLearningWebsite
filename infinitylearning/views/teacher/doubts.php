@@ -98,10 +98,20 @@ require VIEW_PATH . '/layouts/header.php';
                                     </div>
                                 <?php endif; ?>
                             </div>
-                            <div>
-                                <span class="badge <?= $d['status'] === 'answered' ? 'badge-success' : 'badge-warning' ?>" style="font-size:12px; padding:4px 10px;">
-                                    <?= $d['status'] === 'answered' ? '✅ Answered' : '⏳ Pending Answer' ?>
-                                </span>
+                            <?php 
+                            $hasAiAnswer = !empty(array_filter($d['replies'] ?? [], fn($r) => !empty($r['is_ai']) || ($r['user_role'] ?? '') === 'ai' || strpos($r['reply_text'] ?? '', '<!-- AI_ANSWER -->') !== false));
+                            $hasTeacherAnswer = !empty(array_filter($d['replies'] ?? [], fn($r) => (!empty($r['is_teacher_endorsed']) || ($r['user_role'] ?? '') === 'teacher') && empty($r['is_ai']) && ($r['user_role'] ?? '') !== 'ai' && strpos($r['reply_text'] ?? '', '<!-- AI_ANSWER -->') === false));
+                            ?>
+                            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+                                <?php if ($hasTeacherAnswer): ?>
+                                    <span class="badge badge-success" style="font-size:12px; padding:4px 10px;">✅ Teacher Verified</span>
+                                <?php elseif ($hasAiAnswer): ?>
+                                    <span class="badge" style="background:rgba(99,102,241,0.15); color:#6366f1; border:1px solid rgba(99,102,241,0.3); font-size:12px; padding:4px 10px; font-weight:700;">
+                                        🤖 AI Answered (Open for Teacher Answer)
+                                    </span>
+                                <?php else: ?>
+                                    <span class="badge badge-warning" style="font-size:12px; padding:4px 10px;">⏳ Pending Answer</span>
+                                <?php endif; ?>
                             </div>
                         </div>
 
@@ -112,21 +122,38 @@ require VIEW_PATH . '/layouts/header.php';
                                     Thread Replies (<?= count($d['replies']) ?>)
                                 </div>
                                 <?php foreach ($d['replies'] as $rep): ?>
-                                    <div style="background:var(--surface-1); padding:10px 14px; border-radius:8px; border:1px solid <?= !empty($rep['is_teacher_endorsed']) ? 'rgba(16,185,129,0.35)' : 'var(--il-border)' ?>;">
-                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                    <?php 
+                                    $isAiReply = (!empty($rep['is_ai']) || ($rep['user_role'] ?? '') === 'ai' || strpos($rep['reply_text'] ?? '', '<!-- AI_ANSWER -->') !== false);
+                                    $isTeacherReply = (!$isAiReply && (!empty($rep['is_teacher_endorsed']) || ($rep['user_role'] ?? '') === 'teacher'));
+                                    $cleanText = str_replace(['<!-- AI_ANSWER -->', '[AI_GENERATED]'], '', $rep['reply_text'] ?? '');
+                                    ?>
+                                    <div style="background:<?= $isAiReply ? 'rgba(99,102,241,0.03)' : ($isTeacherReply ? 'rgba(16,185,129,0.04)' : 'var(--surface-1)') ?>; padding:10px 14px; border-radius:8px; border:1px solid <?= $isAiReply ? 'rgba(99,102,241,0.3)' : (!empty($rep['is_teacher_endorsed']) ? 'rgba(16,185,129,0.35)' : 'var(--il-border)') ?>; position:relative;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; gap:8px;">
                                             <div style="display:flex; align-items:center; gap:6px;">
-                                                <strong style="font-size:12px; color:var(--il-text);"><?= Helper::e($rep['author_name']) ?></strong>
-                                                <span class="badge <?= ($rep['user_role'] ?? '') === 'teacher' ? 'badge-success' : 'badge-secondary' ?>" style="font-size:10px; padding:1px 6px;">
-                                                    <?= ucfirst($rep['user_role'] ?? 'user') ?>
-                                                </span>
-                                                <?php if (!empty($rep['is_teacher_endorsed'])): ?>
-                                                    <span style="color:#10b981; font-weight:700; font-size:11px;">⭐ Verified Answer</span>
+                                                <?php if ($isAiReply): ?>
+                                                    <span style="font-size:14px;">🤖</span>
+                                                    <strong style="font-size:12px; color:var(--il-text);">Infinity AI Tutor</strong>
+                                                <?php else: ?>
+                                                    <strong style="font-size:12px; color:var(--il-text);"><?= Helper::e($rep['author_name']) ?></strong>
+                                                    <span class="badge <?= ($rep['user_role'] ?? '') === 'teacher' ? 'badge-success' : 'badge-secondary' ?>" style="font-size:10px; padding:1px 6px;">
+                                                        <?= ucfirst($rep['user_role'] ?? 'user') ?>
+                                                    </span>
+                                                    <?php if (!empty($rep['is_teacher_endorsed'])): ?>
+                                                        <span style="color:#10b981; font-weight:700; font-size:11px;">⭐ Verified Answer</span>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                             </div>
-                                            <span class="muted" style="font-size:11px;"><?= date('d M, H:i', strtotime($rep['created_at'])) ?></span>
+                                            <div style="display:flex; align-items:center; gap:8px;">
+                                                <?php if ($isAiReply): ?>
+                                                    <span class="badge" style="background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 3px rgba(99,102,241,0.25); text-transform:uppercase; letter-spacing:0.04em;">
+                                                        ✨ Generated by AI
+                                                    </span>
+                                                <?php endif; ?>
+                                                <span class="muted" style="font-size:11px;"><?= date('d M, H:i', strtotime($rep['created_at'])) ?></span>
+                                            </div>
                                         </div>
                                         <div style="font-size:13px; color:var(--il-text); line-height:1.4;">
-                                            <?= nl2br(Helper::e($rep['reply_text'])) ?>
+                                            <?= nl2br(Helper::e(trim($cleanText))) ?>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>

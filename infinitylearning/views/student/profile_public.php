@@ -261,6 +261,133 @@ if (empty($p['doubts_stats']['total'])) {
         }
     } catch (\Throwable $e) {}
 }
+
+// Fallback 7: Certificates
+if (empty($p['certificates'])) {
+    try {
+        $inClause = implode(',', array_fill(0, count($candidateIds), '?'));
+        $db = Database::connect();
+        $certStmt = $db->prepare("SELECT * FROM certificates WHERE student_user_id IN ($inClause) ORDER BY issued_at DESC");
+        $certStmt->execute($candidateIds);
+        $p['certificates'] = $certStmt->fetchAll() ?: [];
+    } catch (\Throwable $e) {}
+}
+
+// Fallback 8: Parents
+if (empty($p['parents'])) {
+    try {
+        $inClause = implode(',', array_fill(0, count($candidateIds), '?'));
+        $db = Database::connect();
+        $parStmt = $db->prepare("
+            SELECT p.*, COALESCE(sp.is_primary, 1) AS is_primary 
+            FROM parents p
+            JOIN student_parents sp ON sp.parent_id = p.id
+            WHERE sp.student_user_id IN ($inClause)
+            ORDER BY sp.is_primary DESC, p.id ASC
+        ");
+        $parStmt->execute($candidateIds);
+        $p['parents'] = $parStmt->fetchAll() ?: [];
+        if (empty($p['parents'])) {
+            $parStmt2 = $db->prepare("SELECT p.*, 1 AS is_primary FROM parents p WHERE p.user_id IN ($inClause)");
+            $parStmt2->execute($candidateIds);
+            $p['parents'] = $parStmt2->fetchAll() ?: [];
+        }
+    } catch (\Throwable $e) {}
+}
+
+// Fallback 9: Achievements from activity_results & certificates
+if (empty($p['achievements'])) {
+    $p['achievements'] = [];
+    try {
+        $inClause = implode(',', array_fill(0, count($candidateIds), '?'));
+        $db = Database::connect();
+        $achStmt = $db->prepare("
+            SELECT ar.id,
+                   CONCAT(a.title, IF(ar.position IS NOT NULL, CONCAT(' — Rank #', ar.position), '')) AS title,
+                   CONCAT(
+                       IF(ar.position = 1, '1st Place Winner', IF(ar.position = 2, '2nd Place (Runner-up)', IF(ar.position = 3, '3rd Place', 'Participant'))),
+                       IF(ar.score IS NOT NULL, CONCAT(' with score ', ROUND(ar.score), '/100'), ''),
+                       IF(ar.remarks IS NOT NULL AND ar.remarks != '', CONCAT(' • ', ar.remarks), '')
+                   ) AS description,
+                   COALESCE(a.category, 'competition') AS category,
+                   'trophy' AS badge_icon,
+                   ar.recorded_at AS earned_at
+            FROM activity_results ar
+            JOIN activities a ON a.id = ar.activity_id
+            WHERE ar.student_user_id IN ($inClause)
+            ORDER BY ar.recorded_at DESC
+        ");
+        $achStmt->execute($candidateIds);
+        $p['achievements'] = $achStmt->fetchAll() ?: [];
+    } catch (\Throwable $e) {}
+}
+
+// Enrich achievements from certificates
+if (!empty($p['certificates'])) {
+    $existingTitles = array_map(function($item) {
+        return strtolower(trim((string)($item['title'] ?? '')));
+    }, $p['achievements'] ?? []);
+    foreach ($p['certificates'] as $cert) {
+        $cType = (string)($cert['type'] ?? '');
+        $certType = (string)($cert['certificate_type'] ?? '');
+        if (in_array($cType, ['winner', 'achievement', 'merit'], true) || in_array($certType, ['winner', 'runner_up'], true)) {
+            $cTitle = (string)($cert['title'] ?? 'Certificate of Achievement');
+            $meta = !empty($cert['metadata']) ? (is_array($cert['metadata']) ? $cert['metadata'] : json_decode((string)$cert['metadata'], true)) : [];
+            $evt = $meta['event_title'] ?? '';
+            $rnk = $meta['rank'] ?? '';
+            $desc = trim(($evt ? $evt . ' — ' : '') . $rnk);
+            $fullTitle = $evt ? "$cTitle ($evt)" : $cTitle;
+            $checkTitle = strtolower(trim($fullTitle));
+            if (!in_array($checkTitle, $existingTitles, true)) {
+                $p['achievements'][] = [
+                    'id' => $cert['id'],
+                    'title' => $fullTitle,
+                    'description' => $desc ?: ($cert['issued_for'] ?? 'Awarded for outstanding performance'),
+                    'category' => 'competition',
+                    'badge_icon' => 'certificate',
+                    'earned_at' => $cert['issued_at'] ?? date('Y-m-d H:i:s')
+                ];
+                $existingTitles[] = $checkTitle;
+            }
+        }
+    }
+}
+
+// Fallback 10: Holistic Growth Activities
+if (empty($p['activities'])) {
+    try {
+        $inClause = implode(',', array_fill(0, count($candidateIds), '?'));
+        $db = Database::connect();
+        $actStmt = $db->prepare("
+            SELECT a.id, a.title, a.slug, a.category, a.event_date, a.cover_image,
+                   a.short_description,
+                   ar.status AS participation_status, ar.registered_at,
+                   ares.position AS result_position, ares.score AS result_score,
+                   ares.remarks AS result_remarks
+            FROM activity_registrations ar
+            JOIN activities a ON a.id = ar.activity_id
+            LEFT JOIN activity_results ares
+                ON ares.activity_id = a.id AND ares.student_user_id = ar.user_id
+            WHERE ar.user_id IN ($inClause)
+            ORDER BY a.event_date DESC, ar.registered_at DESC
+        ");
+        $actStmt->execute($candidateIds);
+        $allActs = $actStmt->fetchAll() ?: [];
+        if (!empty($allActs)) {
+            $p['activities'] = $allActs;
+            $profiles = ['sports'=>[],'creative'=>[],'communication'=>[],'problem_solving'=>[],'academic'=>[]];
+            foreach ($allActs as $a) {
+                $cat = $a['category'] ?? '';
+                if (in_array($cat, ['sports'], true)) $profiles['sports'][] = $a;
+                elseif (in_array($cat, ['creative','cultural'], true)) $profiles['creative'][] = $a;
+                elseif (in_array($cat, ['communication'], true)) $profiles['communication'][] = $a;
+                elseif (in_array($cat, ['technology','competition'], true)) $profiles['problem_solving'][] = $a;
+                else $profiles['academic'][] = $a;
+            }
+            $p['activity_profiles'] = $profiles;
+        }
+    } catch (\Throwable $e) {}
+}
 ?>
 
 <section class="section" style="max-width:1160px; margin:0 auto; padding-bottom:50px;">
@@ -425,47 +552,58 @@ if (empty($p['doubts_stats']['total'])) {
         ?>
 
         <!-- VERTICAL ATTENDANCE BAR GRAPH -->
-        <div style="position:relative; padding:24px 14px 14px 50px; background:var(--surface-1); border-radius:14px; border:1px solid var(--il-border); margin-bottom:20px;">
-            <!-- Y-Axis Gridlines & Labels -->
-            <div style="position:absolute; left:14px; top:24px; bottom:45px; display:flex; flex-direction:column; justify-content:space-between; font-size:10px; color:var(--il-muted); font-family:'JetBrains Mono', monospace; text-align:right; width:28px;">
-                <span>100%</span>
-                <span>75%</span>
-                <span>50%</span>
-                <span>25%</span>
-                <span>0%</span>
+        <div style="background:var(--surface-1); border-radius:14px; border:1px solid var(--il-border); padding:20px 20px 16px 16px; margin-bottom:20px;">
+            <!-- Chart Area: Y-Axis Rail + Plot Area -->
+            <div style="display:flex; height:180px; position:relative;">
+                <!-- Y-Axis Rail -->
+                <div style="width:48px; display:flex; flex-direction:column; justify-content:space-between; text-align:right; padding-right:12px; font-size:11px; font-weight:600; color:var(--il-muted); font-family:var(--font-mono, monospace); user-select:none;">
+                    <span style="transform:translateY(-50%);">100%</span>
+                    <span style="transform:translateY(-50%);">75%</span>
+                    <span style="transform:translateY(-50%);">50%</span>
+                    <span style="transform:translateY(-50%);">25%</span>
+                    <span style="transform:translateY(50%);">0%</span>
+                </div>
+
+                <!-- Plot Area (Gridlines + Bars) -->
+                <div style="position:relative; flex:1; height:100%;">
+                    <!-- Horizontal Gridlines -->
+                    <div style="position:absolute; inset:0; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none;">
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:2px solid var(--il-border); height:0;"></div>
+                    </div>
+
+                    <!-- Bars Area -->
+                    <div style="position:absolute; inset:0; display:flex; justify-content:space-around; align-items:flex-end; z-index:2;">
+                        <?php foreach ($attBars as $item): 
+                            $barH = $item['pct'] > 0 ? max(4, min(100, $item['pct'])) : 0;
+                        ?>
+                            <div style="display:flex; flex-direction:column; align-items:center; width:22%; max-width:130px; height:100%; justify-content:flex-end;">
+                                <!-- Value Badge Above Bar -->
+                                <div style="font-size:12px; font-weight:800; color:<?= $item['color'] ?>; margin-bottom:6px; white-space:nowrap; background:<?= $item['color'] ?>15; padding:2px 8px; border-radius:999px;">
+                                    <?= $item['pct'] ?>%
+                                </div>
+                                
+                                <!-- Bar Pillar -->
+                                <div style="width:100%; max-width:72px; height:<?= $barH ?>%; background:<?= $item['gradient'] ?>; border-radius:8px 8px 2px 2px; box-shadow:0 4px 12px <?= $item['color'] ?>33; min-height:<?= $item['pct'] > 0 ? '6px' : '3px' ?>; transition:height 0.6s cubic-bezier(0.4, 0, 0.2, 1);">
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             </div>
 
-            <div style="position:absolute; left:50px; right:16px; top:24px; bottom:45px; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none;">
-                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                <div style="border-bottom:1.5px solid var(--il-border); height:0;"></div>
-            </div>
-
-            <!-- Bars Area -->
-            <div style="display:flex; justify-content:space-around; align-items:flex-end; height:190px; position:relative; z-index:2;">
-                <?php foreach ($attBars as $item): 
-                    $barH = $item['pct'] > 0 ? max(8, min(100, $item['pct'])) : 0;
-                ?>
-                    <div style="display:flex; flex-direction:column; align-items:center; width:22%; max-width:140px; height:100%; justify-content:flex-end;">
-                        <!-- Value Badge Above Bar -->
-                        <div style="font-size:12px; font-weight:800; color:<?= $item['color'] ?>; margin-bottom:6px; white-space:nowrap;">
-                            <?= $item['pct'] ?>%
+            <!-- X-Axis Labels (Aligned below bars, offset by Y-Axis width 48px) -->
+            <div style="display:flex; margin-left:48px; justify-content:space-around; margin-top:12px; padding-top:6px;">
+                <?php foreach ($attBars as $item): ?>
+                    <div style="width:22%; max-width:130px; text-align:center;">
+                        <div style="font-weight:700; font-size:12.5px; color:var(--il-text);">
+                            <?= $item['icon'] ?> <?= $item['label'] ?>
                         </div>
-                        
-                        <!-- Bar Pillar -->
-                        <div style="width:100%; max-width:76px; height:<?= $barH ?>%; background:<?= $item['gradient'] ?>; border-radius:8px 8px 2px 2px; box-shadow:0 4px 12px <?= $item['color'] ?>33; min-height:<?= $item['pct'] > 0 ? '8px' : '3px' ?>; transition:height 0.6s cubic-bezier(0.4, 0, 0.2, 1); display:flex; align-items:flex-start; justify-content:center;">
-                        </div>
-
-                        <!-- Label Below Bar -->
-                        <div style="margin-top:10px; text-align:center;">
-                            <div style="font-weight:700; font-size:12.5px; color:var(--il-text);">
-                                <?= $item['icon'] ?> <?= $item['label'] ?>
-                            </div>
-                            <div class="muted" style="font-size:11.5px;">
-                                <?= $item['count'] ?> <?= $item['count'] === 1 ? 'day' : 'days' ?>
-                            </div>
+                        <div class="muted" style="font-size:11.5px; margin-top:2px;">
+                            <?= $item['count'] ?> <?= $item['count'] === 1 ? 'day' : 'days' ?>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -545,50 +683,63 @@ if (empty($p['doubts_stats']['total'])) {
         ?>
 
         <!-- VERTICAL EXAM BAR GRAPH -->
-        <div style="position:relative; padding:24px 14px 14px 50px; background:var(--surface-1); border-radius:14px; border:1px solid var(--il-border); margin-bottom:24px;">
-            <!-- Y-Axis Gridlines & Labels -->
-            <div style="position:absolute; left:14px; top:24px; bottom:45px; display:flex; flex-direction:column; justify-content:space-between; font-size:10px; color:var(--il-muted); font-family:'JetBrains Mono', monospace; text-align:right; width:28px;">
-                <span>100%</span>
-                <span>75%</span>
-                <span>50%</span>
-                <span>25%</span>
-                <span>0%</span>
+        <div style="background:var(--surface-1); border-radius:14px; border:1px solid var(--il-border); padding:20px 20px 16px 16px; margin-bottom:24px;">
+            <!-- Chart Area: Y-Axis Rail + Plot Area -->
+            <div style="display:flex; height:180px; position:relative;">
+                <!-- Y-Axis Rail -->
+                <div style="width:48px; display:flex; flex-direction:column; justify-content:space-between; text-align:right; padding-right:12px; font-size:11px; font-weight:600; color:var(--il-muted); font-family:var(--font-mono, monospace); user-select:none;">
+                    <span style="transform:translateY(-50%);">100%</span>
+                    <span style="transform:translateY(-50%);">75%</span>
+                    <span style="transform:translateY(-50%);">50%</span>
+                    <span style="transform:translateY(-50%);">25%</span>
+                    <span style="transform:translateY(50%);">0%</span>
+                </div>
+
+                <!-- Plot Area (Gridlines + Bars) -->
+                <div style="position:relative; flex:1; height:100%;">
+                    <!-- Horizontal Gridlines -->
+                    <div style="position:absolute; inset:0; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none;">
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:2px solid var(--il-border); height:0;"></div>
+                    </div>
+
+                    <!-- Bars Area -->
+                    <div style="position:absolute; inset:0; display:flex; justify-content:space-around; align-items:flex-end; z-index:2;">
+                        <?php foreach ($examTypesList as $typeKey => $meta):
+                            $catData = $examCats[$typeKey] ?? ['avg_pct' => 0, 'records' => [], 'total_obtained' => 0, 'total_max' => 0];
+                            $pct = (float)($catData['avg_pct'] ?? 0);
+                            $barH = $pct > 0 ? max(4, min(100, $pct)) : 0;
+                        ?>
+                            <div style="display:flex; flex-direction:column; align-items:center; width:22%; max-width:130px; height:100%; justify-content:flex-end;">
+                                <!-- Value Badge Above Bar -->
+                                <div style="font-size:12px; font-weight:800; color:<?= $meta['color'] ?>; margin-bottom:6px; white-space:nowrap; background:<?= $meta['color'] ?>15; padding:2px 8px; border-radius:999px;">
+                                    <?= $pct ?>%
+                                </div>
+                                
+                                <!-- Bar Pillar -->
+                                <div style="width:100%; max-width:72px; height:<?= $barH ?>%; background:<?= $meta['gradient'] ?>; border-radius:8px 8px 2px 2px; box-shadow:0 4px 12px <?= $meta['color'] ?>33; min-height:<?= $pct > 0 ? '6px' : '3px' ?>; transition:height 0.6s cubic-bezier(0.4, 0, 0.2, 1);">
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             </div>
 
-            <div style="position:absolute; left:50px; right:16px; top:24px; bottom:45px; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none;">
-                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                <div style="border-bottom:1.5px solid var(--il-border); height:0;"></div>
-            </div>
-
-            <!-- Exam Bars -->
-            <div style="display:flex; justify-content:space-around; align-items:flex-end; height:200px; position:relative; z-index:2;">
+            <!-- X-Axis Labels (Aligned below bars, offset by Y-Axis width 48px) -->
+            <div style="display:flex; margin-left:48px; justify-content:space-around; margin-top:12px; padding-top:6px;">
                 <?php foreach ($examTypesList as $typeKey => $meta):
                     $catData = $examCats[$typeKey] ?? ['avg_pct' => 0, 'records' => [], 'total_obtained' => 0, 'total_max' => 0];
-                    $pct = (float)($catData['avg_pct'] ?? 0);
                     $count = count($catData['records'] ?? []);
-                    $barH = $pct > 0 ? max(8, min(100, $pct)) : 0;
                 ?>
-                    <div style="display:flex; flex-direction:column; align-items:center; width:22%; max-width:150px; height:100%; justify-content:flex-end;">
-                        <!-- Value Badge Above Bar -->
-                        <div style="font-size:12px; font-weight:800; color:<?= $meta['color'] ?>; margin-bottom:6px; white-space:nowrap; background:<?= $meta['color'] ?>15; padding:2px 8px; border-radius:999px;">
-                            <?= $pct ?>%
+                    <div style="width:22%; max-width:130px; text-align:center;">
+                        <div style="font-weight:700; font-size:12px; color:var(--il-text);">
+                            <?= $meta['icon'] ?> <?= $meta['label'] ?>
                         </div>
-                        
-                        <!-- Bar Pillar -->
-                        <div style="width:100%; max-width:76px; height:<?= $barH ?>%; background:<?= $meta['gradient'] ?>; border-radius:8px 8px 2px 2px; box-shadow:0 4px 12px <?= $meta['color'] ?>33; min-height:<?= $pct > 0 ? '8px' : '3px' ?>; transition:height 0.6s cubic-bezier(0.4, 0, 0.2, 1); display:flex; align-items:flex-start; justify-content:center;">
-                        </div>
-
-                        <!-- Label Below Bar -->
-                        <div style="margin-top:10px; text-align:center;">
-                            <div style="font-weight:700; font-size:12px; color:var(--il-text);">
-                                <?= $meta['icon'] ?> <?= $meta['label'] ?>
-                            </div>
-                            <div class="muted" style="font-size:11px; margin-top:2px;">
-                                <?= $count ?> <?= $count === 1 ? 'Exam' : 'Exams' ?> (<?= round((float)$catData['total_obtained'], 1) ?>/<?= round((float)$catData['total_max'], 1) ?> pts)
-                            </div>
+                        <div class="muted" style="font-size:11px; margin-top:2px;">
+                            <?= $count ?> <?= $count === 1 ? 'Exam' : 'Exams' ?> (<?= round((float)$catData['total_obtained'], 1) ?>/<?= round((float)$catData['total_max'], 1) ?>)
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -823,56 +974,71 @@ if (empty($p['doubts_stats']['total'])) {
             'communication'   => ['icon' => '💬', 'label' => 'Communication',   'color' => '#2563EB', 'gradient' => 'linear-gradient(180deg, #38BDF8 0%, #2563EB 100%)'],
             'problem_solving' => ['icon' => '🧩', 'label' => 'Problem Solving', 'color' => '#F59E0B', 'gradient' => 'linear-gradient(180deg, #FCD34D 0%, #D97706 100%)'],
         ];
-        $maxCount = 1;
+        $maxCount = 0;
         foreach ($areas as $k => $_) {
             $maxCount = max($maxCount, count($p['activity_profiles'][$k] ?? []));
         }
+        $scaleMax = max(4, (int)ceil($maxCount / 4) * 4);
+        $scaleStep = (int)($scaleMax / 4);
         ?>
 
         <!-- VERTICAL 5-PILLAR BAR GRAPH -->
-        <div style="position:relative; padding:20px 10px 10px 45px; background:var(--surface-1); border-radius:12px; border:1px solid var(--il-border); margin-bottom:14px;">
-            <!-- Y-Axis Gridlines & Labels -->
-            <div style="position:absolute; left:12px; top:20px; bottom:40px; display:flex; flex-direction:column; justify-content:space-between; font-size:10px; color:var(--il-muted); font-family:'JetBrains Mono', monospace; text-align:right; width:26px;">
-                <span><?= $maxCount ?></span>
-                <span><?= (int)round($maxCount * 0.75) ?></span>
-                <span><?= (int)round($maxCount * 0.5) ?></span>
-                <span><?= (int)round($maxCount * 0.25) ?></span>
-                <span>0</span>
+        <div style="background:var(--surface-1); border-radius:14px; border:1px solid var(--il-border); padding:20px 20px 16px 16px; margin-bottom:20px;">
+            <!-- Chart Area: Y-Axis Rail + Plot Area -->
+            <div style="display:flex; height:180px; position:relative;">
+                <!-- Y-Axis Rail (Clean non-repeating whole number ticks) -->
+                <div style="width:48px; display:flex; flex-direction:column; justify-content:space-between; text-align:right; padding-right:12px; font-size:11px; font-weight:600; color:var(--il-muted); font-family:var(--font-mono, monospace); user-select:none;">
+                    <span style="transform:translateY(-50%);"><?= $scaleMax ?></span>
+                    <span style="transform:translateY(-50%);"><?= $scaleMax - $scaleStep ?></span>
+                    <span style="transform:translateY(-50%);"><?= $scaleMax - ($scaleStep * 2) ?></span>
+                    <span style="transform:translateY(-50%);"><?= $scaleMax - ($scaleStep * 3) ?></span>
+                    <span style="transform:translateY(50%);">0</span>
+                </div>
+
+                <!-- Plot Area (Gridlines + Bars) -->
+                <div style="position:relative; flex:1; height:100%;">
+                    <!-- Horizontal Gridlines -->
+                    <div style="position:absolute; inset:0; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none;">
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                        <div style="border-bottom:2px solid var(--il-border); height:0;"></div>
+                    </div>
+
+                    <!-- Bars Area -->
+                    <div style="position:absolute; inset:0; display:flex; justify-content:space-around; align-items:flex-end; z-index:2;">
+                        <?php foreach ($areas as $key => $meta):
+                            $count = count($p['activity_profiles'][$key] ?? []);
+                            $pct = (int)round(($count / $scaleMax) * 100);
+                            $barH = $count > 0 ? max(4, min(100, $pct)) : 0;
+                        ?>
+                            <div style="display:flex; flex-direction:column; align-items:center; width:18%; max-width:110px; height:100%; justify-content:flex-end;">
+                                <!-- Value Badge -->
+                                <div style="font-size:12px; font-weight:800; color:<?= $meta['color'] ?>; margin-bottom:6px; white-space:nowrap; background:<?= $meta['color'] ?>15; padding:2px 8px; border-radius:999px;">
+                                    <?= $count ?>
+                                </div>
+                                
+                                <!-- Bar Pillar -->
+                                <div style="width:100%; max-width:58px; height:<?= $barH ?>%; background:<?= $meta['gradient'] ?>; border-radius:8px 8px 2px 2px; box-shadow:0 4px 12px <?= $meta['color'] ?>33; min-height:<?= $count > 0 ? '6px' : '3px' ?>; transition:height 0.6s cubic-bezier(0.4, 0, 0.2, 1);">
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             </div>
 
-            <div style="position:absolute; left:45px; right:15px; top:20px; bottom:40px; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none;">
-                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                <div style="border-bottom:1.5px solid var(--il-border); height:0;"></div>
-            </div>
-
-            <!-- 5 Pillar Bars Area -->
-            <div style="display:flex; justify-content:space-around; align-items:flex-end; height:170px; position:relative; z-index:2;">
+            <!-- X-Axis Labels (Aligned below bars, offset by Y-Axis width 48px) -->
+            <div style="display:flex; margin-left:48px; justify-content:space-around; margin-top:12px; padding-top:6px;">
                 <?php foreach ($areas as $key => $meta):
                     $count = count($p['activity_profiles'][$key] ?? []);
-                    $pct = (int)round($count / max(1, $maxCount) * 100);
-                    $barH = $count > 0 ? max(10, min(100, $pct)) : 0;
                 ?>
-                    <div style="display:flex; flex-direction:column; align-items:center; width:18%; max-width:110px; height:100%; justify-content:flex-end;">
-                        <!-- Value Badge -->
-                        <div style="font-size:11px; font-weight:800; color:<?= $meta['color'] ?>; margin-bottom:5px; white-space:nowrap;">
-                            <?= $count ?>
+                    <div style="width:18%; max-width:110px; text-align:center;">
+                        <div style="font-weight:700; font-size:11.5px; color:var(--il-text);">
+                            <?= $meta['icon'] ?> <?= $meta['label'] ?>
                         </div>
-                        
-                        <!-- Bar Pillar -->
-                        <div style="width:100%; max-width:58px; height:<?= $barH ?>%; background:<?= $meta['gradient'] ?>; border-radius:6px 6px 2px 2px; box-shadow:0 3px 8px <?= $meta['color'] ?>33; min-height:<?= $count > 0 ? '8px' : '3px' ?>; transition:height 0.6s cubic-bezier(0.4, 0, 0.2, 1);">
-                        </div>
-
-                        <!-- Label Below Bar -->
-                        <div style="margin-top:8px; text-align:center;">
-                            <div style="font-weight:700; font-size:11.5px; color:var(--il-text);">
-                                <?= $meta['icon'] ?> <?= $meta['label'] ?>
-                            </div>
-                            <div class="muted" style="font-size:10.5px;">
-                                <?= $count ?> <?= $count === 1 ? 'activity' : 'activities' ?>
-                            </div>
+                        <div class="muted" style="font-size:10.5px; margin-top:2px;">
+                            <?= $count ?> <?= $count === 1 ? 'activity' : 'activities' ?>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -886,20 +1052,37 @@ if (empty($p['doubts_stats']['total'])) {
     <div class="grid grid-2 mt-3">
         <!-- ACHIEVEMENTS -->
         <div class="card" style="border-radius:16px;">
-            <h3>🏅 Achievements</h3>
+            <div class="flex between" style="align-items:center;">
+                <h3 style="margin:0; display:flex; align-items:center; gap:8px;">
+                    <span>🏅</span> Achievements &amp; Accolades
+                </h3>
+                <span class="badge badge-primary"><?= count($p['achievements'] ?? []) ?> Recorded</span>
+            </div>
             <div class="divider"></div>
             <?php if (empty($p['achievements'])): ?>
-                <p class="muted">No achievements recorded yet.</p>
+                <div style="text-align:center; padding:28px 16px; background:var(--surface-1); border-radius:12px; border:1px dashed var(--il-border);">
+                    <span style="font-size:28px;">🏅</span>
+                    <p class="muted" style="margin:8px 0 0; font-size:13px;">No achievements recorded yet.</p>
+                </div>
             <?php else: ?>
                 <div style="display:flex; flex-direction:column; gap:10px;">
-                    <?php foreach ($p['achievements'] as $ac): ?>
-                        <div style="border-left:3px solid var(--il-primary); padding:8px 12px; background:var(--surface-1); border-radius:6px;">
-                            <div class="flex between">
-                                <strong><?= Helper::e($ac['title'] ?? 'Achievement') ?></strong>
-                                <span class="badge badge-primary" style="font-size:10px;"><?= Helper::e(str_replace('_',' ',(string)($ac['category'] ?? 'other'))) ?></span>
+                    <?php foreach ($p['achievements'] as $ac): 
+                        $badgeIcon = !empty($ac['badge_icon']) && $ac['badge_icon'] === 'certificate' ? '📜' : '🏆';
+                        $cat = str_replace('_', ' ', (string)($ac['category'] ?? 'competition'));
+                    ?>
+                        <div style="border-left:3.5px solid var(--il-primary); padding:10px 14px; background:var(--surface-1); border-radius:10px; border:1px solid var(--il-border); border-left-color:var(--il-primary);">
+                            <div class="flex between" style="align-items:center;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="font-size:16px;"><?= $badgeIcon ?></span>
+                                    <strong style="font-size:13.5px;"><?= Helper::e($ac['title'] ?? 'Achievement') ?></strong>
+                                </div>
+                                <span class="badge badge-primary" style="font-size:10px; text-transform:capitalize;"><?= Helper::e($cat) ?></span>
                             </div>
                             <?php if (!empty($ac['description'])): ?>
-                                <p class="muted" style="font-size:.82rem; margin:3px 0 0;"><?= Helper::e($ac['description']) ?></p>
+                                <p class="muted" style="font-size:12px; margin:4px 0 0; line-height:1.4;"><?= Helper::e($ac['description']) ?></p>
+                            <?php endif; ?>
+                            <?php if (!empty($ac['earned_at'])): ?>
+                                <div class="muted" style="font-size:11px; margin-top:4px;">📅 Earned: <?= date('d M Y', strtotime((string)$ac['earned_at'])) ?></div>
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
@@ -909,20 +1092,43 @@ if (empty($p['doubts_stats']['total'])) {
 
         <!-- CERTIFICATES -->
         <div class="card" style="border-radius:16px;">
-            <h3>📜 Certificates</h3>
+            <div class="flex between" style="align-items:center;">
+                <h3 style="margin:0; display:flex; align-items:center; gap:8px;">
+                    <span>📜</span> Issued Certificates
+                </h3>
+                <span class="badge badge-brand"><?= count($p['certificates'] ?? []) ?> Issued</span>
+            </div>
             <div class="divider"></div>
             <?php if (empty($p['certificates'])): ?>
-                <p class="muted">No certificates issued yet.</p>
+                <div style="text-align:center; padding:28px 16px; background:var(--surface-1); border-radius:12px; border:1px dashed var(--il-border);">
+                    <span style="font-size:28px;">📜</span>
+                    <p class="muted" style="margin:8px 0 0; font-size:13px;">No certificates issued yet.</p>
+                </div>
             <?php else: ?>
                 <div style="display:flex; flex-direction:column; gap:10px;">
-                    <?php foreach ($p['certificates'] as $c): ?>
-                        <div class="flex between" style="padding:8px 0; border-bottom:1px dashed var(--il-border); align-items:center;">
-                            <div>
-                                <strong><?= Helper::e($c['title'] ?? 'Certificate') ?></strong>
-                                <div class="muted" style="font-size:11px;"><?= Helper::e((string)($c['type'] ?? 'participation')) ?></div>
+                    <?php foreach ($p['certificates'] as $c): 
+                        $certUrl = !empty($c['certificate_url']) ? $c['certificate_url'] : ($c['file_path'] ?? '');
+                        $cMeta = !empty($c['metadata']) ? (is_array($c['metadata']) ? $c['metadata'] : json_decode((string)$c['metadata'], true)) : [];
+                        $subtitleParts = [];
+                        if (!empty($cMeta['event_title'])) $subtitleParts[] = $cMeta['event_title'];
+                        if (!empty($cMeta['rank'])) $subtitleParts[] = $cMeta['rank'];
+                        if (!empty($c['type'])) $subtitleParts[] = ucfirst((string)$c['type']);
+                        if (!empty($c['issued_at'])) $subtitleParts[] = date('d M Y', strtotime((string)$c['issued_at']));
+                    ?>
+                        <div class="flex between" style="padding:10px 14px; background:var(--surface-1); border-radius:10px; border:1px solid var(--il-border); align-items:center; gap:12px; flex-wrap:wrap;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div style="font-size:22px;">📜</div>
+                                <div>
+                                    <strong style="font-size:13.5px;"><?= Helper::e($c['title'] ?? 'Certificate') ?></strong>
+                                    <div class="muted" style="font-size:11.5px; margin-top:2px;">
+                                        <?= Helper::e(!empty($subtitleParts) ? implode(' • ', $subtitleParts) : 'Issued Certificate') ?>
+                                    </div>
+                                </div>
                             </div>
-                            <?php if (!empty($c['certificate_url'])): ?>
-                                <a class="btn btn-ghost btn-sm" href="<?= Helper::e($c['certificate_url']) ?>" target="_blank">Download</a>
+                            <?php if (!empty($certUrl)): ?>
+                                <a class="btn btn-ghost btn-sm" href="<?= Helper::e($certUrl) ?>" target="_blank" style="font-weight:700;">
+                                    View / Download ⬇
+                                </a>
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
@@ -933,19 +1139,34 @@ if (empty($p['doubts_stats']['total'])) {
 
     <!-- FAMILY INFORMATION -->
     <div class="card mt-3" style="border-radius:16px;">
-        <h3>👨‍👩‍👧 Family &amp; Guardians</h3>
+        <div class="flex between" style="align-items:center;">
+            <h3 style="margin:0; display:flex; align-items:center; gap:8px;">
+                <span>👨‍👩‍👧</span> Family &amp; Guardians
+            </h3>
+            <span class="badge badge-brand"><?= count($p['parents'] ?? []) ?> Linked</span>
+        </div>
         <div class="divider"></div>
         <?php if (empty($p['parents'])): ?>
-            <p class="muted">No parent or guardian details linked yet.</p>
+            <div style="text-align:center; padding:28px 16px; background:var(--surface-1); border-radius:12px; border:1px dashed var(--il-border);">
+                <span style="font-size:28px;">👨‍👩‍👧</span>
+                <p class="muted" style="margin:8px 0 0; font-size:13px;">No parent or guardian details linked yet.</p>
+            </div>
         <?php else: ?>
             <div class="grid grid-2">
                 <?php foreach ($p['parents'] as $par): ?>
-                    <div style="background:var(--surface-1); padding:14px; border-radius:10px; border:1px solid var(--il-border);">
-                        <div class="kv"><span>Name</span><strong><?= Helper::e($par['full_name'] ?? '—') ?></strong></div>
-                        <div class="kv"><span>Relationship</span><span><?= Helper::e(ucfirst((string)($par['relationship'] ?? 'parent'))) ?></span></div>
-                        <div class="kv"><span>Phone</span><span><?= Helper::e($par['phone'] ?? '—') ?></span></div>
-                        <div class="kv"><span>Email</span><span><?= Helper::e($par['email'] ?? '—') ?></span></div>
-                        <div class="kv"><span>Occupation</span><span><?= Helper::e($par['occupation'] ?? '—') ?></span></div>
+                    <div style="background:var(--surface-1); padding:16px; border-radius:12px; border:1px solid var(--il-border);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                            <strong style="font-size:15px; color:var(--il-text);">👤 <?= Helper::e($par['full_name'] ?? '—') ?></strong>
+                            <span class="badge badge-brand" style="font-size:11px; text-transform:capitalize;">
+                                <?= Helper::e(ucfirst((string)($par['relationship'] ?? 'Guardian'))) ?>
+                            </span>
+                        </div>
+                        <div class="kv" style="padding:4px 0;"><span>Phone</span><strong><?= Helper::e($par['phone'] ?? '—') ?></strong></div>
+                        <div class="kv" style="padding:4px 0;"><span>Email</span><span><?= Helper::e($par['email'] ?? '—') ?></span></div>
+                        <div class="kv" style="padding:4px 0;"><span>Occupation</span><span><?= Helper::e($par['occupation'] ?? '—') ?></span></div>
+                        <?php if (!empty($par['city']) || !empty($par['state'])): ?>
+                            <div class="kv" style="padding:4px 0;"><span>Location</span><span><?= Helper::e(trim(($par['city'] ?? '') . ', ' . ($par['state'] ?? ''), ', ')) ?></span></div>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
             </div>

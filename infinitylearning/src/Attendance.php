@@ -51,7 +51,7 @@ final class Attendance
             WHERE student_user_id IN ($inClause) GROUP BY status
         ");
         $stmt->execute($studentUserIds);
-        $out = ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0];
+        $out = ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0,'leave'=>0];
         foreach ($stmt->fetchAll() as $r) {
             if (isset($out[$r['status']])) {
                 $out[$r['status']] += (int)$r['cnt'];
@@ -99,7 +99,7 @@ final class Attendance
         $sql .= " GROUP BY status";
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
-        $out = ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0];
+        $out = ['present'=>0,'absent'=>0,'late'=>0,'excused'=>0,'leave'=>0];
         foreach ($stmt->fetchAll() as $r) $out[$r['status']] = (int)$r['cnt'];
         return $out;
     }

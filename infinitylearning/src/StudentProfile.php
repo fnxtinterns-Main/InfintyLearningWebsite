@@ -85,7 +85,8 @@ final class StudentProfile
         $student['parents'] = [];
         try {
             $stmt = $db->prepare("
-                SELECT p.* FROM parents p
+                SELECT p.*, COALESCE(sp.is_primary, 1) AS is_primary 
+                FROM parents p
                 JOIN student_parents sp ON sp.parent_id = p.id
                 WHERE sp.student_user_id IN ($inClause)
                 ORDER BY sp.is_primary DESC, p.id ASC
@@ -94,6 +95,30 @@ final class StudentProfile
             $student['parents'] = $stmt->fetchAll() ?: [];
         } catch (\Throwable $e) {
             error_log('StudentProfile parents query error: ' . $e->getMessage());
+            try {
+                $stmt = $db->prepare("
+                    SELECT p.*, COALESCE(sp.is_primary, 1) AS is_primary 
+                    FROM parents p
+                    JOIN student_parents sp ON sp.parent_id = p.id
+                    WHERE sp.student_id IN ($inClause)
+                    ORDER BY p.id ASC
+                ");
+                $stmt->execute($candidateIds);
+                $student['parents'] = $stmt->fetchAll() ?: [];
+            } catch (\Throwable $e2) {
+                error_log('StudentProfile parents fallback error: ' . $e2->getMessage());
+            }
+        }
+        if (empty($student['parents'])) {
+            try {
+                $stmt = $db->prepare("
+                    SELECT p.*, 1 AS is_primary 
+                    FROM parents p
+                    WHERE p.user_id IN ($inClause)
+                ");
+                $stmt->execute($candidateIds);
+                $student['parents'] = $stmt->fetchAll() ?: [];
+            } catch (\Throwable $e3) {}
         }
 
         // --- Batches ---
@@ -292,20 +317,6 @@ final class StudentProfile
         $student['activities']        = $allActivities;
         $student['activity_profiles'] = $profiles;
 
-        // --- Achievements ---
-        $student['achievements'] = [];
-        try {
-            $stmt = $db->prepare("
-                SELECT * FROM achievements
-                WHERE student_user_id IN ($inClause)
-                ORDER BY earned_at DESC
-            ");
-            $stmt->execute($candidateIds);
-            $student['achievements'] = $stmt->fetchAll() ?: [];
-        } catch (\Throwable $e) {
-            error_log('StudentProfile achievements query error: ' . $e->getMessage());
-        }
-
         // --- Certificates ---
         $student['certificates'] = [];
         try {
@@ -318,6 +329,107 @@ final class StudentProfile
             $student['certificates'] = $stmt->fetchAll() ?: [];
         } catch (\Throwable $e) {
             error_log('StudentProfile certificates query error: ' . $e->getMessage());
+            try {
+                $stmt = $db->prepare("
+                    SELECT * FROM certificates
+                    WHERE student_id IN ($inClause)
+                    ORDER BY issued_at DESC
+                ");
+                $stmt->execute($candidateIds);
+                $student['certificates'] = $stmt->fetchAll() ?: [];
+            } catch (\Throwable $e2) {}
+        }
+
+        // --- Achievements ---
+        $student['achievements'] = [];
+        try {
+            $stmt = $db->prepare("
+                SELECT * FROM achievements
+                WHERE student_user_id IN ($inClause)
+                ORDER BY earned_at DESC
+            ");
+            $stmt->execute($candidateIds);
+            $student['achievements'] = $stmt->fetchAll() ?: [];
+        } catch (\Throwable $e) {
+            error_log('StudentProfile achievements query error: ' . $e->getMessage());
+            try {
+                $stmt = $db->prepare("
+                    SELECT * FROM achievements
+                    WHERE student_id IN ($inClause)
+                    ORDER BY earned_at DESC
+                ");
+                $stmt->execute($candidateIds);
+                $student['achievements'] = $stmt->fetchAll() ?: [];
+            } catch (\Throwable $e2) {}
+        }
+
+        // Auto-enrich achievements from recorded activity results
+        try {
+            $actStmt = $db->prepare("
+                SELECT 
+                    ar.id,
+                    CONCAT(a.title, IF(ar.position IS NOT NULL, CONCAT(' — Rank #', ar.position), '')) AS title,
+                    CONCAT(
+                        IF(ar.position = 1, '1st Place Winner', IF(ar.position = 2, '2nd Place (Runner-up)', IF(ar.position = 3, '3rd Place', 'Participant'))),
+                        IF(ar.score IS NOT NULL, CONCAT(' with score ', ROUND(ar.score), '/100'), ''),
+                        IF(ar.remarks IS NOT NULL AND ar.remarks != '', CONCAT(' • ', ar.remarks), '')
+                    ) AS description,
+                    COALESCE(a.category, 'competition') AS category,
+                    'trophy' AS badge_icon,
+                    ar.recorded_at AS earned_at
+                FROM activity_results ar
+                JOIN activities a ON a.id = ar.activity_id
+                WHERE ar.student_user_id IN ($inClause)
+                ORDER BY ar.recorded_at DESC
+            ");
+            $actStmt->execute($candidateIds);
+            $actResults = $actStmt->fetchAll() ?: [];
+            
+            $existingTitles = array_map(function($item) {
+                return strtolower(trim((string)($item['title'] ?? '')));
+            }, $student['achievements']);
+
+            foreach ($actResults as $ar) {
+                $arTitle = strtolower(trim((string)($ar['title'] ?? '')));
+                if (!in_array($arTitle, $existingTitles, true)) {
+                    $student['achievements'][] = $ar;
+                    $existingTitles[] = $arTitle;
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('StudentProfile enrich achievements from activity_results error: ' . $e->getMessage());
+        }
+
+        // Auto-enrich achievements from awarded Certificates
+        if (!empty($student['certificates'])) {
+            $existingTitles = array_map(function($item) {
+                return strtolower(trim((string)($item['title'] ?? '')));
+            }, $student['achievements']);
+
+            foreach ($student['certificates'] as $cert) {
+                $cType = (string)($cert['type'] ?? '');
+                $certType = (string)($cert['certificate_type'] ?? '');
+                if (in_array($cType, ['winner', 'achievement', 'merit'], true) || in_array($certType, ['winner', 'runner_up'], true)) {
+                    $cTitle = (string)($cert['title'] ?? 'Certificate of Achievement');
+                    $meta = !empty($cert['metadata']) ? (is_array($cert['metadata']) ? $cert['metadata'] : json_decode((string)$cert['metadata'], true)) : [];
+                    $evt = $meta['event_title'] ?? '';
+                    $rnk = $meta['rank'] ?? '';
+                    $desc = trim(($evt ? $evt . ' — ' : '') . $rnk);
+                    $fullTitle = $evt ? "$cTitle ($evt)" : $cTitle;
+                    $checkTitle = strtolower(trim($fullTitle));
+                    if (!in_array($checkTitle, $existingTitles, true)) {
+                        $student['achievements'][] = [
+                            'id' => $cert['id'],
+                            'title' => $fullTitle,
+                            'description' => $desc ?: ($cert['issued_for'] ?? 'Awarded for outstanding performance'),
+                            'category' => 'competition',
+                            'badge_icon' => 'certificate',
+                            'earned_at' => $cert['issued_at'] ?? date('Y-m-d H:i:s')
+                        ];
+                        $existingTitles[] = $checkTitle;
+                    }
+                }
+            }
         }
 
         // --- Doubts & Q&A Portal Data ---

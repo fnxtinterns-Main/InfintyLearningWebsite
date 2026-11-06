@@ -141,15 +141,22 @@ $ratings = [
                 <form method="post" action="/teacher/counseling-action-handler.php">
                     <input type="hidden" name="csrf" value="<?= Helper::e(Session::csrfToken()) ?>">
                     <input type="hidden" name="request_id" value="<?= (int)$id ?>">
-                    <input type="hidden" name="action" value="complete">
 
                     <div class="form-group">
-                        <label>Session notes / outcome *</label>
+                        <label style="font-weight:700;">Teacher Remarks &amp; Counseling Advice (Visible to Student) *</label>
                         <textarea name="notes" rows="6" required
-                                  placeholder="Summarise your conversation, what the student needed, and what you advised..."><?= Helper::e($request['teacher_notes'] ?? '') ?></textarea>
-                        <small>These notes are visible to the school admin and the student.</small>
+                                  placeholder="Provide remarks, study strategies, action items, or feedback for the student..."><?= Helper::e($request['teacher_notes'] ?? '') ?></textarea>
+                        <small style="color:var(--il-primary);font-weight:600;">💬 These remarks are displayed directly on the student's counseling portal.</small>
                     </div>
-                    <button class="btn btn-success btn-lg">✓ Mark as completed</button>
+
+                    <div class="flex" style="gap:10px; flex-wrap:wrap;">
+                        <button type="submit" name="action" value="remark" class="btn btn-secondary btn-lg" style="font-weight:700;">
+                            💬 Save Remarks (Visible to Student)
+                        </button>
+                        <button type="submit" name="action" value="complete" class="btn btn-success btn-lg" style="font-weight:700;">
+                            ✓ Save &amp; Mark Completed
+                        </button>
+                    </div>
                 </form>
 
                 <div class="divider"></div>

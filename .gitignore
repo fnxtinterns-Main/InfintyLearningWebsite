@@ -21,6 +21,9 @@ node_modules/
 *.log
 .cache/
 .trash/
+*.tar.gz
+*.zip
+*.mp4
 
 # User Uploaded Dynamic Content (keep .gitkeep if any)
 public_html/uploads/*

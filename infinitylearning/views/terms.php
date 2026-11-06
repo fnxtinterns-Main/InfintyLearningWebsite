@@ -37,7 +37,7 @@ require VIEW_PATH . '/layouts/header.php';
             <h2 class="detail-h2">1. Acceptance of terms</h2>
             <p>
                 By accessing or using Infinity Learning, you agree to be bound by these Terms of
-                Service and our <a href="/privacy">Privacy Policy</a>. If you do not agree,
+                Service, our <a href="/privacy">Privacy Policy</a>, and our <a href="/refund-policy">Cancellation &amp; Refund Policy</a>. If you do not agree,
                 please do not use the Platform.
             </p>
         </div>

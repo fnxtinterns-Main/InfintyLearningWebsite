@@ -57,9 +57,9 @@ require VIEW_PATH . '/layouts/header.php';
                     </tr>
                 </thead>
                 <tbody>
-                <?php foreach ($assignments as $a): ?>
+                <?php foreach ($assignments as $idx => $a): ?>
                     <tr>
-                        <td><?= (int)$a['id'] ?></td>
+                        <td><?= $idx + 1 ?></td>
                         <td>
                             <strong><?= Helper::e($a['activity_title']) ?></strong>
                             <div class="muted" style="font-size:.8rem"><?= Helper::e(ucfirst($a['activity_category'])) ?></div>

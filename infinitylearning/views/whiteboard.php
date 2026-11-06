@@ -239,11 +239,15 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
+    let lastX = 0, lastY = 0;
+
     function startDraw(e) {
         isDrawing = true;
         const coords = getCoords(e);
         startX = coords.x;
         startY = coords.y;
+        lastX = coords.x;
+        lastY = coords.y;
         snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
         ctx.beginPath();
@@ -253,26 +257,40 @@ document.addEventListener('DOMContentLoaded', function() {
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = currentSize * 3;
             ctx.globalAlpha = 1.0;
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
         } else if (currentTool === 'highlighter') {
             ctx.strokeStyle = currentColor;
-            ctx.lineWidth = currentSize * 4;
-            ctx.globalAlpha = 0.35;
+            ctx.lineWidth = Math.max(16, currentSize * 4);
+            ctx.globalAlpha = 0.4;
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.lineCap = 'square';
+            ctx.lineJoin = 'bevel';
         } else {
             ctx.strokeStyle = currentColor;
             ctx.lineWidth = currentSize;
             ctx.globalAlpha = 1.0;
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
         }
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
     }
 
     function draw(e) {
         if (!isDrawing) return;
         const coords = getCoords(e);
 
-        if (currentTool === 'pen' || currentTool === 'eraser' || currentTool === 'highlighter') {
+        if (currentTool === 'pen' || currentTool === 'eraser') {
             ctx.lineTo(coords.x, coords.y);
             ctx.stroke();
+        } else if (currentTool === 'highlighter') {
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(coords.x, coords.y);
+            ctx.stroke();
+            lastX = coords.x;
+            lastY = coords.y;
         } else {
             // Restore snapshot for shape preview
             ctx.putImageData(snapshot, 0, 0);
@@ -313,6 +331,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isDrawing) {
             isDrawing = false;
             ctx.globalAlpha = 1.0;
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.lineCap = 'round';
             saveState();
         }
     }

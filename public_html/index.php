@@ -73,6 +73,9 @@ $routes = [
     '/contact'    => '/views/contact.php',
     '/privacy'    => '/views/privacy.php',
     '/terms'      => '/views/terms.php',
+    '/refund-policy'         => '/views/refund_policy.php',
+    '/cancellation-policy'   => '/views/refund_policy.php',
+    '/refunds'               => '/views/refund_policy.php',
     '/activities' => '/views/activities/index.php',
     '/activity'   => '/views/activities/show.php',
     '/lessons'    => '/views/lessons/index.php',
@@ -107,6 +110,8 @@ $routes = [
 
     // School admin panel
     '/school'                       => '/views/school/dashboard.php',
+    '/school/teacher-notes'         => '/views/school/teacher_notes.php',
+    '/admin/teacher-notes'          => '/views/school/teacher_notes.php',
     '/school/chess'                 => '/views/school/chess.php',
     '/school/teachers'              => '/views/school/teachers.php',
     '/school/students'              => '/views/school/students.php',
@@ -143,6 +148,10 @@ $routes = [
     // Teacher
     '/teacher'                      => '/views/teacher/dashboard.php',
     '/teacher/dashboard'            => '/views/teacher/dashboard.php',
+    '/teacher/notes'                => '/views/teacher/notes.php',
+    '/teacher/reports'              => '/views/teacher/reports.php',
+    '/teacher/settings'             => '/views/teacher/reports.php',
+    '/teacher/import'               => '/views/teacher/import_students.php',
     '/teacher/chess'                => '/views/teacher/chess.php',
     '/teacher/batches'              => '/views/teacher/batches.php',
     '/teacher/batch'                => '/views/teacher/batch_view.php',
@@ -209,6 +218,21 @@ $routes = [
     '/admin/questions'              => '/views/teacher/question_bank.php',
     '/school/questions'             => '/views/teacher/question_bank.php',
     '/admin/question-paper'         => '/views/teacher/question_paper.php',
+
+    // FutureNxt Enterprise Portal
+    '/futurenxt'                    => '/views/futurenxt/dashboard.php',
+    '/futurenxt/login'              => '/views/futurenxt/auth/login.php',
+    '/futurenxt/dashboard'          => '/views/futurenxt/dashboard.php',
+    '/futurenxt/employees'          => '/views/futurenxt/employees/index.php',
+    '/futurenxt/employees/view'     => '/views/futurenxt/employees/detail.php',
+    '/futurenxt/employees/detail'   => '/views/futurenxt/employees/detail.php',
+    '/futurenxt/tasks'              => '/views/futurenxt/tasks/index.php',
+    '/futurenxt/daily-updates'      => '/views/futurenxt/daily_updates/index.php',
+    '/futurenxt/leaves'             => '/views/futurenxt/leaves/index.php',
+    '/futurenxt/wfh'                => '/views/futurenxt/wfh/index.php',
+    '/futurenxt/notices'            => '/views/futurenxt/notices/index.php',
+    '/futurenxt/announcements'      => '/views/futurenxt/notices/index.php',
+    '/futurenxt/profile'            => '/views/futurenxt/profile.php',
 ];
 
 // ---- Serve real files (assets, handler scripts) directly ----

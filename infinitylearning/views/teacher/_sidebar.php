@@ -4,6 +4,9 @@ $active = fn($p) => $path === $p ? ' class="active"' : '';
 ?>
 <aside class="admin-side">
     <a href="/teacher/batches"<?= $active('/teacher/batches') ?>><span class="ico">🏫</span> My Batches</a>
+    <a href="/teacher/batch/import"<?= $active('/teacher/batch/import') ?>><span class="ico">📥</span> Import Students</a>
+    <a href="/teacher/reports"<?= $active('/teacher/reports') ?>><span class="ico">📊</span> Student Reports</a>
+    <a href="/teacher/notes"<?= $active('/teacher/notes') ?>><span class="ico">📝</span> Teacher Notes</a>
     <a href="/teacher/questions"<?= $active('/teacher/questions') ?>><span class="ico">❓</span> Question Bank</a>
     <a href="/teacher/assessments"<?= $active('/teacher/assessments') ?>><span class="ico">📝</span> Assessments & Tests</a>
     <a href="/teacher/marks"<?= $active('/teacher/marks') ?>><span class="ico">✍️</span> Enter Marks</a>

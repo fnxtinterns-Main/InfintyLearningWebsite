@@ -354,6 +354,7 @@
                     <li><a href="/contact">Contact</a></li>
                     <li><a href="/privacy">Privacy Policy</a></li>
                     <li><a href="/terms">Terms of Service</a></li>
+                    <li><a href="/refund-policy">Refund &amp; Cancellation</a></li>
                 </ul>
             </div>
 
@@ -365,6 +366,8 @@
                 <a href="/privacy">Privacy</a>
                 <span class="footer-dot">·</span>
                 <a href="/terms">Terms</a>
+                <span class="footer-dot">·</span>
+                <a href="/refund-policy">Refunds</a>
                 <span class="footer-dot">·</span>
                 <a href="/about">About</a>
                 <span class="footer-dot">·</span>

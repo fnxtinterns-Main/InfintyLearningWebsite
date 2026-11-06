@@ -18,9 +18,12 @@ final class Session
             self::configureRedisSession($redisConf);
         }
 
+        @ini_set('session.gc_maxlifetime', '2592000');
+        @ini_set('session.cookie_lifetime', '2592000');
+
         session_name($config['session']['name'] ?? 'il_session');
         session_set_cookie_params([
-            'lifetime' => (int)($config['session']['lifetime'] ?? 7200),
+            'lifetime' => (int)($config['session']['lifetime'] ?? 2592000),
             'path'     => '/',
             'httponly' => true,
             'secure'   => ($_SERVER['HTTPS'] ?? '') === 'on',

@@ -230,6 +230,18 @@ final class Counseling
         self::log($requestId, $byUserId, 'in_progress', null);
     }
 
+    /** Update remarks/notes visible to student and school administration. */
+    public static function updateRemarks(int $requestId, string $notes, int $byUserId): void
+    {
+        $db = Database::connect();
+        $db->prepare("
+            UPDATE counseling_requests
+            SET teacher_notes=?
+            WHERE id=?
+        ")->execute([$notes ?: null, $requestId]);
+        self::log($requestId, $byUserId, 'remarks_updated', $notes);
+    }
+
     /** Mark as complete with notes. */
     public static function complete(int $requestId, string $notes, int $byUserId): void
     {

@@ -326,8 +326,8 @@ html[data-theme="light"] .kicker,
 </div>
 
 <!-- MODAL TO ADD NEW QUESTION (WITH IMAGE UPLOAD & AI OCR EXTRACTOR) -->
-<div id="newQuestionModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9999; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(6px);">
-    <div class="card" style="background:var(--surface-1); color:var(--il-text); border:1px solid var(--il-border); border-radius:18px; max-width:740px; width:100%; max-height:92vh; overflow-y:auto; padding:26px 30px; box-shadow:0 24px 60px rgba(0,0,0,0.4);">
+<div id="newQuestionModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9999; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; backdrop-filter:blur(6px);">
+    <div class="card" style="background:var(--surface-1); color:var(--il-text); border:1px solid var(--il-border); border-radius:18px; max-width:760px; width:100%; margin:auto; padding:26px 30px; box-shadow:0 24px 60px rgba(0,0,0,0.4);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; border-bottom:1px solid var(--il-border); padding-bottom:14px;">
             <div>
                 <h3 style="margin:0; font-size:20px; color:var(--il-text);">➕ Add Question to Bank</h3>
@@ -629,9 +629,11 @@ html[data-theme="light"] .kicker,
 <script>
 function openNewQuestionModal() {
     document.getElementById('newQuestionModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
 }
 function closeNewQuestionModal() {
     document.getElementById('newQuestionModal').style.display = 'none';
+    document.body.style.overflow = '';
 }
 function toggleOptionFields(type) {
     const group = document.getElementById('mcqOptionsGroup');
@@ -644,9 +646,11 @@ function toggleOptionFields(type) {
 
 function openAiQuestionModal() {
     document.getElementById('aiQuestionModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
 }
 function closeAiQuestionModal() {
     document.getElementById('aiQuestionModal').style.display = 'none';
+    document.body.style.overflow = '';
 }
 
 function handleImageSelected(input) {
@@ -918,10 +922,12 @@ async function saveSelectedAiQuestions() {
 async function cleanDuplicateQuestions() {
     if (!confirm('Scan and delete duplicate identical questions from your Question Bank?')) return;
     try {
+        const teacherSelect = document.querySelector('select[name="teacher_id"]');
+        const teacherId = teacherSelect ? teacherSelect.value : '';
         const resp = await fetch('/teacher/ai-generate-questions-handler.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'delete_duplicates' })
+            body: JSON.stringify({ action: 'delete_duplicates', teacher_id: teacherId })
         });
         const res = await resp.json();
         if (res.success) {

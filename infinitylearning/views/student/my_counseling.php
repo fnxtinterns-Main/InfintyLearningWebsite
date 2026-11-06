@@ -155,13 +155,13 @@ require VIEW_PATH . '/layouts/header.php';
                         </div>
                     <?php endif; ?>
 
-                    <!-- Teacher reply -->
-                    <?php if ($r['status'] === 'completed' && !empty($r['teacher_notes'])): ?>
-                        <div class="counsel-card-section counsel-reply">
-                            <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;font-weight:800;margin-bottom:.35rem;color:#B85000">
-                                ✉️ Counselor's reply
+                    <!-- Teacher Remarks & Advice (Visible to Student) -->
+                    <?php if (!empty($r['teacher_notes'])): ?>
+                        <div class="counsel-card-section counsel-reply" style="background:rgba(255,122,24,0.06); border:1.5px solid rgba(255,122,24,0.3); border-radius:10px; padding:14px;">
+                            <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;font-weight:800;margin-bottom:.35rem;color:#B85000">
+                                💬 Teacher Remarks &amp; Counselor Advice
                             </div>
-                            <div style="font-size:.9rem;line-height:1.7">
+                            <div style="font-size:.92rem;line-height:1.7; color:var(--il-text);">
                                 <?= nl2br(Helper::e($r['teacher_notes'])) ?>
                             </div>
                             <?php if (!empty($r['completed_at'])): ?>
@@ -172,7 +172,7 @@ require VIEW_PATH . '/layouts/header.php';
                         </div>
                     <?php elseif ($r['status'] === 'in_progress'): ?>
                         <div class="alert alert-info" style="font-size:.85rem;padding:.6rem .8rem;margin-top:.75rem">
-                            🔄 Your counselor is preparing the session. Notes will appear here when complete.
+                            🔄 Your counselor is reviewing your request. Teacher remarks will appear here shortly.
                         </div>
                     <?php elseif ($r['status'] === 'cancelled'): ?>
                         <div class="alert alert-warning" style="font-size:.85rem;padding:.6rem .8rem;margin-top:.75rem">

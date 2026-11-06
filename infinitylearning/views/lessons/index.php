@@ -3,7 +3,59 @@ use App\Lesson;
 use App\Helper;
 use App\Auth;
 
+$user = Auth::user();
+$isStudent = $user && ($user['role'] ?? '') === 'student';
 $subjects  = Lesson::subjects();
+
+if ($isStudent) {
+    try {
+        $db = \App\Database::connect();
+        $subQuery = $db->prepare("
+            SELECT DISTINCT s.* 
+            FROM subjects s
+            WHERE s.id IN (
+                SELECT DISTINCT l.subject_id FROM lessons l
+                JOIN batches b ON b.id = l.batch_id
+                JOIN batch_students bs ON bs.batch_id = b.id
+                WHERE bs.student_user_id = ?
+            )
+            OR s.id IN (
+                SELECT DISTINCT b.subject_id FROM batches b
+                JOIN batch_students bs ON bs.batch_id = b.id
+                WHERE bs.student_user_id = ? AND b.subject_id IS NOT NULL AND b.subject_id > 0
+            )
+            OR s.id IN (
+                SELECT DISTINCT c.subject_id FROM aiverse_enrollments ae
+                JOIN aiverse_courses c ON c.id = ae.course_id
+                WHERE ae.student_user_id = ? AND c.subject_id IS NOT NULL AND c.subject_id > 0
+            )
+            ORDER BY s.name ASC
+        ");
+        $subQuery->execute([(int)$user['id'], (int)$user['id'], (int)$user['id']]);
+        $studentSubjects = $subQuery->fetchAll();
+
+        if (!empty($studentSubjects)) {
+            $subjects = $studentSubjects;
+        } else {
+            $st = Auth::findStudentByUserId((int)$user['id']);
+            $cls = $st['current_class'] ?? '';
+            if ($cls) {
+                $cq = $db->prepare("
+                    SELECT DISTINCT s.* FROM subjects s
+                    JOIN lessons l ON l.subject_id = s.id
+                    WHERE l.class_level LIKE ? OR l.class_level = ?
+                    ORDER BY s.name ASC
+                ");
+                $cq->execute(["%$cls%", $cls]);
+                $clsSubjects = $cq->fetchAll();
+                if (!empty($clsSubjects)) {
+                    $subjects = $clsSubjects;
+                }
+            }
+        }
+    } catch (\Throwable $e) {}
+}
+
 $subjectId = isset($_GET['subject']) ? (int)$_GET['subject'] : null;
 
 $lessons = Lesson::listForViewer([
@@ -11,7 +63,6 @@ $lessons = Lesson::listForViewer([
     'limit'      => 200,
 ]);
 
-$user = Auth::user();
 $pageTitle = 'Lessons — Infinity Learning';
 require VIEW_PATH . '/layouts/header.php';
 
@@ -57,11 +108,13 @@ foreach ($lessons as $l) {
 <section class="section-sm">
     <div class="container">
         <div class="subject-grid">
-            <a href="/lessons" class="subject-tile <?= !$subjectId ? 'active' : '' ?>">
-                <div class="subject-tile-icon" style="background:var(--il-grad-soft);color:var(--il-primary)">✨</div>
-                <div class="subject-tile-name">All subjects</div>
-                <div class="subject-tile-count"><?= count($lessons) ?></div>
-            </a>
+            <?php if (!$isStudent): ?>
+                <a href="/lessons" class="subject-tile <?= !$subjectId ? 'active' : '' ?>">
+                    <div class="subject-tile-icon" style="background:var(--il-grad-soft);color:var(--il-primary)">✨</div>
+                    <div class="subject-tile-name">All subjects</div>
+                    <div class="subject-tile-count"><?= count($lessons) ?></div>
+                </a>
+            <?php endif; ?>
             <?php foreach ($subjects as $s): ?>
                 <a href="/lessons?subject=<?= (int)$s['id'] ?>"
                    class="subject-tile <?= $subjectId === (int)$s['id'] ? 'active' : '' ?>">

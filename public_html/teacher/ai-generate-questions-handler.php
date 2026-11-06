@@ -73,15 +73,24 @@ if (($data['action'] ?? '') === 'batch_save' && !empty($data['questions']) && is
 // 2. Duplicate Cleanup Action
 if (($data['action'] ?? '') === 'delete_duplicates') {
     $db = Database::connect();
-    $db->exec("
+    $targetTeacherId = !empty($data['teacher_id']) ? (int)$data['teacher_id'] : $teacherId;
+    $whereScope = ($isAdmin && empty($data['teacher_id']))
+        ? ($schoolId ? "AND (q1.school_id = {$schoolId} OR q1.teacher_user_id IN (SELECT id FROM users WHERE school_id = {$schoolId}))" : "")
+        : "AND q1.teacher_user_id = {$targetTeacherId} AND q2.teacher_user_id = {$targetTeacherId}";
+
+    $deletedCount = $db->exec("
         DELETE q1 FROM question_bank q1
         INNER JOIN question_bank q2 
         WHERE q1.id > q2.id 
-          AND q1.teacher_user_id = {$teacherId} 
-          AND q2.teacher_user_id = {$teacherId}
-          AND q1.question_text = q2.question_text
+          {$whereScope}
+          AND TRIM(q1.question_text) = TRIM(q2.question_text)
     ");
-    echo json_encode(['success' => true, 'message' => 'Cleaned up duplicate questions successfully.']);
+    $deleted = ($deletedCount !== false) ? (int)$deletedCount : 0;
+    $msg = $deleted > 0 
+        ? "✅ Deleted {$deleted} duplicate question(s) from your Question Bank."
+        : "✨ No duplicate questions found. Your question bank is already clean!";
+
+    echo json_encode(['success' => true, 'deleted_count' => $deleted, 'message' => $msg]);
     exit;
 }
 

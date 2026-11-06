@@ -48,7 +48,7 @@ return [
     'otp' => [
         'length' => 6, 'ttl_minutes' => 10, 'max_attempts' => 5, 'resend_wait' => 60,
     ],
-    'session' => [ 'name' => 'il_session', 'lifetime' => 7200 ],
+    'session' => [ 'name' => 'il_session', 'lifetime' => 2592000 ], // 30 days persistent (auto-logout disabled)
     'security' => [
         'password_min_length' => 8,
         'login_max_attempts'  => 5,
@@ -61,6 +61,15 @@ return [
         'pass'      => Env::get('SMTP_PASS', ''),
         'from'      => Env::get('SMTP_FROM', 'info@infintylearning.net'),
         'from_name' => Env::get('SMTP_FROM_NAME', 'Infinity Learning'),
+    ],
+    // FutureNxt Operations Dedicated SMTP
+    'futurenxt_smtp' => [
+        'host'      => Env::get('FNX_SMTP_HOST', 'smtp.gmail.com'),
+        'port'      => (int)Env::get('FNX_SMTP_PORT', 587),
+        'user'      => Env::get('FNX_SMTP_USER', 'fnxt.admin@gmail.com'),
+        'pass'      => Env::get('FNX_SMTP_PASS', 'Futurenxt@99'),
+        'from'      => Env::get('FNX_SMTP_FROM', 'fnxt.admin@gmail.com'),
+        'from_name' => Env::get('FNX_SMTP_FROM_NAME', 'FutureNxt Operations'),
     ],
     // AI agent endpoint for smart questions & tutoring
     'ai_agent' => [

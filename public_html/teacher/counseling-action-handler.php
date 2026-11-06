@@ -30,7 +30,7 @@ $me = Auth::user();
 $requestId = (int)($_POST['request_id'] ?? 0);
 $action    = $_POST['action'] ?? '';
 
-if (!$requestId || !in_array($action, ['start','complete','cancel'], true)) {
+if (!$requestId || !in_array($action, ['start','complete','cancel','remark'], true)) {
     Session::flash('error', 'Invalid action.');
     Helper::redirect('/teacher/counseling');
 }
@@ -53,6 +53,26 @@ try {
         case 'start':
             Counseling::markInProgress($requestId, (int)$me['id']);
             Session::flash('success', 'Marked as in progress.');
+            break;
+
+        case 'remark':
+            $notes = trim($_POST['notes'] ?? '');
+            if ($notes === '') {
+                Session::flash('error', 'Please enter remarks.');
+                Helper::redirect('/teacher/counseling-detail?id=' . $requestId);
+            }
+            Counseling::updateRemarks($requestId, $notes, (int)$me['id']);
+
+            Notification::push(
+                (int)$request['student_user_id'],
+                'counseling.remarks',
+                '💬 New remark from your Counselor',
+                'Your counselor shared new remarks on your counseling request.',
+                '/my-counseling'
+            );
+
+            Session::flash('success', 'Teacher remarks saved and made visible to the student.');
+            Helper::redirect('/teacher/counseling-detail?id=' . $requestId);
             break;
 
         case 'complete':

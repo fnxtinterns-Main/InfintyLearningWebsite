@@ -32,9 +32,14 @@ try {
     $batches = Batch::forStudent((int)$user['id']) ?: [];
 } catch (\Throwable $e) {}
 
-$att = ['present' => 0, 'absent' => 0, 'late' => 0, 'excused' => 0];
+$att = ['present' => 0, 'absent' => 0, 'late' => 0, 'excused' => 0, 'leave' => 0];
 try {
     $att = Attendance::summaryForStudent((int)$user['id']) ?: $att;
+} catch (\Throwable $e) {}
+
+$recentAttendance = [];
+try {
+    $recentAttendance = Attendance::recentForStudent((int)$user['id'], 14);
 } catch (\Throwable $e) {}
 
 $lessons = [];
@@ -122,7 +127,6 @@ $latestTest = !empty($studentExams['all_tests'][0]) ? $studentExams['all_tests']
                 <a href="/student?id=<?= (int)$user['id'] ?>" class="btn btn-outline-primary btn-sm" style="font-weight:700;">🌱 Development Profile</a>
                 <a href="/student/report-card" class="btn btn-primary btn-sm" style="font-weight:700;">📄 Academic Report Card</a>
                 <a href="/student/doubts" class="btn btn-secondary btn-sm">💬 Doubts</a>
-                <a href="/parent-pass" class="btn btn-secondary btn-sm" title="Share or view student progress card">📱 Parent Pass</a>
             </div>
         </div>
 
@@ -346,113 +350,211 @@ $latestTest = !empty($studentExams['all_tests'][0]) ? $studentExams['all_tests']
             </div>
         <?php endif; ?>
 
-        <!-- ============ TWO COLUMNS ============ -->
+        <!-- ============ TWO COLUMNS: USER DETAILS & STUDENT REPORTS ============ -->
         <div class="grid grid-2 mt-3">
-            <div class="card">
+            <!-- 1. USER DETAILS (ESSENTIAL REGISTRATION INFO) -->
+            <div class="card" style="border-radius:14px; padding:22px;">
                 <div class="flex between" style="align-items:center;">
-                    <h3 style="margin:0;">👤 Your Profile</h3>
-                    <div style="display:flex; gap:6px;">
-                        <a href="/student/doubts" class="btn btn-outline-primary btn-sm" style="font-size:11px; padding:3px 8px; font-weight:600;">💬 Doubt Portal</a>
-                        <a href="/student?id=<?= (int)$user['id'] ?>" class="btn btn-ghost btn-sm" style="font-size:11px; padding:3px 8px;">Full profile →</a>
-                    </div>
+                    <h3 style="margin:0; font-size:17px; display:flex; align-items:center; gap:8px;">
+                        <span>👤</span> Student Details
+                    </h3>
+                    <span class="badge" style="background:rgba(37,99,235,0.1); color:#2563EB; font-weight:800; font-size:12px;">
+                        Reg. ID: <?= Helper::e(!empty($student['registration_number']) ? $student['registration_number'] : ('REG-' . (int)$user['id'])) ?>
+                    </span>
                 </div>
                 <div class="divider"></div>
-                <div class="kv"><span>Email</span><span><?= Helper::e($user['email']) ?></span></div>
-                <div class="kv"><span>Phone</span><span><?= Helper::e(Helper::displayPhone($user['phone'])) ?></span></div>
-                <div class="kv"><span>Class</span><span><?= Helper::e(!empty($student['current_class']) ? $student['current_class'] : '—') ?></span></div>
-                <div class="kv"><span>Board</span><span><?= Helper::e(!empty($student['school_board']) ? $student['school_board'] : '—') ?></span></div>
-                <div class="kv"><span>Academic year</span><span><?= Helper::e(!empty($student['academic_year']) ? $student['academic_year'] : '—') ?></span></div>
-                <div class="kv"><span>Interests</span><span><?= Helper::e(!empty($student['interests']) ? $student['interests'] : '—') ?></span></div>
+                <div class="kv"><span>Full Name</span><strong><?= Helper::e($student['full_name'] ?? 'Scholar') ?></strong></div>
+                <div class="kv"><span>Registration ID</span><code style="font-weight:700; color:var(--il-primary);"><?= Helper::e(!empty($student['registration_number']) ? $student['registration_number'] : ('REG-' . (int)$user['id'])) ?></code></div>
+                <div class="kv"><span>Current Class</span><span><?= Helper::e(!empty($student['current_class']) ? $student['current_class'] : '—') ?></span></div>
+                <?php if (!empty($student['roll_number'])): ?>
+                    <div class="kv"><span>Roll Number</span><span><?= Helper::e($student['roll_number']) ?></span></div>
+                <?php endif; ?>
+                <div class="kv"><span>Institution / School</span><span><?= Helper::e(!empty($student['school_name']) ? $student['school_name'] : 'Infinity Learning') ?></span></div>
+                <div class="kv"><span>Registered Email</span><span><?= Helper::e($user['email']) ?></span></div>
+                <div class="kv"><span>Registered Phone</span><span><?= Helper::e(Helper::displayPhone($user['phone'])) ?></span></div>
             </div>
 
-            <div class="card">
-                <h3>👨‍👩‍👧 Parent / Guardian</h3>
+            <!-- 2. STUDENT REPORTS SECTION (REPLACES PARENT CARD) -->
+            <div class="card" style="border-radius:14px; padding:22px; border:1px solid var(--il-border);">
+                <div class="flex between" style="align-items:center;">
+                    <h3 style="margin:0; font-size:17px; display:flex; align-items:center; gap:8px;">
+                        <span>📄</span> Student Reports &amp; Records
+                    </h3>
+                    <span class="badge badge-success" style="font-size:11px;">Verified Scholastic Record</span>
+                </div>
                 <div class="divider"></div>
-                <?php if (!$parent): ?>
-                    <p class="muted">No parent info on file. <a href="/profile">Add it here</a>.</p>
-                <?php else: ?>
-                    <div class="kv"><span>Name</span><span><?= Helper::e($parent['full_name']) ?></span></div>
-                    <div class="kv"><span>Relationship</span><span><?= Helper::e(ucfirst($parent['relationship'])) ?></span></div>
-                    <div class="kv"><span>Phone</span><span><?= Helper::e(Helper::displayPhone($parent['phone'])) ?></span></div>
-                    <div class="kv"><span>Email</span><span><?= Helper::e($parent['email'] ?: '—') ?></span></div>
-                    <div class="kv"><span>Occupation</span><span><?= Helper::e($parent['occupation'] ?: '—') ?></span></div>
-                <?php endif; ?>
+                
+                <p class="muted" style="font-size:13px; line-height:1.5; margin-bottom:14px;">
+                    Review your official academic transcripts, attendance summary registers, and evaluation cards.
+                </p>
+
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <a href="/student/report-card" class="btn btn-primary btn-block" style="font-weight:700; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>📄 Official Academic Report Card</span>
+                        <span>Open →</span>
+                    </a>
+                    <a href="/student/assessments" class="btn btn-secondary btn-block" style="font-weight:600; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>📝 Exam &amp; Unit Test Evaluations</span>
+                        <span>View Results →</span>
+                    </a>
+                    <a href="/student/timetable" class="btn btn-outline-secondary btn-block" style="font-weight:600; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>🗓️ Class Routine &amp; Attendance Schedule</span>
+                        <span>Check →</span>
+                    </a>
+                </div>
             </div>
         </div>
 
-        <!-- ============ ATTENDANCE BAR GRAPH ============ -->
-        <div class="card mt-3" style="border-radius:16px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <!-- ============ ATTENDANCE & TIMELINE GRAPH ============ -->
+        <?php 
+        $totalRecorded = array_sum($att);
+        $avgAttendanceRate = $totalRecorded > 0 ? (int)round((($att['present'] ?? 0) + ($att['late'] ?? 0)) / $totalRecorded * 100) : $presentPct;
+        ?>
+        <div class="card mt-3" style="border-radius:16px; padding:24px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
                 <div>
-                    <h3 style="margin:0; display:flex; align-items:center; gap:8px;">
-                        <span>📊</span> Attendance Graph
+                    <h3 style="margin:0; font-size:18px; display:flex; align-items:center; gap:8px;">
+                        <span>📊</span> Daily Attendance Graph &amp; Timeline
                     </h3>
-                    <p class="muted" style="margin:2px 0 0; font-size:12.5px;">Visual breakdown of recorded attendance status across all enrolled batches.</p>
+                    <p class="muted" style="margin:3px 0 0; font-size:13px;">Daily attendance logs and clean comparative attendance ratio.</p>
                 </div>
-                <div style="display:flex; gap:14px; font-size:12px; flex-wrap:wrap;">
-                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:3px; background:#16A34A;"></span> Present (<?= $presentPct ?>%)</span>
-                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:3px; background:#DC2626;"></span> Absent (<?= $absentPct ?>%)</span>
-                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:3px; background:#F59E0B;"></span> Late (<?= $latePct ?>%)</span>
-                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:3px; background:#2563EB;"></span> Excused (<?= $excusedPct ?>%)</span>
+                
+                <!-- Average Attendance Percentage Badge -->
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="background:rgba(22,163,74,0.1); border:1.5px solid #16A34A; border-radius:10px; padding:6px 14px; text-align:right;">
+                        <span style="font-size:11px; text-transform:uppercase; font-weight:800; color:#16A34A; display:block;">Average Attendance</span>
+                        <strong style="font-size:20px; color:#16A34A;"><?= $avgAttendanceRate ?>%</strong>
+                    </div>
                 </div>
             </div>
             <div class="divider"></div>
 
-            <?php if ($totalAtt === 1 && array_sum($att) === 0): ?>
-                <p class="muted" style="text-align:center; padding:20px 0;">No attendance records logged yet by your teachers.</p>
-            <?php else: 
-                $barItems = [
-                    ['label' => 'Present', 'count' => (int)$att['present'], 'pct' => $presentPct, 'color' => '#16A34A', 'gradient' => 'linear-gradient(180deg, #22C55E 0%, #16A34A 100%)', 'icon' => '✅'],
-                    ['label' => 'Absent',  'count' => (int)$att['absent'],  'pct' => $absentPct,  'color' => '#DC2626', 'gradient' => 'linear-gradient(180deg, #EF4444 0%, #DC2626 100%)', 'icon' => '✕'],
-                    ['label' => 'Late',    'count' => (int)$att['late'],    'pct' => $latePct,    'color' => '#F59E0B', 'gradient' => 'linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%)', 'icon' => '⏱️'],
-                    ['label' => 'Excused', 'count' => (int)$att['excused'], 'pct' => $excusedPct, 'color' => '#2563EB', 'gradient' => 'linear-gradient(180deg, #3B82F6 0%, #2563EB 100%)', 'icon' => 'ℹ️'],
-                ];
-            ?>
-                <!-- Vertical Bar Chart Container -->
-                <div style="position:relative; padding:20px 10px 10px 45px; background:var(--surface-1); border-radius:12px; border:1px solid var(--il-border);">
-                    <!-- Y-Axis Gridlines & Labels -->
-                    <div style="position:absolute; left:12px; top:20px; bottom:40px; display:flex; flex-direction:column; justify-content:space-between; font-size:10px; color:var(--il-muted); font-family:'JetBrains Mono', monospace; text-align:right; width:26px;">
-                        <span>100%</span>
-                        <span>75%</span>
-                        <span>50%</span>
-                        <span>25%</span>
-                        <span>0%</span>
+            <!-- DAILY ATTENDANCE TIMELINE VIEW -->
+            <div style="margin-bottom:20px;">
+                <div style="font-size:13px; font-weight:700; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>📅 Daily Attendance Timeline (Recent Days)</span>
+                    <span class="muted" style="font-size:11.5px;">🟢 Present · 🔴 Absent · 🟡 Late · 🔵 Excused · 🟣 Leave</span>
+                </div>
+                <?php if (empty($recentAttendance)): ?>
+                    <div style="padding:14px; background:var(--surface-1); border-radius:10px; text-align:center; font-size:12.5px; color:var(--il-muted); border:1px dashed var(--il-border);">
+                        Daily attendance timeline will automatically populate as your teachers record daily class attendance.
                     </div>
-
-                    <div style="position:absolute; left:45px; right:15px; top:20px; bottom:40px; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none;">
-                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                        <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
-                        <div style="border-bottom:1.5px solid var(--il-border); height:0;"></div>
-                    </div>
-
-                    <!-- Bars Area -->
-                    <div style="display:flex; justify-content:space-around; align-items:flex-end; height:180px; position:relative; z-index:2;">
-                        <?php foreach ($barItems as $item): 
-                            $barH = $item['pct'] > 0 ? max(8, min(100, $item['pct'])) : 0;
+                <?php else: ?>
+                    <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:6px;">
+                        <?php foreach (array_reverse($recentAttendance) as $rAtt): 
+                            $st = $rAtt['status'] ?? 'present';
+                            $dotColor = match($st) {
+                                'present' => '#16A34A',
+                                'absent'  => '#DC2626',
+                                'late'    => '#F59E0B',
+                                'excused' => '#2563EB',
+                                'leave'   => '#8B5CF6',
+                                default   => '#94A3B8'
+                            };
+                            $badgeLabel = ucfirst($st);
                         ?>
-                            <div style="display:flex; flex-direction:column; align-items:center; width:22%; max-width:120px; height:100%; justify-content:flex-end;">
-                                <!-- Value Badge Above Bar -->
-                                <div style="font-size:11px; font-weight:800; color:<?= $item['color'] ?>; margin-bottom:6px; white-space:nowrap;">
-                                    <?= $item['pct'] ?>%
+                            <div style="background:var(--surface-1); border:1px solid var(--il-border); border-radius:10px; padding:8px 10px; min-width:85px; text-align:center; flex-shrink:0;">
+                                <div style="font-size:10.5px; color:var(--il-muted); margin-bottom:4px; font-weight:600;">
+                                    <?= date('d M', strtotime($rAtt['attendance_date'])) ?>
                                 </div>
-                                
-                                <!-- Bar Pillar -->
-                                <div style="width:100%; max-width:68px; height:<?= $barH ?>%; background:<?= $item['gradient'] ?>; border-radius:8px 8px 2px 2px; box-shadow:0 3px 8px <?= $item['color'] ?>33; min-height:<?= $item['pct'] > 0 ? '8px' : '3px' ?>; transition:height 0.6s cubic-bezier(0.4, 0, 0.2, 1); display:flex; align-items:flex-start; justify-content:center; padding-top:4px;">
-                                </div>
-
-                                <!-- Label Below Bar -->
-                                <div style="margin-top:8px; text-align:center;">
-                                    <div style="font-weight:700; font-size:12px; color:var(--il-text);">
-                                        <?= $item['icon'] ?> <?= $item['label'] ?>
-                                    </div>
-                                    <div class="muted" style="font-size:11px;">
-                                        <?= $item['count'] ?> <?= $item['count'] === 1 ? 'day' : 'days' ?>
-                                    </div>
+                                <div style="width:12px; height:12px; border-radius:50%; background:<?= $dotColor ?>; margin:0 auto 4px;"></div>
+                                <div style="font-size:10px; font-weight:800; color:<?= $dotColor ?>;">
+                                    <?= $badgeLabel ?>
                                 </div>
                             </div>
                         <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- CLEAN ATTENDANCE GRAPH (LATE, EXCUSED, LEAVE REMOVED FROM PILLARS) -->
+            <?php if ($totalAtt === 1 && array_sum($att) === 0): ?>
+                <p class="muted" style="text-align:center; padding:20px 0;">No attendance records logged yet by your teachers.</p>
+            <?php else: 
+                // Clean graph: only Present vs Absent
+                $cleanBarItems = [
+                    ['label' => 'Present', 'count' => (int)$att['present'], 'pct' => $presentPct, 'color' => '#16A34A', 'gradient' => 'linear-gradient(180deg, #22C55E 0%, #16A34A 100%)', 'icon' => '✅'],
+                    ['label' => 'Absent',  'count' => (int)$att['absent'],  'pct' => $absentPct,  'color' => '#DC2626', 'gradient' => 'linear-gradient(180deg, #EF4444 0%, #DC2626 100%)', 'icon' => '✕'],
+                ];
+            ?>
+                <!-- Vertical Bar Chart Container (Clean Layout) -->
+                <div style="background:var(--surface-1); border-radius:14px; border:1px solid var(--il-border); padding:20px 20px 16px 16px; margin-bottom:20px;">
+                    <!-- Chart Area: Y-Axis Rail + Plot Area -->
+                    <div style="display:flex; height:180px; position:relative; max-width:540px; margin:0 auto;">
+                        <!-- Y-Axis Rail -->
+                        <div style="width:48px; display:flex; flex-direction:column; justify-content:space-between; text-align:right; padding-right:12px; font-size:11px; font-weight:600; color:var(--il-muted); font-family:var(--font-mono, monospace); user-select:none;">
+                            <span style="transform:translateY(-50%);">100%</span>
+                            <span style="transform:translateY(-50%);">75%</span>
+                            <span style="transform:translateY(-50%);">50%</span>
+                            <span style="transform:translateY(-50%);">25%</span>
+                            <span style="transform:translateY(50%);">0%</span>
+                        </div>
+
+                        <!-- Plot Area (Gridlines + Bars) -->
+                        <div style="position:relative; flex:1; height:100%;">
+                            <!-- Horizontal Gridlines -->
+                            <div style="position:absolute; inset:0; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none;">
+                                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                                <div style="border-bottom:1px dashed var(--il-border); height:0;"></div>
+                                <div style="border-bottom:2px solid var(--il-border); height:0;"></div>
+                            </div>
+
+                            <!-- Bars Area -->
+                            <div style="position:absolute; inset:0; display:flex; justify-content:space-around; align-items:flex-end; z-index:2;">
+                                <?php foreach ($cleanBarItems as $item): 
+                                    $barH = $item['pct'] > 0 ? max(4, min(100, $item['pct'])) : 0;
+                                ?>
+                                    <div style="display:flex; flex-direction:column; align-items:center; width:36%; max-width:140px; height:100%; justify-content:flex-end;">
+                                        <!-- Value Badge Above Bar -->
+                                        <div style="font-size:12px; font-weight:800; color:<?= $item['color'] ?>; margin-bottom:6px; white-space:nowrap; background:<?= $item['color'] ?>15; padding:2px 8px; border-radius:999px;">
+                                            <?= $item['pct'] ?>%
+                                        </div>
+                                        
+                                        <!-- Bar Pillar -->
+                                        <div style="width:100%; max-width:80px; height:<?= $barH ?>%; background:<?= $item['gradient'] ?>; border-radius:8px 8px 2px 2px; box-shadow:0 4px 12px <?= $item['color'] ?>33; min-height:<?= $item['pct'] > 0 ? '6px' : '3px' ?>; transition:height 0.6s cubic-bezier(0.4, 0, 0.2, 1);">
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- X-Axis Labels (Aligned below bars, offset by Y-Axis width 48px) -->
+                    <div style="display:flex; margin-left:48px; justify-content:space-around; margin-top:12px; padding-top:6px; max-width:540px; margin:12px auto 0;">
+                        <?php foreach ($cleanBarItems as $item): ?>
+                            <div style="width:36%; max-width:140px; text-align:center;">
+                                <div style="font-weight:700; font-size:13px; color:var(--il-text);">
+                                    <?= $item['icon'] ?> <?= $item['label'] ?>
+                                </div>
+                                <div class="muted" style="font-size:11.5px; margin-top:2px;">
+                                    <?= $item['count'] ?> <?= $item['count'] === 1 ? 'day' : 'days' ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <!-- ATTENDANCE-RELATED INFORMATION BAR (LATE ARRIVALS, EXCUSED, LEAVE) -->
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-top:16px;">
+                    <div style="background:var(--surface-1); border:1px solid var(--il-border); border-left:3.5px solid #F59E0B; border-radius:10px; padding:12px 14px;">
+                        <span class="muted" style="font-size:11.5px; font-weight:700; text-transform:uppercase;">⏱️ Late Arrivals</span>
+                        <div style="font-size:18px; font-weight:800; color:#F59E0B; margin-top:2px;">
+                            <?= (int)($att['late'] ?? 0) ?> <span style="font-size:12px; font-weight:600; color:var(--il-muted);"><?= (int)($att['late'] ?? 0) === 1 ? 'day' : 'days' ?></span>
+                        </div>
+                    </div>
+                    <div style="background:var(--surface-1); border:1px solid var(--il-border); border-left:3.5px solid #2563EB; border-radius:10px; padding:12px 14px;">
+                        <span class="muted" style="font-size:11.5px; font-weight:700; text-transform:uppercase;">ℹ️ Excused Absences</span>
+                        <div style="font-size:18px; font-weight:800; color:#2563EB; margin-top:2px;">
+                            <?= (int)($att['excused'] ?? 0) ?> <span style="font-size:12px; font-weight:600; color:var(--il-muted);"><?= (int)($att['excused'] ?? 0) === 1 ? 'day' : 'days' ?></span>
+                        </div>
+                    </div>
+                    <div style="background:var(--surface-1); border:1px solid var(--il-border); border-left:3.5px solid #8B5CF6; border-radius:10px; padding:12px 14px;">
+                        <span class="muted" style="font-size:11.5px; font-weight:700; text-transform:uppercase;">🏖️ Leave</span>
+                        <div style="font-size:18px; font-weight:800; color:#8B5CF6; margin-top:2px;">
+                            <?= (int)($att['leave'] ?? 0) ?> <span style="font-size:12px; font-weight:600; color:var(--il-muted);"><?= (int)($att['leave'] ?? 0) === 1 ? 'day' : 'days' ?></span>
+                        </div>
                     </div>
                 </div>
             <?php endif; ?>
