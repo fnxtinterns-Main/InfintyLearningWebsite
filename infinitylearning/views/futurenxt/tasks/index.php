@@ -125,6 +125,7 @@ require __DIR__ . '/../layouts/header.php';
                                 'assignees'         => $assignees,
                                 'can_submit_pdf'    => ($isAssignedToMe || Auth::isManagerOrAbove()) && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
                                 'can_reassign'      => Auth::isManagerOrAbove() && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
+                                'can_approve'       => Auth::isManagerOrAbove() && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
                             ];
                             $taskJson = htmlspecialchars(json_encode($taskPayload, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES, 'UTF-8');
                             $docUrl = !empty($t['documentation_pdf']) ? $t['documentation_pdf'] : (!empty($t['doc_path']) ? $t['doc_path'] : null);
@@ -217,12 +218,20 @@ require __DIR__ . '/../layouts/header.php';
                                             </button>
                                         <?php endif; ?>
 
-                                        <!-- Admin / Exec action: Review & Approve -->
-                                        <?php if (Auth::isAdminOrExec() && $t['status'] === 'submitted'): ?>
-                                            <button type="button" class="fnx-btn fnx-btn-orange" style="padding:4px 8px; font-size:11.5px;"
-                                                    onclick="openReviewModal(<?= $t['id'] ?>, '<?= htmlspecialchars(addslashes($t['title'])) ?>', '<?= htmlspecialchars($t['documentation_pdf'] ?? '') ?>')">
-                                                Review / Approve
-                                            </button>
+                                        <!-- Management Action: Approve Task (Admin, CEO, CTO, Managers — with or without PDF) -->
+                                        <?php if (Auth::isManagerOrAbove() && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true)): ?>
+                                            <?php if ($t['status'] === 'submitted'): ?>
+                                                <button type="button" class="fnx-btn fnx-btn-orange" style="padding:4px 9px; font-size:11.5px; font-weight:700;"
+                                                        onclick="openReviewModal(<?= $t['id'] ?>, '<?= htmlspecialchars(addslashes($t['title'])) ?>', '<?= htmlspecialchars($docUrl ?? '') ?>')">
+                                                    Review / Approve
+                                                </button>
+                                            <?php else: ?>
+                                                <button type="button" class="fnx-btn" style="padding:4px 9px; font-size:11.5px; font-weight:700; background:#10B981; color:#FFFFFF; border:none; border-radius:6px;"
+                                                        title="Approve task directly based on daily updates without requiring a PDF"
+                                                        onclick="openReviewModal(<?= $t['id'] ?>, '<?= htmlspecialchars(addslashes($t['title'])) ?>', '<?= htmlspecialchars($docUrl ?? '') ?>')">
+                                                    ✓ Approve
+                                                </button>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -416,10 +425,13 @@ require __DIR__ . '/../layouts/header.php';
             <input type="hidden" name="redirect_url" value="/futurenxt/tasks">
             <div class="fnx-modal-body">
                 <div style="margin-bottom:16px; padding:12px; background:var(--fnx-bg); border-radius:10px; border:1px solid var(--fnx-border);">
-                    <div style="font-size:13px; font-weight:700; color:var(--fnx-navy); margin-bottom:4px;">Submitted Documentation:</div>
+                    <div style="font-size:13px; font-weight:700; color:var(--fnx-navy); margin-bottom:4px;">Task Documentation:</div>
                     <a id="reviewDocLink" href="#" target="_blank" class="fnx-btn fnx-btn-outline" style="font-size:12px;">
                         📄 Inspect Uploaded PDF ↗
                     </a>
+                    <div id="reviewNoDocNotice" style="display:none; font-size:12px; color:#4B5563; line-height:1.4;">
+                        ℹ️ <em>No PDF was attached. Management (Admin, CEO, CTO, Manager) can approve directly based on daily task updates.</em>
+                    </div>
                 </div>
 
                 <div style="margin-bottom:16px;">
@@ -593,6 +605,18 @@ function openViewTaskModal(elem) {
             };
             actBox.appendChild(b2);
         }
+        if (t.can_approve) {
+            const b3 = document.createElement('button');
+            b3.type = 'button';
+            b3.className = 'fnx-btn';
+            b3.style.cssText = 'font-size:12px; font-weight:700; background:#10B981; color:#FFFFFF; border:none; border-radius:6px; padding:6px 14px;';
+            b3.innerHTML = '✓ Approve Task';
+            b3.onclick = function() {
+                fnxCloseModal('viewTaskModal');
+                openReviewModal(t.id, t.title, t.documentation_pdf);
+            };
+            actBox.appendChild(b3);
+        }
 
         fnxOpenModal('viewTaskModal');
     } catch(err) {
@@ -616,11 +640,14 @@ function openReviewModal(taskId, title, docPdf) {
     document.getElementById('reviewTaskId').value = taskId;
     document.getElementById('reviewTaskTitle').innerText = title;
     const link = document.getElementById('reviewDocLink');
-    if (docPdf) {
+    const noDoc = document.getElementById('reviewNoDocNotice');
+    if (docPdf && String(docPdf).trim() !== '') {
         link.href = docPdf;
         link.style.display = 'inline-block';
+        if (noDoc) noDoc.style.display = 'none';
     } else {
         link.style.display = 'none';
+        if (noDoc) noDoc.style.display = 'block';
     }
     fnxOpenModal('reviewModal');
 }
