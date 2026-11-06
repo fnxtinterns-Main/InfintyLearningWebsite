@@ -393,7 +393,7 @@ final class Task
 
         $stmt = $db->prepare("
             UPDATE fnx_tasks 
-            SET status = 'rejected', review_feedback = ? 
+            SET status = 'reopened', review_feedback = ? 
             WHERE id = ?
         ");
         $stmt->execute([trim((string)$feedback) ?: 'Revision requested', $taskId]);

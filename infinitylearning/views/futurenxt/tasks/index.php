@@ -413,6 +413,7 @@ require __DIR__ . '/../layouts/header.php';
 
         <form method="POST" action="/futurenxt-handler.php?action=review_task">
             <input type="hidden" id="reviewTaskId" name="task_id" value="">
+            <input type="hidden" name="redirect_url" value="/futurenxt/tasks">
             <div class="fnx-modal-body">
                 <div style="margin-bottom:16px; padding:12px; background:var(--fnx-bg); border-radius:10px; border:1px solid var(--fnx-border);">
                     <div style="font-size:13px; font-weight:700; color:var(--fnx-navy); margin-bottom:4px;">Submitted Documentation:</div>

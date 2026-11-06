@@ -263,31 +263,28 @@ if ($action === 'submit_task_doc' || $action === 'submit_task_docs') {
     }
 }
 
-if ($action === 'approve_task') {
+if ($action === 'review_task' || $action === 'approve_task' || $action === 'reject_task') {
     if (!Auth::isAdminOrExec() && !Auth::isManagerOrAbove()) {
         sendResponse(false, 'Permission denied.');
     }
     $taskId   = (int)($_POST['task_id'] ?? 0);
-    $feedback = trim((string)($_POST['feedback'] ?? 'Approved by management'));
-    $ok = Task::approve($taskId, $currentId, $feedback);
-    if ($ok) {
-        sendResponse(true, 'Task approved successfully!');
-    } else {
-        sendResponse(false, 'Failed to approve task.');
-    }
-}
+    $decision = trim((string)($_POST['decision'] ?? ($action === 'reject_task' ? 'reopen' : 'approve')));
+    $feedback = trim((string)($_POST['remarks'] ?? $_POST['feedback'] ?? ''));
 
-if ($action === 'reject_task') {
-    if (!Auth::isAdminOrExec() && !Auth::isManagerOrAbove()) {
-        sendResponse(false, 'Permission denied.');
-    }
-    $taskId   = (int)($_POST['task_id'] ?? 0);
-    $feedback = trim((string)($_POST['feedback'] ?? 'Revision requested'));
-    $ok = Task::reject($taskId, $currentId, $feedback);
-    if ($ok) {
-        sendResponse(true, 'Revision requested for task.');
+    if ($decision === 'approve') {
+        $ok = Task::approve($taskId, $currentId, $feedback ?: 'Approved by management');
+        if ($ok) {
+            sendResponse(true, 'Task reviewed and approved successfully!');
+        } else {
+            sendResponse(false, 'Failed to approve task.');
+        }
     } else {
-        sendResponse(false, 'Failed to request revision.');
+        $ok = Task::reject($taskId, $currentId, $feedback ?: 'Revision requested');
+        if ($ok) {
+            sendResponse(true, 'Task returned for revision.');
+        } else {
+            sendResponse(false, 'Failed to update task status.');
+        }
     }
 }
 
