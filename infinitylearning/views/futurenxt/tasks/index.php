@@ -326,7 +326,7 @@ require __DIR__ . '/../layouts/header.php';
             <button type="button" class="fnx-modal-close" onclick="fnxCloseModal('docModal')">&times;</button>
         </div>
 
-        <form method="POST" action="/futurenxt-handler.php?action=submit_task_docs" enctype="multipart/form-data">
+        <form method="POST" action="/futurenxt-handler.php?action=submit_task_docs" enctype="multipart/form-data" onsubmit="const btn = this.querySelector('button[type=submit]'); btn.disabled = true; btn.innerHTML = '⏳ Uploading PDF...';">
             <input type="hidden" id="docTaskId" name="task_id" value="">
             <input type="hidden" name="redirect_url" value="/futurenxt/tasks">
             <div class="fnx-modal-body">

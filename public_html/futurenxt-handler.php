@@ -251,9 +251,9 @@ if ($action === 'reassign_task') {
 if ($action === 'submit_task_doc' || $action === 'submit_task_docs') {
     $taskId = (int)($_POST['task_id'] ?? 0);
     $notes  = trim((string)($_POST['submission_notes'] ?? $_POST['notes'] ?? ''));
-    $file   = !empty($_FILES['documentation_pdf']['tmp_name']) 
+    $file   = !empty($_FILES['documentation_pdf']['name']) 
         ? $_FILES['documentation_pdf'] 
-        : (!empty($_FILES['doc_file']['tmp_name']) ? $_FILES['doc_file'] : ($_FILES['file'] ?? []));
+        : (!empty($_FILES['doc_file']['name']) ? $_FILES['doc_file'] : ($_FILES['file'] ?? []));
 
     $res = Task::submitDocumentation($taskId, $currentId, $file, $notes);
     if ($res['success']) {

@@ -263,9 +263,21 @@ final class Task
             return ['success' => false, 'error' => 'You are not assigned to this task.'];
         }
 
-        // Validate that uploaded file is PDF!
-        if (empty($file['tmp_name']) || $file['error'] !== UPLOAD_ERR_OK) {
-            return ['success' => false, 'error' => 'Task documentation PDF file is required.'];
+        // Validate that uploaded file is PDF with detailed error reporting
+        if (empty($file) || !isset($file['error'])) {
+            return ['success' => false, 'error' => 'Please select a PDF file to upload.'];
+        }
+        if ($file['error'] === UPLOAD_ERR_INI_SIZE || $file['error'] === UPLOAD_ERR_FORM_SIZE) {
+            return ['success' => false, 'error' => 'The uploaded file exceeds the maximum allowed upload limit (50MB). Please compress or reduce the PDF size.'];
+        }
+        if ($file['error'] === UPLOAD_ERR_PARTIAL) {
+            return ['success' => false, 'error' => 'The file was only partially uploaded. Please try again.'];
+        }
+        if ($file['error'] === UPLOAD_ERR_NO_FILE || empty($file['tmp_name'])) {
+            return ['success' => false, 'error' => 'Please select a PDF file before submitting.'];
+        }
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            return ['success' => false, 'error' => 'File upload error (Code #' . $file['error'] . '). Please try again.'];
         }
 
         $origName = (string)($file['name'] ?? '');
