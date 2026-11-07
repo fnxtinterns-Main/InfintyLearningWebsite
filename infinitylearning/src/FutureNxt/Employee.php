@@ -13,18 +13,19 @@ final class Employee
         $db = Database::connect();
         $role = strtolower(trim($role));
 
-        // If assigned under a Manager (e.g. FNX-M-001):
+        // If assigned under a Manager / Office In-Charge (e.g. FNX-M-001 or FNX-E-001 / FNX-OI-):
         // Employee code will be FNX-M-001-E-001, FNX-M-001-E-002, etc.
-        // Intern code will be FNX-M-001-I-001, etc.
+        // Intern code will be FNX-M-001-I-001, FNX-E-001-I-001, etc.
         if ($managerId !== null && $managerId > 0) {
-            $mStmt = $db->prepare("SELECT id, emp_code, role FROM fnx_employees WHERE id = ? LIMIT 1");
+            $mStmt = $db->prepare("SELECT id, emp_code, role, designation FROM fnx_employees WHERE id = ? LIMIT 1");
             $mStmt->execute([$managerId]);
             $mgr = $mStmt->fetch();
             if ($mgr) {
                 $mgrRole = $mgr['role'];
                 $mgrCode = $mgr['emp_code'];
+                $mgrDesig = strtolower($mgr['designation'] ?? '');
 
-                if ($mgrRole === 'manager' || $mgrRole === 'office_manager' || str_starts_with($mgrCode, 'FNX-M-')) {
+                if ($mgrRole === 'manager' || $mgrRole === 'office_manager' || str_contains($mgrDesig, 'in-charge') || str_contains($mgrDesig, 'incharge') || str_starts_with($mgrCode, 'FNX-M-') || str_starts_with($mgrCode, 'FNX-OI-') || str_starts_with($mgrCode, 'FNX-E-')) {
                     $subType = ($role === 'intern') ? 'I' : 'E';
                     $prefix = $mgrCode . '-' . $subType . '-';
 
@@ -169,8 +170,12 @@ final class Employee
             SELECT id, emp_code, full_name, role, designation, department 
             FROM fnx_employees 
             WHERE status = 'active' 
-              AND role IN ('ceo', 'cto', 'admin', 'office_manager', 'manager')
-            ORDER BY FIELD(role, 'ceo', 'cto', 'admin', 'office_manager', 'manager'), full_name ASC
+              AND (
+                  role IN ('ceo', 'cto', 'admin', 'office_manager', 'manager')
+                  OR LOWER(designation) LIKE '%in-charge%'
+                  OR LOWER(designation) LIKE '%incharge%'
+              )
+            ORDER BY FIELD(role, 'ceo', 'cto', 'admin', 'office_manager', 'manager', 'employee', 'intern'), full_name ASC
         ");
         return $stmt->fetchAll() ?: [];
     }

@@ -271,20 +271,25 @@ if ($action === 'review_task' || $action === 'approve_task' || $action === 'reje
     $decision = trim((string)($_POST['decision'] ?? ($action === 'reject_task' ? 'reopen' : 'approve')));
     $feedback = trim((string)($_POST['remarks'] ?? $_POST['feedback'] ?? ''));
 
-    if ($decision === 'approve') {
-        $ok = Task::approve($taskId, $currentId, $feedback ?: 'Approved by management');
-        if ($ok) {
-            sendResponse(true, 'Task reviewed and approved successfully!');
+    try {
+        if ($decision === 'approve') {
+            $ok = Task::approve($taskId, $currentId, $feedback ?: 'Approved by management');
+            if ($ok) {
+                sendResponse(true, 'Task reviewed and approved successfully!');
+            } else {
+                sendResponse(false, 'Failed to approve task.');
+            }
         } else {
-            sendResponse(false, 'Failed to approve task.');
+            $ok = Task::reject($taskId, $currentId, $feedback ?: 'Revision requested');
+            if ($ok) {
+                sendResponse(true, 'Task returned for revision.');
+            } else {
+                sendResponse(false, 'Failed to update task status.');
+            }
         }
-    } else {
-        $ok = Task::reject($taskId, $currentId, $feedback ?: 'Revision requested');
-        if ($ok) {
-            sendResponse(true, 'Task returned for revision.');
-        } else {
-            sendResponse(false, 'Failed to update task status.');
-        }
+    } catch (\Throwable $e) {
+        error_log('FutureNxt review_task error: ' . $e->getMessage());
+        sendResponse(false, 'Database error while reviewing task: ' . $e->getMessage());
     }
 }
 

@@ -168,14 +168,14 @@ final class DailyUpdate
     }
 
     /**
-     * Get statistics on daily update submissions for a given date (CEO is excluded from mandatory requirement).
+     * Get statistics on daily update submissions for a given date (CEO and Admin are excluded from mandatory requirement).
      */
     public static function getStats(?string $date = null, ?int $managerId = null): array
     {
         $db = Database::connect();
         $date = $date ?: date('Y-m-d');
 
-        $empSql = "SELECT COUNT(*) FROM fnx_employees WHERE status = 'active' AND role != 'ceo'";
+        $empSql = "SELECT COUNT(*) FROM fnx_employees WHERE status = 'active' AND role NOT IN ('ceo', 'admin')";
         $empParams = [];
         if ($managerId !== null) {
             $empSql .= " AND manager_id = ?";
@@ -189,7 +189,7 @@ final class DailyUpdate
             SELECT COUNT(DISTINCT u.employee_id) 
             FROM fnx_daily_updates u 
             JOIN fnx_employees e ON e.id = u.employee_id
-            WHERE u.update_date = ? AND e.status = 'active' AND e.role != 'ceo'
+            WHERE u.update_date = ? AND e.status = 'active' AND e.role NOT IN ('ceo', 'admin')
         ";
         $subParams = [$date];
         if ($managerId !== null) {
@@ -213,7 +213,7 @@ final class DailyUpdate
     }
 
     /**
-     * Get list of active employees who haven't submitted their daily update for a given date (excludes CEO).
+     * Get list of active employees who haven't submitted their daily update for a given date (excludes CEO & Admin).
      */
     public static function getPendingEmployees(?string $date = null, ?int $managerId = null): array
     {
@@ -226,7 +226,7 @@ final class DailyUpdate
             FROM fnx_employees e
             LEFT JOIN fnx_employees mgr ON mgr.id = e.manager_id
             WHERE e.status = 'active'
-              AND e.role != 'ceo'
+              AND e.role NOT IN ('ceo', 'admin')
               AND e.id NOT IN (
                   SELECT employee_id FROM fnx_daily_updates WHERE update_date = ?
               )

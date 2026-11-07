@@ -370,35 +370,55 @@ final class Task
 
     public static function approve(int $taskId, int $approverId, ?string $feedback = null): bool
     {
-        $db = Database::connect();
-        $task = self::find($taskId);
-        if (!$task) return false;
+        try {
+            $db = Database::connect();
+            $task = self::find($taskId);
+            if (!$task) return false;
 
-        $stmt = $db->prepare("
-            UPDATE fnx_tasks 
-            SET status = 'approved', approved_by = ?, approved_at = NOW(), review_feedback = ?
-            WHERE id = ?
-        ");
-        $stmt->execute([$approverId, trim((string)$feedback) ?: null, $taskId]);
+            $stmt = $db->prepare("
+                UPDATE fnx_tasks 
+                SET status = 'approved', approved_by = ?, approved_at = NOW(), review_feedback = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([$approverId, trim((string)$feedback) ?: null, $taskId]);
 
-        Audit::log('approve', 'task', $taskId, "Approved task {$task['task_code']}", $approverId);
-        return true;
+            Audit::log('approve', 'task', $taskId, "Approved task {$task['task_code']}", $approverId);
+            return true;
+        } catch (\Throwable $e) {
+            error_log('Task::approve error: ' . $e->getMessage());
+            return false;
+        }
     }
 
     public static function reject(int $taskId, int $reviewerId, ?string $feedback = null): bool
     {
-        $db = Database::connect();
-        $task = self::find($taskId);
-        if (!$task) return false;
+        try {
+            $db = Database::connect();
+            $task = self::find($taskId);
+            if (!$task) return false;
 
-        $stmt = $db->prepare("
-            UPDATE fnx_tasks 
-            SET status = 'reopened', review_feedback = ? 
-            WHERE id = ?
-        ");
-        $stmt->execute([trim((string)$feedback) ?: 'Revision requested', $taskId]);
+            try {
+                $stmt = $db->prepare("
+                    UPDATE fnx_tasks 
+                    SET status = 'reopened', review_feedback = ? 
+                    WHERE id = ?
+                ");
+                $stmt->execute([trim((string)$feedback) ?: 'Revision requested', $taskId]);
+            } catch (\Throwable $e) {
+                // Fallback to 'rejected' if 'reopened' enum is not yet loaded in current connection
+                $stmt = $db->prepare("
+                    UPDATE fnx_tasks 
+                    SET status = 'rejected', review_feedback = ? 
+                    WHERE id = ?
+                ");
+                $stmt->execute([trim((string)$feedback) ?: 'Revision requested', $taskId]);
+            }
 
-        Audit::log('reject', 'task', $taskId, "Rejected/Requested revision on task {$task['task_code']}: {$feedback}", $reviewerId);
-        return true;
+            Audit::log('reject', 'task', $taskId, "Returned task {$task['task_code']} for revision: " . ($feedback ?: 'Needs rework'), $reviewerId);
+            return true;
+        } catch (\Throwable $e) {
+            error_log('Task::reject error: ' . $e->getMessage());
+            return false;
+        }
     }
 }

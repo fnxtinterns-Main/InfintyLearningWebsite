@@ -88,27 +88,28 @@ require __DIR__ . '/../layouts/header.php';
         </div>
     <?php endif; ?>
 
+    <?php $isExempt = in_array($me['role'], ['ceo', 'admin'], true); ?>
     <!-- User's Personal Status Card for Today -->
-    <div class="fnx-card" style="margin-bottom:24px; background:<?= $myTodayUpdate ? '#ECFDF5' : ($me['role'] === 'ceo' ? '#EFF6FF' : '#FFFBEB') ?>; border:1.5px solid <?= $myTodayUpdate ? '#A7F3D0' : ($me['role'] === 'ceo' ? '#BFDBFE' : '#FDE68A') ?>;">
+    <div class="fnx-card" style="margin-bottom:24px; background:<?= $myTodayUpdate ? '#ECFDF5' : ($isExempt ? '#EFF6FF' : '#FFFBEB') ?>; border:1.5px solid <?= $myTodayUpdate ? '#A7F3D0' : ($isExempt ? '#BFDBFE' : '#FDE68A') ?>;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
             <div style="display:flex; align-items:center; gap:14px;">
-                <div style="width:44px; height:44px; border-radius:12px; background:<?= $myTodayUpdate ? '#10B981' : ($me['role'] === 'ceo' ? '#3B82F6' : '#F59E0B') ?>; color:#FFF; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">
-                    <?= $myTodayUpdate ? '✓' : ($me['role'] === 'ceo' ? '👑' : '📝') ?>
+                <div style="width:44px; height:44px; border-radius:12px; background:<?= $myTodayUpdate ? '#10B981' : ($isExempt ? '#3B82F6' : '#F59E0B') ?>; color:#FFF; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">
+                    <?= $myTodayUpdate ? '✓' : ($isExempt ? '👑' : '📝') ?>
                 </div>
                 <div>
                     <strong style="font-size:15px; color:#111827; display:block;">
-                        <?php if ($me['role'] === 'ceo'): ?>
-                            <?= $myTodayUpdate ? 'Executive Log Submitted for Today (' . date('d M Y') . ')' : 'Chief Executive Officer · Daily Logging Optional' ?>
+                        <?php if ($isExempt): ?>
+                            <?= $myTodayUpdate ? 'Executive Log Submitted for Today (' . date('d M Y') . ')' : 'Executive Leadership (Admin & CEO) · Daily Logging Optional' ?>
                         <?php else: ?>
                             <?= $myTodayUpdate ? 'You have submitted your daily update for today (' . date('d M Y') . ')' : 'Daily Update Required for Today (' . date('d M Y') . ')' ?>
                         <?php endif; ?>
                     </strong>
                     <p style="margin:2px 0 0; font-size:13px; color:#4B5563;">
-                        <?php if ($me['role'] === 'ceo'): ?>
-                            <?= $myTodayUpdate ? 'Logged at ' . date('h:i A', strtotime($myTodayUpdate['updated_at'] ?? $myTodayUpdate['created_at'])) . '.' : 'As CEO, you are excluded from mandatory daily logs. You can review all organizational standups below.' ?>
+                        <?php if ($isExempt): ?>
+                            <?= $myTodayUpdate ? ('Logged at ' . Audit::formatIst($myTodayUpdate['updated_at'] ?? $myTodayUpdate['created_at'], 'h:i A') . '.') : 'As Administrator/CEO, you are excluded from mandatory daily logs. You can review all organizational standups below.' ?>
                         <?php else: ?>
                             <?= $myTodayUpdate 
-                                ? 'Submitted on ' . date('h:i A', strtotime($myTodayUpdate['updated_at'] ?? $myTodayUpdate['created_at'])) . '. You can revise or add further deliverables anytime before midnight.' 
+                                ? ('Submitted at ' . Audit::formatIst($myTodayUpdate['updated_at'] ?? $myTodayUpdate['created_at'], 'h:i A') . '. You can revise or add further deliverables anytime before midnight.') 
                                 : 'Every team member must submit their accomplishments and deliverables daily before end of day.' ?>
                         <?php endif; ?>
                     </p>
@@ -116,7 +117,7 @@ require __DIR__ . '/../layouts/header.php';
             </div>
             <div>
                 <button type="button" class="fnx-btn <?= $myTodayUpdate ? 'fnx-btn-outline' : 'fnx-btn-orange' ?>" onclick="fnxOpenModal('writeUpdateModal')" style="font-size:13px;">
-                    <?= $myTodayUpdate ? '✏️ Revise Today\'s Update' : ($me['role'] === 'ceo' ? '+ Write Optional Update' : 'Submit Today\'s Update Now →') ?>
+                    <?= $myTodayUpdate ? '✏️ Revise Today\'s Update' : ($isExempt ? '+ Write Optional Update' : 'Submit Today\'s Update Now →') ?>
                 </button>
             </div>
         </div>
@@ -368,10 +369,21 @@ require __DIR__ . '/../layouts/header.php';
                 </div>
 
                 <div style="margin-bottom:14px;">
-                    <label class="fnx-form-label">What did you accomplish today? (List all points &amp; deliverables) *</label>
-                    <textarea name="work_done" class="fnx-textarea" rows="6" placeholder="1. Completed payment gateway callback verification&#10;2. Fixed UI responsiveness on mobile&#10;3. Prepared test case documentation..." required style="resize:vertical; font-family:inherit; line-height:1.5;"><?= htmlspecialchars($myTodayUpdate['work_done'] ?? '') ?></textarea>
-                    <small style="color:#6B7280; font-size:11.5px; margin-top:3px; display:block;">
-                        * Point-by-point breakdown is recommended for clarity.
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
+                        <label class="fnx-form-label" style="margin:0;">What did you accomplish today? (List all points &amp; deliverables) *</label>
+                        <div style="display:inline-flex; align-items:center; gap:6px;">
+                            <button type="button" class="fnx-btn fnx-btn-outline" style="padding:2px 8px; font-size:11px; background:#FFF9F4;" onclick="fnxInsertPointer('number')">
+                                + 1. 2. 3. Numbered
+                            </button>
+                            <button type="button" class="fnx-btn fnx-btn-outline" style="padding:2px 8px; font-size:11px; background:#FFF9F4;" onclick="fnxInsertPointer('bullet')">
+                                + • Bullets
+                            </button>
+                        </div>
+                    </div>
+                    <textarea name="work_done" id="fnxWorkDoneTextarea" class="fnx-textarea" rows="6" placeholder="1. Completed payment gateway callback verification&#10;2. Fixed UI responsiveness on mobile&#10;3. Prepared test case documentation..." required style="resize:vertical; font-family:inherit; line-height:1.6;"><?= htmlspecialchars($myTodayUpdate['work_done'] ?? '') ?></textarea>
+                    <small style="color:#6B7280; font-size:11.5px; margin-top:3px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
+                        <span>* Point-by-point breakdown is recommended for clarity.</span>
+                        <span style="color:var(--fnx-orange); font-weight:700;">💡 Auto-numbering active (Press Enter for next point)</span>
                     </small>
                 </div>
 
@@ -406,6 +418,96 @@ function fnxAppendTaskSummary(chk, text) {
         parts = parts.filter(p => p !== text);
     }
     input.value = parts.join(', ');
+}
+
+// Auto-numbering pointers functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const workTextarea = document.getElementById('fnxWorkDoneTextarea');
+    if (!workTextarea) return;
+
+    // When focusing an empty textarea, auto insert "1. "
+    workTextarea.addEventListener('focus', function() {
+        if (!this.value.trim()) {
+            this.value = '1. ';
+            this.setSelectionRange(3, 3);
+        }
+    });
+
+    // Auto numbering on Enter and clean deletion on Backspace
+    workTextarea.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            const val = this.value;
+            const cursorPos = this.selectionStart;
+            const lineStart = val.lastIndexOf('\n', cursorPos - 1) + 1;
+            const currentLine = val.substring(lineStart, cursorPos);
+            
+            // Check numbered list: e.g. "1. " or "2. "
+            const matchNumber = currentLine.match(/^(\s*)(\d+)\.\s*(.*)$/);
+            if (matchNumber) {
+                e.preventDefault();
+                const indent = matchNumber[1];
+                const num = parseInt(matchNumber[2], 10);
+                const content = matchNumber[3].trim();
+                
+                // If user pressed Enter on an empty pointer (just "X. "), clear it
+                if (!content) {
+                    const before = val.substring(0, lineStart);
+                    const after = val.substring(cursorPos);
+                    this.value = before + after;
+                    this.setSelectionRange(lineStart, lineStart);
+                    return;
+                }
+                
+                const nextPoint = '\n' + indent + (num + 1) + '. ';
+                const before = val.substring(0, cursorPos);
+                const after = val.substring(cursorPos);
+                this.value = before + nextPoint + after;
+                const newPos = cursorPos + nextPoint.length;
+                this.setSelectionRange(newPos, newPos);
+                return;
+            }
+
+            // Check bullet list: e.g. "• " or "- "
+            const matchBullet = currentLine.match(/^(\s*)([-•*])\s*(.*)$/);
+            if (matchBullet) {
+                e.preventDefault();
+                const indent = matchBullet[1];
+                const bullet = matchBullet[2];
+                const content = matchBullet[3].trim();
+
+                if (!content) {
+                    const before = val.substring(0, lineStart);
+                    const after = val.substring(cursorPos);
+                    this.value = before + after;
+                    this.setSelectionRange(lineStart, lineStart);
+                    return;
+                }
+
+                const nextPoint = '\n' + indent + bullet + ' ';
+                const before = val.substring(0, cursorPos);
+                const after = val.substring(cursorPos);
+                this.value = before + nextPoint + after;
+                const newPos = cursorPos + nextPoint.length;
+                this.setSelectionRange(newPos, newPos);
+                return;
+            }
+        }
+    });
+});
+
+function fnxInsertPointer(type) {
+    const ta = document.getElementById('fnxWorkDoneTextarea');
+    if (!ta) return;
+    const val = ta.value;
+    if (type === 'number') {
+        const lines = val.split('\n').filter(Boolean);
+        const nextNum = lines.length + 1;
+        ta.value = val ? (val.trimEnd() + '\n' + nextNum + '. ') : '1. ';
+    } else {
+        ta.value = val ? (val.trimEnd() + '\n• ') : '• ';
+    }
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
 }
 </script>
 

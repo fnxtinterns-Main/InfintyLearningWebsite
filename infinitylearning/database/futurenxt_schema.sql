@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS fnx_tasks (
     description LONGTEXT NULL,
     priority ENUM('low', 'medium', 'high', 'urgent') NOT NULL DEFAULT 'medium',
     due_date DATE NOT NULL,
-    status ENUM('pending', 'in_progress', 'submitted', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+    status ENUM('pending', 'in_progress', 'submitted', 'approved', 'rejected', 'reopened') NOT NULL DEFAULT 'pending',
     created_by BIGINT UNSIGNED NOT NULL,
     doc_path VARCHAR(255) NULL,
     doc_submitted_at DATETIME NULL,

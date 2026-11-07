@@ -47,4 +47,22 @@ final class Audit
     {
         return self::recent($limit);
     }
+
+    /**
+     * Format a UTC timestamp into Indian Standard Time (IST, UTC+05:30)
+     */
+    public static function formatIst(?string $utcTimestamp, string $format = 'd M, h:i A'): string
+    {
+        if (!$utcTimestamp) {
+            return '—';
+        }
+        try {
+            // Assume UTC if no timezone offset is in the string
+            $dt = new \DateTime($utcTimestamp, new \DateTimeZone('UTC'));
+            $dt->setTimezone(new \DateTimeZone('Asia/Kolkata'));
+            return $dt->format($format) . ' IST';
+        } catch (\Throwable $e) {
+            return date($format, strtotime($utcTimestamp));
+        }
+    }
 }

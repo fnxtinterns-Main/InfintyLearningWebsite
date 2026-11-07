@@ -36,7 +36,7 @@ require __DIR__ . '/layouts/header.php';
 
 <div class="fnx-container">
     <!-- Welcome Banner matching site styling -->
-    <div style="background: linear-gradient(135deg, #FFF0E5 0%, #FFE2CC 100%) !important; border: 1.5px solid var(--fnx-border) !important; border-radius:18px; padding:28px 32px; margin-bottom:28px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px; box-shadow:0 4px 16px rgba(43,27,18,0.04);">
+    <div class="fnx-welcome-banner" style="background: linear-gradient(135deg, #FFF0E5 0%, #FFE2CC 100%) !important; border: 1.5px solid var(--fnx-border) !important; border-radius:18px; padding:28px 32px; margin-bottom:28px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px; box-shadow:0 4px 16px rgba(43,27,18,0.04);">
         <div>
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
                 <span class="fnx-badge fnx-badge-orange"><?= htmlspecialchars($me['emp_code']) ?></span>
@@ -49,7 +49,7 @@ require __DIR__ . '/layouts/header.php';
                 FutureNxt Operations Command Center · <?= date('l, d F Y') ?>
             </p>
         </div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <div class="fnx-welcome-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
             <a href="/futurenxt/daily-updates" class="fnx-btn" style="background:<?= $myTodayUpdate ? '#10B981' : '#FF7A18' ?> !important; color:#FFFFFF !important; border:none !important; font-weight:700;">
                 📝 <?= $myTodayUpdate ? '✓ Today\'s Update Logged' : '+ Submit Daily Update' ?>
             </a>
@@ -69,27 +69,28 @@ require __DIR__ . '/layouts/header.php';
         </div>
     </div>
 
+    <?php $isExempt = in_array($me['role'], ['ceo', 'admin'], true); ?>
     <!-- Daily Work Update Mandatory Tracker Banner -->
-    <div class="fnx-card" style="margin-bottom:24px; background:#fff !important; border-left: 4px solid <?= $myTodayUpdate ? '#10B981' : ($me['role'] === 'ceo' ? '#3B82F6' : '#FF7A18') ?> !important; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+    <div class="fnx-card" style="margin-bottom:24px; background:#fff !important; border-left: 4px solid <?= $myTodayUpdate ? '#10B981' : ($isExempt ? '#3B82F6' : '#FF7A18') ?> !important; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
             <div style="display:flex; align-items:flex-start; gap:14px;">
-                <div style="width:40px; height:40px; border-radius:10px; background:<?= $myTodayUpdate ? '#ECFDF5' : ($me['role'] === 'ceo' ? '#EFF6FF' : '#FFF7ED') ?>; color:<?= $myTodayUpdate ? '#059669' : ($me['role'] === 'ceo' ? '#2563EB' : '#EA580C') ?>; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">
-                    <?= $myTodayUpdate ? '✅' : ($me['role'] === 'ceo' ? '👑' : '📝') ?>
+                <div style="width:40px; height:40px; border-radius:10px; background:<?= $myTodayUpdate ? '#ECFDF5' : ($isExempt ? '#EFF6FF' : '#FFF7ED') ?>; color:<?= $myTodayUpdate ? '#059669' : ($isExempt ? '#2563EB' : '#EA580C') ?>; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">
+                    <?= $myTodayUpdate ? '✅' : ($isExempt ? '👑' : '📝') ?>
                 </div>
                 <div>
                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <strong style="font-size:15px; color:#111827 !important;">
-                            <?php if ($me['role'] === 'ceo'): ?>
-                                <?= $myTodayUpdate ? "Today's Executive Log Submitted" : "Company Daily Updates Overview (CEO Exempt)" ?>
+                            <?php if ($isExempt): ?>
+                                <?= $myTodayUpdate ? "Today's Work Log Submitted" : "Company Daily Updates Overview (Admin & CEO Exempt)" ?>
                             <?php else: ?>
                                 <?= $myTodayUpdate ? "Today's Work Update Submitted" : "Mandatory Daily Work Update Pending" ?>
                             <?php endif; ?>
                         </strong>
-                        <span class="fnx-badge <?= $myTodayUpdate ? 'fnx-badge-success' : ($me['role'] === 'ceo' ? 'fnx-badge-info' : 'fnx-badge-warning') ?>">
+                        <span class="fnx-badge <?= $myTodayUpdate ? 'fnx-badge-success' : ($isExempt ? 'fnx-badge-info' : 'fnx-badge-warning') ?>">
                             <?php if ($myTodayUpdate): ?>
-                                Logged at <?= date('h:i A', strtotime($myTodayUpdate['created_at'])) ?>
-                            <?php elseif ($me['role'] === 'ceo'): ?>
-                                CEO Status: Optional
+                                Logged at <?= Audit::formatIst($myTodayUpdate['created_at'], 'h:i A') ?>
+                            <?php elseif ($isExempt): ?>
+                                Admin/CEO: Optional
                             <?php else: ?>
                                 Submission Required
                             <?php endif; ?>
@@ -99,8 +100,8 @@ require __DIR__ . '/layouts/header.php';
                     <p style="margin:4px 0 0; font-size:13px; color:#4B5563 !important;">
                         <?php if ($myTodayUpdate): ?>
                             Tasks Summary: "<strong><?= htmlspecialchars(mb_strimwidth($myTodayUpdate['tasks_summary'] ?? '', 0, 90, '...')) ?></strong>"
-                        <?php elseif ($me['role'] === 'ceo'): ?>
-                            Daily work logs are mandatory for all team members, managers, and directors. Track full organizational standup below.
+                        <?php elseif ($isExempt): ?>
+                            Daily work logs are mandatory for all team members, interns, and managers. Track full organizational standup below.
                         <?php else: ?>
                             Every team member, manager, and executive must write a daily log of work accomplished today.
                         <?php endif; ?>
@@ -109,7 +110,7 @@ require __DIR__ . '/layouts/header.php';
             </div>
             <div>
                 <a href="/futurenxt/daily-updates" class="fnx-btn <?= $myTodayUpdate ? 'fnx-btn-outline' : 'fnx-btn-orange' ?>" style="font-size:12.5px; padding:6px 14px;">
-                    <?= $myTodayUpdate ? 'View / Edit Update →' : ($me['role'] === 'ceo' ? 'Review Daily Updates 📋' : 'Write Today\'s Update 📝') ?>
+                    <?= $myTodayUpdate ? 'View / Edit Update →' : ($isExempt ? 'Review Daily Updates 📋' : 'Write Today\'s Update 📝') ?>
                 </a>
             </div>
         </div>
@@ -216,7 +217,7 @@ require __DIR__ . '/layouts/header.php';
     </div>
 
     <!-- Main 2-Column Content Section -->
-    <div style="display:grid; grid-template-columns: 2fr 1fr; gap:24px;">
+    <div class="fnx-main-columns" style="display:grid; grid-template-columns: 2fr 1fr; gap:24px;">
         <!-- Left Column: Tasks Overview & Actions -->
         <div>
             <div class="fnx-card" style="margin-bottom:24px;">
@@ -423,7 +424,7 @@ require __DIR__ . '/layouts/header.php';
                             <div style="font-size:12px; border-left:2px solid var(--fnx-orange); padding-left:10px;">
                                 <div style="color:var(--fnx-navy); font-weight:600;"><?= htmlspecialchars($log['details'] ?? $log['action']) ?></div>
                                 <div style="color:var(--fnx-muted); font-size:11px; margin-top:2px;">
-                                    <?= htmlspecialchars($log['emp_code'] ?? 'SYSTEM') ?> · <?= date('d M, h:i A', strtotime($log['created_at'])) ?>
+                                    <?= htmlspecialchars($log['emp_code'] ?? 'SYSTEM') ?> · <?= Audit::formatIst($log['created_at']) ?>
                                 </div>
                             </div>
                         <?php endforeach; ?>

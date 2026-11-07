@@ -627,6 +627,96 @@ $activePage = $activePage ?? 'dashboard';
         .fnx-footer-links a:hover {
             color: var(--fnx-orange) !important;
         }
+
+        /* Responsive Mobile & Tablet View System */
+        @media (max-width: 991px) {
+            .fnx-nav-container {
+                height: auto !important;
+                min-height: 56px;
+                padding: 10px 14px 6px !important;
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                justify-content: space-between !important;
+            }
+            .fnx-brand-tag {
+                display: none !important;
+            }
+            .fnx-brand-img {
+                height: 34px !important;
+            }
+            .fnx-user-btn {
+                padding: 4px 10px 4px 4px !important;
+            }
+            .fnx-user-name {
+                display: none !important;
+            }
+            .fnx-nav-links {
+                order: 3;
+                width: 100%;
+                margin-top: 4px;
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+                gap: 6px !important;
+                padding: 4px 2px 8px !important;
+                scrollbar-width: none;
+            }
+            .fnx-nav-links::-webkit-scrollbar {
+                display: none;
+            }
+            .fnx-nav-links a {
+                padding: 6px 12px !important;
+                font-size: 12.5px !important;
+                white-space: nowrap !important;
+                flex-shrink: 0 !important;
+            }
+            .fnx-container {
+                margin: 14px auto 32px !important;
+                padding: 0 12px !important;
+            }
+            .fnx-main-columns {
+                grid-template-columns: 1fr !important;
+                gap: 16px !important;
+            }
+            .fnx-welcome-banner {
+                padding: 18px 16px !important;
+                gap: 14px !important;
+            }
+            .fnx-welcome-actions {
+                width: 100% !important;
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 8px !important;
+            }
+            .fnx-welcome-actions .fnx-btn {
+                width: 100% !important;
+                box-sizing: border-box !important;
+                justify-content: center !important;
+                font-size: 12px !important;
+                padding: 8px 10px !important;
+            }
+            .fnx-grid-4 {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 12px !important;
+            }
+            .fnx-grid-2 {
+                grid-template-columns: 1fr !important;
+            }
+            .fnx-card {
+                padding: 16px !important;
+                border-radius: 12px !important;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .fnx-welcome-actions {
+                grid-template-columns: 1fr !important;
+            }
+            .fnx-grid-4 {
+                grid-template-columns: 1fr !important;
+            }
+        }
     </style>
 </head>
 <body>

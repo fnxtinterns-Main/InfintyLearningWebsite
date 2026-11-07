@@ -91,7 +91,11 @@ final class Auth
     public static function isManagerOrAbove(): bool
     {
         $role = self::role();
-        return in_array($role, ['admin', 'ceo', 'cto', 'office_manager', 'manager'], true);
+        if (in_array($role, ['admin', 'ceo', 'cto', 'office_manager', 'manager'], true)) {
+            return true;
+        }
+        $desig = strtolower($_SESSION['fnx_designation'] ?? '');
+        return str_contains($desig, 'in-charge') || str_contains($desig, 'incharge');
     }
 
     public static function requireLogin(): void
