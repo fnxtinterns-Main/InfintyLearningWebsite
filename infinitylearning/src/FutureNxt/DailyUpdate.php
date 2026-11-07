@@ -121,40 +121,46 @@ final class DailyUpdate
      */
     public static function getByTask(int $taskId, ?string $taskCode = null): array
     {
-        $db = Database::connect();
+        try {
+            $db = Database::connect();
 
-        $sql = "
-            SELECT u.*,
-                   e.full_name AS employee_name,
-                   e.emp_code,
-                   e.role AS employee_role,
-                   e.designation,
-                   e.photo_path
-            FROM fnx_daily_updates u
-            JOIN fnx_employees e ON e.id = u.employee_id
-            LEFT JOIN fnx_daily_update_tasks ut ON ut.daily_update_id = u.id AND ut.task_id = ?
-            WHERE ut.task_id IS NOT NULL
-        ";
-        $params = [$taskId];
+            $sql = "
+                SELECT DISTINCT
+                       u.*,
+                       e.full_name AS employee_name,
+                       e.emp_code,
+                       e.role AS employee_role,
+                       e.designation,
+                       e.photo_path
+                FROM fnx_daily_updates u
+                JOIN fnx_employees e ON e.id = u.employee_id
+                LEFT JOIN fnx_daily_update_tasks ut ON ut.daily_update_id = u.id AND ut.task_id = ?
+                WHERE (ut.task_id IS NOT NULL
+            ";
+            $params = [$taskId];
 
-        if (!empty($taskCode)) {
-            $sql .= " OR u.tasks_summary LIKE ? OR u.work_done LIKE ?";
-            $params[] = '%' . $taskCode . '%';
-            $params[] = '%' . $taskCode . '%';
+            if (!empty($taskCode)) {
+                $sql .= " OR u.tasks_summary LIKE ? OR u.work_done LIKE ?";
+                $params[] = '%' . $taskCode . '%';
+                $params[] = '%' . $taskCode . '%';
+            }
+
+            $sql .= ") ORDER BY u.update_date DESC, u.created_at DESC";
+
+            $stmt = $db->prepare($sql);
+            $stmt->execute($params);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+            foreach ($rows as &$r) {
+                $r['formatted_date'] = !empty($r['update_date']) ? date('d M Y', strtotime($r['update_date'])) : '';
+                $r['formatted_ist_time'] = !empty($r['updated_at']) ? Audit::formatIst($r['updated_at'], 'h:i A') : (!empty($r['created_at']) ? Audit::formatIst($r['created_at'], 'h:i A') : '');
+            }
+
+            return $rows;
+        } catch (\Throwable $e) {
+            error_log("[DailyUpdate::getByTask] " . $e->getMessage());
+            return [];
         }
-
-        $sql .= " GROUP BY u.id ORDER BY u.update_date DESC, u.created_at DESC";
-
-        $stmt = $db->prepare($sql);
-        $stmt->execute($params);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-
-        foreach ($rows as &$r) {
-            $r['formatted_date'] = !empty($r['update_date']) ? date('d M Y', strtotime($r['update_date'])) : '';
-            $r['formatted_ist_time'] = !empty($r['updated_at']) ? Audit::formatIst($r['updated_at'], 'h:i A') : (!empty($r['created_at']) ? Audit::formatIst($r['created_at'], 'h:i A') : '');
-        }
-
-        return $rows;
     }
 
     /**

@@ -21,12 +21,16 @@ final class Session
         @ini_set('session.gc_maxlifetime', '2592000');
         @ini_set('session.cookie_lifetime', '2592000');
 
+        $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                    || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https')
+                    || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
+
         session_name($config['session']['name'] ?? 'il_session');
         session_set_cookie_params([
             'lifetime' => (int)($config['session']['lifetime'] ?? 2592000),
             'path'     => '/',
             'httponly' => true,
-            'secure'   => ($_SERVER['HTTPS'] ?? '') === 'on',
+            'secure'   => $isSecure,
             'samesite' => 'Lax',
         ]);
 
