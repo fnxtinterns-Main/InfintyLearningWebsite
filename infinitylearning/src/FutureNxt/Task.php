@@ -107,7 +107,11 @@ final class Task
         $sql = "
             SELECT t.*,
                 creator.full_name AS created_by_name,
+                creator.emp_code AS created_by_code,
                 approver.full_name AS approved_by_name,
+                approver.emp_code AS approved_by_code,
+                approver.role AS approved_by_role,
+                approver.designation AS approved_by_designation,
                 GROUP_CONCAT(DISTINCT CONCAT(e.id, ':', e.full_name, ':', e.emp_code, ':', ta.is_active) SEPARATOR '||') AS assignees_raw
             FROM fnx_tasks t
             LEFT JOIN fnx_task_assignees ta ON ta.task_id = t.id
@@ -126,6 +130,18 @@ final class Task
         if (!empty($filters['status'])) {
             $sql .= " AND t.status = ?";
             $params[] = $filters['status'];
+        }
+        if (!empty($filters['exclude_status'])) {
+            if (is_array($filters['exclude_status'])) {
+                $placeholders = implode(',', array_fill(0, count($filters['exclude_status']), '?'));
+                $sql .= " AND t.status NOT IN ($placeholders)";
+                foreach ($filters['exclude_status'] as $st) {
+                    $params[] = $st;
+                }
+            } else {
+                $sql .= " AND t.status != ?";
+                $params[] = $filters['exclude_status'];
+            }
         }
         if (!empty($filters['priority'])) {
             $sql .= " AND t.priority = ?";
@@ -201,7 +217,11 @@ final class Task
         $stmt = $db->prepare("
             SELECT t.*,
                 creator.full_name AS created_by_name,
-                approver.full_name AS approved_by_name
+                creator.emp_code AS created_by_code,
+                approver.full_name AS approved_by_name,
+                approver.emp_code AS approved_by_code,
+                approver.role AS approved_by_role,
+                approver.designation AS approved_by_designation
             FROM fnx_tasks t
             LEFT JOIN fnx_employees creator ON creator.id = t.created_by
             LEFT JOIN fnx_employees approver ON approver.id = t.approved_by

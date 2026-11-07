@@ -17,12 +17,17 @@ $myTasksOnly = isset($_GET['my']) && $_GET['my'] === '1';
 $filters = [];
 if (!empty($statusFilter)) {
     $filters['status'] = $statusFilter;
+} else {
+    // Crucial rule: Exclude approved tasks from "All Tasks" and "My Assignments"
+    // Approved tasks are strictly segregated into the "Approved" section.
+    $filters['exclude_status'] = 'approved';
 }
 if ($myTasksOnly || !Auth::isManagerOrAbove()) {
     $filters['employee_id'] = (int)$me['id'];
 }
 
 $tasks = Task::list($filters);
+$taskStats = Task::getStats();
 $allEmployees = Employee::list(['status' => 'active']);
 
 $error = $_GET['error'] ?? $_SESSION['fnx_error'] ?? null;
@@ -65,14 +70,24 @@ require __DIR__ . '/../layouts/header.php';
     <div class="fnx-card" style="padding:16px 20px; margin-bottom:24px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <a href="/futurenxt/tasks" class="fnx-btn <?= empty($statusFilter) && !$myTasksOnly ? 'fnx-btn-dark' : 'fnx-btn-outline' ?>" style="padding:6px 12px; font-size:12.5px;">All Tasks</a>
-                <a href="/futurenxt/tasks?my=1" class="fnx-btn <?= $myTasksOnly ? 'fnx-btn-dark' : 'fnx-btn-outline' ?>" style="padding:6px 12px; font-size:12.5px;">My Assignments</a>
-                <a href="/futurenxt/tasks?status=in_progress" class="fnx-btn <?= $statusFilter === 'in_progress' ? 'fnx-btn-dark' : 'fnx-btn-outline' ?>" style="padding:6px 12px; font-size:12.5px;">In Progress</a>
-                <a href="/futurenxt/tasks?status=submitted" class="fnx-btn <?= $statusFilter === 'submitted' ? 'fnx-btn-dark' : 'fnx-btn-outline' ?>" style="padding:6px 12px; font-size:12.5px;">Pending Approval</a>
-                <a href="/futurenxt/tasks?status=approved" class="fnx-btn <?= $statusFilter === 'approved' ? 'fnx-btn-dark' : 'fnx-btn-outline' ?>" style="padding:6px 12px; font-size:12.5px;">Approved</a>
+                <a href="/futurenxt/tasks" class="fnx-btn <?= empty($statusFilter) && !$myTasksOnly ? 'fnx-btn-dark' : 'fnx-btn-outline' ?>" style="padding:6px 14px; font-size:12.5px;">
+                    Active Tasks (<?= (int)(($taskStats['pending'] ?? 0) + ($taskStats['in_progress'] ?? 0) + ($taskStats['reopened'] ?? 0) + ($taskStats['submitted'] ?? 0)) ?>)
+                </a>
+                <a href="/futurenxt/tasks?my=1" class="fnx-btn <?= $myTasksOnly ? 'fnx-btn-dark' : 'fnx-btn-outline' ?>" style="padding:6px 14px; font-size:12.5px;">
+                    My Assignments
+                </a>
+                <a href="/futurenxt/tasks?status=in_progress" class="fnx-btn <?= $statusFilter === 'in_progress' ? 'fnx-btn-dark' : 'fnx-btn-outline' ?>" style="padding:6px 14px; font-size:12.5px;">
+                    In Progress (<?= (int)(($taskStats['in_progress'] ?? 0) + ($taskStats['pending'] ?? 0) + ($taskStats['reopened'] ?? 0)) ?>)
+                </a>
+                <a href="/futurenxt/tasks?status=submitted" class="fnx-btn <?= $statusFilter === 'submitted' ? 'fnx-btn-dark' : 'fnx-btn-outline' ?>" style="padding:6px 14px; font-size:12.5px;">
+                    Pending Approval (<?= (int)($taskStats['submitted'] ?? 0) ?>)
+                </a>
+                <a href="/futurenxt/tasks?status=approved" class="fnx-btn <?= $statusFilter === 'approved' ? 'fnx-btn-dark' : 'fnx-btn-outline' ?>" style="padding:6px 14px; font-size:12.5px; background:<?= $statusFilter === 'approved' ? '#065F46' : '#ECFDF5' ?>; color:<?= $statusFilter === 'approved' ? '#FFF' : '#047857' ?>; border-color:#A7F3D0;">
+                    ✓ Approved Tasks (<?= (int)($taskStats['approved'] ?? 0) ?>)
+                </a>
             </div>
             <div style="font-size:12.5px; color:var(--fnx-muted);">
-                Showing <strong><?= count($tasks) ?></strong> task(s)
+                Showing <strong><?= count($tasks) ?></strong> <?= $statusFilter === 'approved' ? 'approved' : 'active' ?> task(s)
             </div>
         </div>
     </div>
@@ -111,21 +126,25 @@ require __DIR__ . '/../layouts/header.php';
                                 }
                             }
                             $taskPayload = [
-                                'id'                => (int)$t['id'],
-                                'task_code'         => $t['task_code'],
-                                'title'             => $t['title'],
-                                'description'       => $t['description'] ?? '',
-                                'priority'          => $t['priority'] ?? 'medium',
-                                'status'            => $t['status'] ?? 'in_progress',
-                                'due_date'          => !empty($t['due_date']) ? date('d M Y', strtotime($t['due_date'])) : '—',
-                                'created_at'        => !empty($t['created_at']) ? date('d M Y, h:i A', strtotime($t['created_at'])) : '—',
-                                'created_by_name'   => $t['created_by_name'] ?? 'Management',
-                                'documentation_pdf' => !empty($t['documentation_pdf']) ? $t['documentation_pdf'] : (!empty($t['doc_path']) ? $t['doc_path'] : null),
-                                'review_feedback'   => $t['review_feedback'] ?? null,
-                                'assignees'         => $assignees,
-                                'can_submit_pdf'    => ($isAssignedToMe || Auth::isManagerOrAbove()) && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
-                                'can_reassign'      => Auth::isManagerOrAbove() && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
-                                'can_approve'       => Auth::isManagerOrAbove() && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
+                                'id'                      => (int)$t['id'],
+                                'task_code'               => $t['task_code'],
+                                'title'                   => $t['title'],
+                                'description'             => $t['description'] ?? '',
+                                'priority'                => $t['priority'] ?? 'medium',
+                                'status'                  => $t['status'] ?? 'in_progress',
+                                'due_date'                => !empty($t['due_date']) ? date('d M Y', strtotime($t['due_date'])) : '—',
+                                'created_at'              => !empty($t['created_at']) ? date('d M Y, h:i A', strtotime($t['created_at'])) : '—',
+                                'created_by_name'         => $t['created_by_name'] ?? 'Management',
+                                'approved_by_name'        => $t['approved_by_name'] ?? null,
+                                'approved_by_code'        => $t['approved_by_code'] ?? null,
+                                'approved_by_designation' => $t['approved_by_designation'] ?? (!empty($t['approved_by_role']) ? ucfirst($t['approved_by_role']) : null),
+                                'approved_at'             => !empty($t['approved_at']) ? Audit::formatIst($t['approved_at'], 'd M Y, h:i A') : null,
+                                'documentation_pdf'       => !empty($t['documentation_pdf']) ? $t['documentation_pdf'] : (!empty($t['doc_path']) ? $t['doc_path'] : null),
+                                'review_feedback'         => $t['review_feedback'] ?? null,
+                                'assignees'               => $assignees,
+                                'can_submit_pdf'          => ($isAssignedToMe || Auth::isManagerOrAbove()) && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
+                                'can_reassign'            => Auth::isManagerOrAbove() && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
+                                'can_approve'             => Auth::isManagerOrAbove() && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
                             ];
                             $taskJson = htmlspecialchars(json_encode($taskPayload, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES, 'UTF-8');
                             $docUrl = !empty($t['documentation_pdf']) ? $t['documentation_pdf'] : (!empty($t['doc_path']) ? $t['doc_path'] : null);
@@ -173,7 +192,30 @@ require __DIR__ . '/../layouts/header.php';
                                 </td>
                                 <td>
                                     <?php if ($t['status'] === 'approved'): ?>
-                                        <span class="fnx-badge fnx-badge-success">Approved ✓</span>
+                                        <span class="fnx-badge fnx-badge-success" style="font-size:11.5px;">Approved ✓</span>
+                                        <div style="margin-top:4px; line-height:1.35;">
+                                            <div style="font-size:12px; color:#065F46; font-weight:800;">
+                                                Approved by <?= htmlspecialchars($t['approved_by_name'] ?? 'Management') ?>
+                                                <?php if (!empty($t['approved_by_code'])): ?>
+                                                    <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; background:#D1FAE5; padding:1px 5px; border-radius:4px;"><?= htmlspecialchars($t['approved_by_code']) ?></span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <?php if (!empty($t['approved_by_designation']) || !empty($t['approved_by_role'])): ?>
+                                                <div style="font-size:11px; color:#047857; font-weight:600;">
+                                                    <?= htmlspecialchars($t['approved_by_designation'] ?? ucfirst($t['approved_by_role'])) ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($t['approved_at'])): ?>
+                                                <div style="font-size:10.5px; color:#4B5563; margin-top:2px;">
+                                                    <?= Audit::formatIst($t['approved_at'], 'd M Y, h:i A') ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($t['review_feedback'])): ?>
+                                                <div style="font-size:11px; color:#1F2937; margin-top:3px; background:#FFF7ED; border-left:2px solid var(--fnx-orange); padding:2px 6px; border-radius:3px; font-style:italic;">
+                                                    "<?= htmlspecialchars($t['review_feedback']) ?>"
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
                                     <?php elseif ($t['status'] === 'submitted'): ?>
                                         <span class="fnx-badge fnx-badge-warning">Under Review</span>
                                     <?php elseif ($t['status'] === 'in_progress'): ?>
@@ -484,6 +526,10 @@ require __DIR__ . '/../layouts/header.php';
                     <div style="font-size:11.5px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">Assigned By</div>
                     <div id="vtCreatedBy" style="font-size:13.5px; font-weight:600; color:#111827; margin-top:2px;"></div>
                 </div>
+                <div id="vtApprovedByWrap" style="display:none;">
+                    <div style="font-size:11.5px; font-weight:800; color:#065F46; text-transform:uppercase; letter-spacing:0.04em;">Approved By</div>
+                    <div id="vtApprovedBy" style="font-size:13px; font-weight:800; color:#065F46; margin-top:2px; line-height:1.35;"></div>
+                </div>
                 <div>
                     <div style="font-size:11.5px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">PDF Documentation</div>
                     <div id="vtDocStatus" style="font-size:13px; margin-top:2px;"></div>
@@ -542,6 +588,23 @@ function openViewTaskModal(elem) {
         
         document.getElementById('vtDueDate').innerText = t.due_date || '—';
         document.getElementById('vtCreatedBy').innerText = (t.created_by_name || 'Management') + ' · ' + (t.created_at || '');
+
+        // Approved By Information
+        const appWrap = document.getElementById('vtApprovedByWrap');
+        const appEl = document.getElementById('vtApprovedBy');
+        if (appWrap && appEl) {
+            if (st === 'approved') {
+                appWrap.style.display = 'block';
+                let txt = t.approved_by_name || 'Management';
+                if (t.approved_by_code) txt += ' (' + t.approved_by_code + ')';
+                if (t.approved_by_designation) txt += ' · ' + t.approved_by_designation;
+                if (t.approved_at) txt += ' on ' + t.approved_at;
+                appEl.innerText = txt;
+            } else {
+                appWrap.style.display = 'none';
+                appEl.innerText = '';
+            }
+        }
         
         // PDF Documentation
         const docEl = document.getElementById('vtDocStatus');

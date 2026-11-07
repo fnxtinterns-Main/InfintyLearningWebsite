@@ -26,7 +26,7 @@ $recentNotices = Notice::getRecent(3);
 
 $myActiveTasks = Task::listForEmployee((int)$me['id'], ['status' => 'in_progress']);
 $myActiveCount = count($myActiveTasks);
-$recentTasks = Task::list(['limit' => 6]);
+$recentTasks = Task::list(['exclude_status' => 'approved', 'limit' => 6]);
 $pendingLeaves = Leave::list(['status' => 'pending', 'limit' => 5]);
 $pendingWfhs = WFH::list(['status' => 'pending', 'limit' => 5]);
 $recentAudits = Audit::getRecent(6);
@@ -259,20 +259,24 @@ require __DIR__ . '/layouts/header.php';
                                         }
                                     }
                                     $taskPayload = [
-                                        'id'                => (int)$t['id'],
-                                        'task_code'         => $t['task_code'],
-                                        'title'             => $t['title'],
-                                        'description'       => $t['description'] ?? '',
-                                        'priority'          => $t['priority'] ?? 'medium',
-                                        'status'            => $t['status'] ?? 'in_progress',
-                                        'due_date'          => !empty($t['due_date']) ? date('d M Y', strtotime($t['due_date'])) : '—',
-                                        'created_at'        => !empty($t['created_at']) ? date('d M Y, h:i A', strtotime($t['created_at'])) : '—',
-                                        'created_by_name'   => $t['created_by_name'] ?? 'Management',
-                                        'documentation_pdf' => !empty($t['documentation_pdf']) ? $t['documentation_pdf'] : (!empty($t['doc_path']) ? $t['doc_path'] : null),
-                                        'review_feedback'   => $t['review_feedback'] ?? null,
-                                        'assignees'         => $assignees,
-                                        'can_submit_pdf'    => ($isAssignedToMe || Auth::isManagerOrAbove()) && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
-                                        'can_reassign'      => Auth::isManagerOrAbove() && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
+                                        'id'                      => (int)$t['id'],
+                                        'task_code'               => $t['task_code'],
+                                        'title'                   => $t['title'],
+                                        'description'             => $t['description'] ?? '',
+                                        'priority'                => $t['priority'] ?? 'medium',
+                                        'status'                  => $t['status'] ?? 'in_progress',
+                                        'due_date'                => !empty($t['due_date']) ? date('d M Y', strtotime($t['due_date'])) : '—',
+                                        'created_at'              => !empty($t['created_at']) ? date('d M Y, h:i A', strtotime($t['created_at'])) : '—',
+                                        'created_by_name'         => $t['created_by_name'] ?? 'Management',
+                                        'approved_by_name'        => $t['approved_by_name'] ?? null,
+                                        'approved_by_code'        => $t['approved_by_code'] ?? null,
+                                        'approved_by_designation' => $t['approved_by_designation'] ?? (!empty($t['approved_by_role']) ? ucfirst($t['approved_by_role']) : null),
+                                        'approved_at'             => !empty($t['approved_at']) ? Audit::formatIst($t['approved_at'], 'd M Y, h:i A') : null,
+                                        'documentation_pdf'       => !empty($t['documentation_pdf']) ? $t['documentation_pdf'] : (!empty($t['doc_path']) ? $t['doc_path'] : null),
+                                        'review_feedback'         => $t['review_feedback'] ?? null,
+                                        'assignees'               => $assignees,
+                                        'can_submit_pdf'          => ($isAssignedToMe || Auth::isManagerOrAbove()) && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
+                                        'can_reassign'            => Auth::isManagerOrAbove() && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
                                     ];
                                     $taskJson = htmlspecialchars(json_encode($taskPayload, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES, 'UTF-8');
                                     $docUrl = !empty($t['documentation_pdf']) ? $t['documentation_pdf'] : (!empty($t['doc_path']) ? $t['doc_path'] : null);
@@ -463,6 +467,10 @@ require __DIR__ . '/layouts/header.php';
                     <div style="font-size:11.5px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">Assigned By</div>
                     <div id="vtCreatedBy" style="font-size:13.5px; font-weight:600; color:#111827; margin-top:2px;"></div>
                 </div>
+                <div id="vtApprovedByWrap" style="display:none;">
+                    <div style="font-size:11.5px; font-weight:800; color:#065F46; text-transform:uppercase; letter-spacing:0.04em;">Approved By</div>
+                    <div id="vtApprovedBy" style="font-size:13px; font-weight:800; color:#065F46; margin-top:2px; line-height:1.35;"></div>
+                </div>
                 <div>
                     <div style="font-size:11.5px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">PDF Documentation</div>
                     <div id="vtDocStatus" style="font-size:13px; margin-top:2px;"></div>
@@ -521,6 +529,23 @@ function openViewTaskModal(elem) {
         
         document.getElementById('vtDueDate').innerText = t.due_date || '—';
         document.getElementById('vtCreatedBy').innerText = (t.created_by_name || 'Management') + ' · ' + (t.created_at || '');
+
+        // Approved By Information
+        const appWrap = document.getElementById('vtApprovedByWrap');
+        const appEl = document.getElementById('vtApprovedBy');
+        if (appWrap && appEl) {
+            if (st === 'approved') {
+                appWrap.style.display = 'block';
+                let txt = t.approved_by_name || 'Management';
+                if (t.approved_by_code) txt += ' (' + t.approved_by_code + ')';
+                if (t.approved_by_designation) txt += ' · ' + t.approved_by_designation;
+                if (t.approved_at) txt += ' on ' + t.approved_at;
+                appEl.innerText = txt;
+            } else {
+                appWrap.style.display = 'none';
+                appEl.innerText = '';
+            }
+        }
         
         // PDF Documentation
         const docEl = document.getElementById('vtDocStatus');
