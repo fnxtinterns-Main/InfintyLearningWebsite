@@ -466,4 +466,256 @@ final class EmailNotifier
 
         return ['success' => true, 'emails_sent' => $count];
     }
+
+    /**
+     * Send security confirmation email to partner that their password was updated.
+     */
+    public static function sendPasswordChangedConfirmation(int $employeeId, string $changedBy = 'Administration'): bool
+    {
+        try {
+            $db = Database::connect();
+            $stmt = $db->prepare("SELECT * FROM fnx_employees WHERE id = ? LIMIT 1");
+            $stmt->execute([$employeeId]);
+            $emp = $stmt->fetch();
+            if (!$emp || empty($emp['email'])) {
+                return false;
+            }
+
+            $subject = "FutureNxt Security Alert: Your Account Password Has Been Updated";
+            $loginUrl = "https://infintylearning.net/futurenxt/login";
+            $nowIst = date('d M Y, h:i A') . ' IST';
+
+            $html = "
+                <div style=\"font-family:'Plus Jakarta Sans',Arial,sans-serif; max-width:600px; margin:0 auto; background:#FFF9F4; padding:30px; border-radius:14px; border:1.5px solid #F3DECB;\">
+                    <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;\">
+                        <span style=\"background:#10B981; color:#FFF; font-size:11.5px; font-weight:800; padding:4px 10px; border-radius:6px; letter-spacing:0.04em; text-transform:uppercase;\">Security Confirmation</span>
+                        <span style=\"font-size:12px; color:#6B7280;\">{$nowIst}</span>
+                    </div>
+
+                    <h2 style=\"margin:0 0 10px; color:#111827; font-size:20px; font-weight:800;\">Password Updated Successfully</h2>
+                    
+                    <p style=\"font-size:14px; color:#374151; line-height:1.6; margin:0 0 14px;\">
+                        Dear <strong>" . htmlspecialchars($emp['full_name']) . "</strong> (" . htmlspecialchars($emp['emp_code']) . "),
+                    </p>
+                    
+                    <p style=\"font-size:14px; color:#374151; line-height:1.6; margin:0 0 20px;\">
+                        This is an official confirmation that the login password for your <strong>FutureNxt Technologies Operations Portal</strong> account ({$emp['email']}) was successfully updated on <strong>{$nowIst}</strong> by <strong>" . htmlspecialchars($changedBy) . "</strong>.
+                    </p>
+
+                    <div style=\"background:#FFFFFF; border:1.5px solid #10B981; border-radius:10px; padding:18px; margin:20px 0; text-align:center;\">
+                        <div style=\"font-size:13px; font-weight:700; color:#065F46; margin-bottom:12px;\">
+                            ✓ Your account is secure and ready for sign-in with your new password.
+                        </div>
+                        <a href=\"{$loginUrl}\" style=\"display:inline-block; background:#FF7A18; color:#FFFFFF; text-decoration:none; padding:10px 24px; border-radius:6px; font-weight:700; font-size:13.5px;\">
+                            Sign In to Portal →
+                        </a>
+                    </div>
+
+                    <div style=\"background:#FEF2F2; border:1px solid #FECACA; border-left:4px solid #DC2626; border-radius:8px; padding:14px 18px; margin:20px 0;\">
+                        <strong style=\"color:#991B1B; font-size:13px; display:block; margin-bottom:4px;\">⚠️ Did you not authorize this change?</strong>
+                        <p style=\"margin:0; font-size:12.5px; color:#7F1D1D; line-height:1.5;\">
+                            If you did not request or approve this password change, please report this immediately to Administration at <a href=\"mailto:fnxt.admin@gmail.com\" style=\"color:#DC2626; font-weight:700;\">fnxt.admin@gmail.com</a>.
+                        </p>
+                    </div>
+
+                    <p style=\"font-size:12px; color:#9CA3AF; margin:24px 0 0; border-top:1px solid #F3DECB; padding-top:14px; text-align:center;\">
+                        FutureNxt Technologies Corporate Security · Dispatched from <strong>fnxt.admin@gmail.com</strong>
+                    </p>
+                </div>
+            ";
+
+            $sent = Mailer::send($emp['email'], $subject, $html, $emp['full_name'], self::getSmtpConfig());
+            if (!$sent) {
+                $sent = Mailer::send($emp['email'], $subject, $html, $emp['full_name']);
+            }
+            return $sent;
+        } catch (\Throwable $e) {
+            error_log("[EmailNotifier] Error sending password change confirmation: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Send email notification to all partners assigned to a new task.
+     */
+    public static function sendTaskAssigned(int $taskId, array $assigneeIds, int $assignedById): int
+    {
+        $sentCount = 0;
+        try {
+            $db = Database::connect();
+            $tStmt = $db->prepare("
+                SELECT t.*, creator.full_name AS created_by_name, creator.emp_code AS created_by_code
+                FROM fnx_tasks t
+                LEFT JOIN fnx_employees creator ON creator.id = t.created_by
+                WHERE t.id = ? LIMIT 1
+            ");
+            $tStmt->execute([$taskId]);
+            $task = $tStmt->fetch();
+            if (!$task) return 0;
+
+            $priorityBadge = strtoupper((string)($task['priority'] ?? 'MEDIUM'));
+            $subject = "New Task Assigned: [{$task['task_code']}] {$task['title']} ({$priorityBadge} Priority)";
+            $taskUrl = "https://infintylearning.net/futurenxt/tasks";
+
+            $assigneeIds = array_values(array_unique(array_filter(array_map('intval', $assigneeIds))));
+            if (empty($assigneeIds)) return 0;
+
+            $placeholders = implode(',', array_fill(0, count($assigneeIds), '?'));
+            $eStmt = $db->prepare("SELECT id, full_name, email, emp_code FROM fnx_employees WHERE id IN ({$placeholders})");
+            $eStmt->execute($assigneeIds);
+            $assignees = $eStmt->fetchAll() ?: [];
+
+            foreach ($assignees as $partner) {
+                if (empty($partner['email'])) continue;
+
+                $html = "
+                    <div style=\"font-family:'Plus Jakarta Sans',Arial,sans-serif; max-width:620px; margin:0 auto; background:#FFF9F4; padding:30px; border-radius:14px; border:1.5px solid #F3DECB;\">
+                        <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;\">
+                            <span style=\"background:#FF7A18; color:#FFF; font-size:11.5px; font-weight:800; padding:4px 10px; border-radius:6px; letter-spacing:0.04em;\">{$task['task_code']}</span>
+                            <span style=\"background:" . ($task['priority'] === 'urgent' ? '#DC2626' : ($task['priority'] === 'high' ? '#D97706' : '#2563EB')) . "; color:#FFF; font-size:11px; font-weight:800; padding:4px 10px; border-radius:6px;\">{$priorityBadge} PRIORITY</span>
+                        </div>
+
+                        <h2 style=\"margin:0 0 10px; color:#111827; font-size:20px; font-weight:800;\">" . htmlspecialchars($task['title']) . "</h2>
+                        
+                        <p style=\"font-size:14px; color:#374151; line-height:1.6; margin:0 0 16px;\">
+                            Dear <strong>" . htmlspecialchars($partner['full_name']) . "</strong> (" . htmlspecialchars($partner['emp_code']) . "),
+                        </p>
+                        
+                        <p style=\"font-size:14px; color:#374151; line-height:1.6; margin:0 0 18px;\">
+                            A new operational task has been assigned to you by <strong>" . htmlspecialchars($task['created_by_name'] ?? 'Management') . "</strong> (" . htmlspecialchars($task['created_by_code'] ?? 'FNX') . ").
+                        </p>
+
+                        <!-- Task Details Card -->
+                        <div style=\"background:#FFFFFF; border:1.5px solid #F3DECB; border-radius:10px; padding:18px; margin:18px 0;\">
+                            <table style=\"width:100%; border-collapse:collapse; font-size:13.5px;\">
+                                <tr>
+                                    <td style=\"padding:6px 0; color:#6B7280; width:130px; font-weight:600;\">Due Date:</td>
+                                    <td style=\"padding:6px 0; color:#111827; font-weight:800;\">" . date('d M Y', strtotime($task['due_date'])) . (!empty($task['due_time']) ? ' · ' . date('h:i A', strtotime($task['due_time'])) : '') . "</td>
+                                </tr>
+                                <tr>
+                                    <td style=\"padding:6px 0; color:#6B7280; font-weight:600;\">Priority:</td>
+                                    <td style=\"padding:6px 0; color:#111827; font-weight:700;\">{$priorityBadge}</td>
+                                </tr>
+                                <tr>
+                                    <td style=\"padding:6px 0; color:#6B7280; font-weight:600;\">Assigned By:</td>
+                                    <td style=\"padding:6px 0; color:#111827;\">" . htmlspecialchars($task['created_by_name'] ?? 'Management') . "</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Scope & Points -->
+                        <div style=\"margin:18px 0;\">
+                            <div style=\"font-size:12.5px; font-weight:800; color:#111827; text-transform:uppercase; margin-bottom:6px;\">Task Scope &amp; Requirements:</div>
+                            <div style=\"background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:16px; font-size:13.5px; color:#1F2937; line-height:1.65; white-space:pre-wrap;\">" . htmlspecialchars($task['description'] ?: 'Please review deliverables on the portal.') . "</div>
+                        </div>
+
+                        <div style=\"text-align:center; margin:24px 0 10px;\">
+                            <a href=\"{$taskUrl}\" style=\"display:inline-block; background:#FF7A18; color:#FFFFFF; text-decoration:none; padding:11px 28px; border-radius:8px; font-weight:800; font-size:14px; box-shadow:0 4px 12px rgba(255,122,24,0.25);\">
+                                Open Task on Portal →
+                            </a>
+                        </div>
+
+                        <p style=\"font-size:12px; color:#9CA3AF; margin:22px 0 0; border-top:1px solid #F3DECB; padding-top:14px; text-align:center;\">
+                            FutureNxt Technologies Operations System · Sent via <strong>fnxt.admin@gmail.com</strong>
+                        </p>
+                    </div>
+                ";
+
+                $sent = Mailer::send($partner['email'], $subject, $html, $partner['full_name'], self::getSmtpConfig());
+                if (!$sent) {
+                    $sent = Mailer::send($partner['email'], $subject, $html, $partner['full_name']);
+                }
+                if ($sent) $sentCount++;
+            }
+        } catch (\Throwable $e) {
+            error_log("[EmailNotifier] Error sending task assignment notification: " . $e->getMessage());
+        }
+        return $sentCount;
+    }
+
+    /**
+     * Send email notification when a task review decision is made (Approved or Revision Needed).
+     */
+    public static function sendTaskReviewDecision(int $taskId, string $status, ?string $feedback, int $reviewerId): bool
+    {
+        try {
+            $db = Database::connect();
+            $tStmt = $db->prepare("
+                SELECT t.*, rev.full_name AS reviewer_name, rev.emp_code AS reviewer_code
+                FROM fnx_tasks t
+                LEFT JOIN fnx_employees rev ON rev.id = ?
+                WHERE t.id = ? LIMIT 1
+            ");
+            $tStmt->execute([$reviewerId, $taskId]);
+            $task = $tStmt->fetch();
+            if (!$task) return false;
+
+            $isApproved = ($status === 'approved');
+            $statusLabel = $isApproved ? 'Approved ✓' : 'Revision Needed ⚠️';
+            $subject = "Task Update: [{$task['task_code']}] {$task['title']} — {$statusLabel}";
+            $taskUrl = "https://infintylearning.net/futurenxt/tasks";
+
+            // Find all assignees
+            $aStmt = $db->prepare("
+                SELECT e.full_name, e.email, e.emp_code
+                FROM fnx_task_assignees ta
+                JOIN fnx_employees e ON e.id = ta.employee_id
+                WHERE ta.task_id = ? AND ta.is_active = 1
+            ");
+            $aStmt->execute([$taskId]);
+            $assignees = $aStmt->fetchAll() ?: [];
+
+            foreach ($assignees as $partner) {
+                if (empty($partner['email'])) continue;
+
+                $html = "
+                    <div style=\"font-family:'Plus Jakarta Sans',Arial,sans-serif; max-width:600px; margin:0 auto; background:#FFF9F4; padding:28px; border-radius:14px; border:1.5px solid #F3DECB;\">
+                        <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;\">
+                            <span style=\"background:#FF7A18; color:#FFF; font-size:11.5px; font-weight:800; padding:4px 10px; border-radius:6px;\">{$task['task_code']}</span>
+                            <span style=\"background:" . ($isApproved ? '#10B981' : '#EF4444') . "; color:#FFF; font-size:11.5px; font-weight:800; padding:4px 10px; border-radius:6px;\">{$statusLabel}</span>
+                        </div>
+
+                        <h2 style=\"margin:0 0 10px; color:#111827; font-size:20px;\">" . htmlspecialchars($task['title']) . "</h2>
+                        
+                        <p style=\"font-size:14px; color:#374151; line-height:1.6; margin:0 0 14px;\">
+                            Dear <strong>" . htmlspecialchars($partner['full_name']) . "</strong>,
+                        </p>
+                        
+                        <p style=\"font-size:14px; color:#374151; line-height:1.6; margin:0 0 18px;\">
+                            Your submitted task has been reviewed by <strong>" . htmlspecialchars($task['reviewer_name'] ?? 'Management') . "</strong> (" . htmlspecialchars($task['reviewer_code'] ?? 'FNX') . ").
+                        </p>
+
+                        <!-- Management Feedback Box -->
+                        <div style=\"background:" . ($isApproved ? '#ECFDF5' : '#FEF3C7') . "; border:1.5px solid " . ($isApproved ? '#A7F3D0' : '#FDE68A') . "; border-radius:10px; padding:16px; margin:16px 0;\">
+                            <div style=\"font-size:12.5px; font-weight:800; color:" . ($isApproved ? '#065F46' : '#92400E') . "; margin-bottom:4px;\">
+                                Management Feedback / Review Notes:
+                            </div>
+                            <div style=\"font-size:13.5px; color:" . ($isApproved ? '#064E3B' : '#78350F') . "; line-height:1.6;\">
+                                " . nl2br(htmlspecialchars($feedback ?: ($isApproved ? 'Approved by management.' : 'Revision requested.'))) . "
+                            </div>
+                        </div>
+
+                        <div style=\"text-align:center; margin:22px 0 10px;\">
+                            <a href=\"{$taskUrl}\" style=\"display:inline-block; background:#FF7A18; color:#FFFFFF; text-decoration:none; padding:10px 24px; border-radius:6px; font-weight:700; font-size:13.5px;\">
+                                View Task Details on Portal →
+                            </a>
+                        </div>
+
+                        <p style=\"font-size:12px; color:#9CA3AF; margin:22px 0 0; border-top:1px solid #F3DECB; padding-top:14px; text-align:center;\">
+                            FutureNxt Technologies Operations System · Sent via <strong>fnxt.admin@gmail.com</strong>
+                        </p>
+                    </div>
+                ";
+
+                $sent = Mailer::send($partner['email'], $subject, $html, $partner['full_name'], self::getSmtpConfig());
+                if (!$sent) {
+                    $sent = Mailer::send($partner['email'], $subject, $html, $partner['full_name']);
+                }
+            }
+            return true;
+        } catch (\Throwable $e) {
+            error_log("[EmailNotifier] Error sending task review decision: " . $e->getMessage());
+            return false;
+        }
+    }
 }

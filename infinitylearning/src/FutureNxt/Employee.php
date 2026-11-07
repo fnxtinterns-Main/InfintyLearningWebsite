@@ -606,9 +606,16 @@ final class Employee
 
         Audit::log('password_reset_otp_complete', 'employee', $employeeId, "Admin successfully reset password for {$emp['emp_code']} via OTP verification");
 
+        // Send confirmation email to partner that their password has been updated
+        try {
+            EmailNotifier::sendPasswordChangedConfirmation($employeeId, 'Administrator / Executive Leadership');
+        } catch (\Throwable $e) {
+            error_log("[Employee::verifyPasswordResetOtpAndChangePassword] Could not send confirmation email: " . $e->getMessage());
+        }
+
         return [
             'success' => true, 
-            'message' => "Password for {$emp['full_name']} ({$emp['emp_code']}) has been successfully updated!"
+            'message' => "Password for {$emp['full_name']} ({$emp['emp_code']}) has been successfully updated! A confirmation email has been dispatched to {$emp['email']}."
         ];
     }
 

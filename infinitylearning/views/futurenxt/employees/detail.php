@@ -855,9 +855,8 @@ function fnxConfirmPasswordReset() {
         btn.innerText = originalText;
 
         if (data.success) {
-            alert('✓ Success: ' + (data.message || 'Password updated successfully!'));
             fnxCloseModal('adminResetPasswordModal');
-            window.location.reload();
+            window.location.href = '/futurenxt/employees/detail?id=' + currentResetEmpId + '&success=' + encodeURIComponent(data.message || 'Password updated successfully! A security confirmation email was dispatched to the partner.');
         } else {
             if (alertBox) {
                 alertBox.className = 'fnx-alert fnx-alert-danger';

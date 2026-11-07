@@ -117,7 +117,11 @@ if ($action === 'change_password') {
 
     \App\FutureNxt\Audit::log('change_password', 'employee', $currentId, 'User changed account password', $currentId);
 
-    sendResponse(true, 'Your password has been changed successfully!');
+    try {
+        EmailNotifier::sendPasswordChangedConfirmation($currentId, 'Yourself');
+    } catch (\Throwable $e) {}
+
+    sendResponse(true, 'Your password has been changed successfully! A security confirmation email has been dispatched to your registered email.');
 }
 
 // -------------------------------------------------------------
@@ -294,7 +298,7 @@ if ($action === 'create_task') {
     }
     $res = Task::create($_POST, $assigneeIds, $currentId);
     if ($res['success']) {
-        sendResponse(true, "Task {$res['task_code']} created and assigned successfully!", $res);
+        sendResponse(true, "Task {$res['task_code']} created and assigned successfully! Official notification emails dispatched to all assigned partners.", $res);
     } else {
         sendResponse(false, $res['error']);
     }

@@ -91,7 +91,14 @@ final class Task
             $ins->execute([$taskId, $empId, $createdBy]);
         }
 
-        Audit::log('create', 'task', $taskId, "Created task {$taskCode}: {$title} assigned to " . count($assigneeIds) . " employees");
+        Audit::log('create', 'task', $taskId, "Created task {$taskCode}: {$title} assigned to " . count($assigneeIds) . " partners");
+
+        // Send email notifications to all assigned partners
+        try {
+            EmailNotifier::sendTaskAssigned($taskId, $assigneeIds, $createdBy);
+        } catch (\Throwable $e) {
+            error_log("[Task::create] Could not dispatch assignment emails: " . $e->getMessage());
+        }
 
         return ['success' => true, 'id' => $taskId, 'task_code' => $taskCode];
     }
@@ -403,6 +410,9 @@ final class Task
             $stmt->execute([$approverId, trim((string)$feedback) ?: null, $taskId]);
 
             Audit::log('approve', 'task', $taskId, "Approved task {$task['task_code']}", $approverId);
+            try {
+                EmailNotifier::sendTaskReviewDecision($taskId, 'approved', $feedback, $approverId);
+            } catch (\Throwable $e) {}
             return true;
         } catch (\Throwable $e) {
             error_log('Task::approve error: ' . $e->getMessage());
@@ -435,6 +445,9 @@ final class Task
             }
 
             Audit::log('reject', 'task', $taskId, "Returned task {$task['task_code']} for revision: " . ($feedback ?: 'Needs rework'), $reviewerId);
+            try {
+                EmailNotifier::sendTaskReviewDecision($taskId, 'reopened', $feedback, $reviewerId);
+            } catch (\Throwable $e) {}
             return true;
         } catch (\Throwable $e) {
             error_log('Task::reject error: ' . $e->getMessage());
