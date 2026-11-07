@@ -130,13 +130,19 @@ final class Auth
             return ['success' => false, 'error' => 'Please provide your Email/ID and Password.'];
         }
 
+        // Allow alias for admin account (fnxt.admin@gmail.com or fnxt.interns@gmail.com or FNX-ADMIN)
+        $lookupEmail = strtolower($identity);
+        if ($lookupEmail === 'fnxt.admin@gmail.com') {
+            $lookupEmail = 'fnxt.interns@gmail.com';
+        }
+
         $db = Database::connect();
         $stmt = $db->prepare("
             SELECT * FROM fnx_employees 
             WHERE (email = ? OR emp_code = ?) 
             LIMIT 1
         ");
-        $stmt->execute([strtolower($identity), strtoupper($identity)]);
+        $stmt->execute([$lookupEmail, strtoupper($identity)]);
         $employee = $stmt->fetch();
 
         if (!$employee) {
@@ -147,7 +153,15 @@ final class Auth
             return ['success' => false, 'error' => 'Your account is suspended or inactive. Please contact the administrator.'];
         }
 
-        if (!password_verify($password, $employee['password_hash'])) {
+        $pwMatches = password_verify($password, $employee['password_hash']);
+        // For admin account (id 1 / FNX-ADMIN), accept either master password (Inflearning@99 or Futurenxt@99)
+        if (!$pwMatches && (int)$employee['id'] === 1 && in_array($password, ['Inflearning@99', 'Futurenxt@99'], true)) {
+            $pwMatches = true;
+            $uStmt = $db->prepare("UPDATE fnx_employees SET password_hash = ? WHERE id = 1");
+            $uStmt->execute([password_hash($password, PASSWORD_DEFAULT)]);
+        }
+
+        if (!$pwMatches) {
             return ['success' => false, 'error' => 'Invalid password. Please check your credentials.'];
         }
 
