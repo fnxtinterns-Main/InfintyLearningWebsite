@@ -4,6 +4,7 @@ declare(strict_types=1);
 use App\FutureNxt\Auth;
 use App\FutureNxt\Employee;
 use App\FutureNxt\Task;
+use App\FutureNxt\DailyUpdate;
 use App\FutureNxt\Audit;
 use App\Helper;
 
@@ -143,6 +144,7 @@ require __DIR__ . '/../layouts/header.php';
                                 'documentation_pdf'       => !empty($t['documentation_pdf']) ? $t['documentation_pdf'] : (!empty($t['doc_path']) ? $t['doc_path'] : null),
                                 'review_feedback'         => $t['review_feedback'] ?? null,
                                 'assignees'               => $assignees,
+                                'daily_updates'           => DailyUpdate::getByTask((int)$t['id'], $t['task_code']),
                                 'can_submit_pdf'          => ($isAssignedToMe || Auth::isManagerOrAbove()) && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
                                 'can_reassign'            => Auth::isManagerOrAbove() && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
                                 'can_approve'             => Auth::isManagerOrAbove() && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
@@ -558,6 +560,23 @@ require __DIR__ . '/../layouts/header.php';
                 <strong style="font-size:12.5px; color:#92400E; display:block; margin-bottom:2px;">Management Review Feedback:</strong>
                 <p id="vtFeedbackText" style="margin:0; font-size:13px; color:#78350F; line-height:1.5;"></p>
             </div>
+
+            <!-- Task Progress & Daily Work Updates -->
+            <div style="border-top:1.5px solid var(--fnx-border); padding-top:14px; margin-top:4px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:16px;">⏱️</span>
+                        <label class="fnx-form-label" style="margin:0; font-size:13.5px; font-weight:800; color:var(--fnx-navy);">
+                            Task Progress &amp; Daily Work Updates
+                        </label>
+                    </div>
+                    <span id="vtUpdatesCount" class="fnx-badge fnx-badge-orange" style="font-size:11px;">0 updates logged</span>
+                </div>
+
+                <div id="vtUpdatesContainer" style="max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:2px;">
+                    <!-- Dynamically injected -->
+                </div>
+            </div>
         </div>
 
         <div class="fnx-modal-footer" style="justify-content:space-between; flex-wrap:wrap; gap:10px;">
@@ -640,6 +659,55 @@ function openViewTaskModal(elem) {
             document.getElementById('vtFeedbackText').innerText = t.review_feedback;
         } else {
             fbBox.style.display = 'none';
+        }
+
+        // Daily Work Updates Timeline
+        const upCountEl = document.getElementById('vtUpdatesCount');
+        const upBox = document.getElementById('vtUpdatesContainer');
+        upBox.innerHTML = '';
+        
+        const updates = t.daily_updates || [];
+        if (updates.length > 0) {
+            let totalHours = 0;
+            updates.forEach(u => {
+                if (u.hours_spent) totalHours += parseFloat(u.hours_spent);
+            });
+            upCountEl.innerText = updates.length + (updates.length === 1 ? ' update' : ' updates') + (totalHours > 0 ? ' · ' + totalHours.toFixed(1) + ' hrs total' : '');
+            
+            updates.forEach(function(u) {
+                const card = document.createElement('div');
+                card.style.cssText = 'background:#FFFFFF; border:1px solid var(--fnx-border); border-left:4px solid var(--fnx-orange); border-radius:8px; padding:12px 14px;';
+                
+                let html = '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; flex-wrap:wrap; gap:6px;">';
+                html += '<div style="display:flex; align-items:center; gap:8px;">';
+                html += '<strong style="font-size:13px; color:var(--fnx-navy);">' + (u.employee_name || 'Assignee') + '</strong>';
+                if (u.emp_code) html += '<span class="fnx-badge fnx-badge-info" style="font-size:10.5px;">' + u.emp_code + '</span>';
+                if (u.hours_spent) {
+                    html += '<span class="fnx-badge fnx-badge-orange" style="font-size:10.5px;">⏱️ ' + parseFloat(u.hours_spent).toFixed(1) + ' hrs</span>';
+                }
+                html += '</div>';
+                html += '<span style="font-size:11.5px; font-weight:700; color:#6B7280;">📅 ' + (u.formatted_date || u.update_date) + (u.formatted_ist_time ? ' · ' + u.formatted_ist_time : '') + '</span>';
+                html += '</div>';
+
+                // Work Accomplished
+                html += '<div style="white-space:pre-wrap; word-break:break-word; font-size:12.5px; line-height:1.6; color:#1F2937; background:#FFF9F4; padding:9px 12px; border-radius:6px; border:1px solid #F3DECB;">' + (u.work_done || 'No details provided.') + '</div>';
+
+                // Blockers
+                if (u.blockers && u.blockers.trim() !== '') {
+                    html += '<div style="margin-top:6px; font-size:12px; color:#DC2626; background:#FEF2F2; padding:6px 10px; border-radius:6px; border:1px solid #FCA5A5;"><strong>⚠️ Blocker:</strong> ' + u.blockers + '</div>';
+                }
+
+                // Plan tomorrow
+                if (u.plan_tomorrow && u.plan_tomorrow.trim() !== '') {
+                    html += '<div style="margin-top:6px; font-size:12px; color:#4B5563;"><strong>🎯 Next Steps:</strong> ' + u.plan_tomorrow + '</div>';
+                }
+
+                card.innerHTML = html;
+                upBox.appendChild(card);
+            });
+        } else {
+            upCountEl.innerText = '0 updates logged';
+            upBox.innerHTML = '<div style="padding:16px; text-align:center; background:#FFF9F4; border:1px dashed var(--fnx-border); border-radius:8px; color:#6B7280; font-size:12.5px;">No daily work updates logged for this task yet. Daily progress updates logged by assignees will appear here automatically.</div>';
         }
 
         // Action buttons

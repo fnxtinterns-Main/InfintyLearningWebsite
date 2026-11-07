@@ -38,10 +38,33 @@ require __DIR__ . '/../layouts/header.php';
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
         <a href="/futurenxt/employees" class="fnx-btn fnx-btn-outline">← Back to Personnel Directory</a>
         <?php if (Auth::isAdminOrExec()): ?>
-            <div style="display:flex; gap:10px; align-items:center;">
-                <span class="fnx-badge <?= $employee['status'] === 'active' ? 'fnx-badge-success' : 'fnx-badge-danger' ?>">
-                    Status: <?= ucfirst($employee['status']) ?>
-                </span>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <?php if ($employee['status'] === 'active'): ?>
+                    <span class="fnx-badge fnx-badge-success">Status: Active</span>
+                <?php elseif ($employee['status'] === 'suspended'): ?>
+                    <span class="fnx-badge" style="background:#EF4444; color:#FFFFFF; font-weight:800;">Status: Suspended</span>
+                <?php elseif ($employee['status'] === 'terminated'): ?>
+                    <span class="fnx-badge" style="background:#111827; color:#FFFFFF; font-weight:800;">Status: Terminated</span>
+                <?php elseif ($employee['status'] === 'resigned'): ?>
+                    <?php 
+                        $remDays = !empty($employee['notice_end_date']) ? max(0, (int)ceil((strtotime($employee['notice_end_date']) - time()) / 86400)) : 15;
+                    ?>
+                    <span class="fnx-badge fnx-badge-warning" style="font-weight:700;">
+                        15d Notice Period (<?= $remDays ?>d left · Ends: <?= !empty($employee['notice_end_date']) ? date('d M Y', strtotime($employee['notice_end_date'])) : '' ?>)
+                    </span>
+                <?php elseif ($employee['status'] === 'pip'): ?>
+                    <span class="fnx-badge fnx-badge-danger">Status: PIP</span>
+                <?php endif; ?>
+
+                <?php if ((int)$employee['id'] !== (int)$me['id']): ?>
+                    <button type="button" onclick="openAdminResetPasswordModal(<?= (int)$employee['id'] ?>, '<?= htmlspecialchars(addslashes($employee['full_name'])) ?>', '<?= htmlspecialchars(addslashes($employee['emp_code'])) ?>', '<?= htmlspecialchars(addslashes($employee['email'])) ?>')" class="fnx-btn fnx-btn-outline" style="font-size:13px; padding:7px 14px; color:#D97706; border-color:#FCD34D;">
+                        🔑 Reset Password (OTP)
+                    </button>
+                    <button type="button" onclick="openStatusModal(<?= (int)$employee['id'] ?>, '<?= htmlspecialchars(addslashes($employee['full_name'])) ?>', '<?= htmlspecialchars($employee['status']) ?>', '<?= htmlspecialchars(addslashes($employee['notice_end_date'] ?? '')) ?>', '<?= htmlspecialchars(addslashes($employee['status_remarks'] ?? '')) ?>')" class="fnx-btn fnx-btn-outline" style="font-size:13px; padding:7px 14px; color:#EF4444; border-color:#FCA5A5;">
+                        Status / Action
+                    </button>
+                <?php endif; ?>
+
                 <button type="button" onclick="fnxOpenModal('editEmpModal')" class="fnx-btn fnx-btn-orange" style="font-size:13px; padding:7px 16px;">
                     ✏️ Edit Profile
                 </button>
@@ -109,7 +132,36 @@ require __DIR__ . '/../layouts/header.php';
             </div>
         </div>
 
-        <?php if ($employee['status'] === 'pip'): ?>
+        <?php if ($employee['status'] === 'resigned'): ?>
+            <?php 
+                $remDays = !empty($employee['notice_end_date']) ? max(0, (int)ceil((strtotime($employee['notice_end_date']) - time()) / 86400)) : 15;
+            ?>
+            <div style="margin-top:20px; padding:14px 18px; background:#FEF3C7; border-left:4px solid #F59E0B; border-radius:8px; font-size:13px;">
+                <strong style="color:#92400E;">📜 15-Day Notice Period Active:</strong>
+                <p style="margin:4px 0 0; color:#78350F; font-size:13px;">
+                    Notice period duration: <strong><?= !empty($employee['notice_start_date']) ? date('d M Y', strtotime($employee['notice_start_date'])) : 'Today' ?></strong> to <strong><?= !empty($employee['notice_end_date']) ? date('d M Y', strtotime($employee['notice_end_date'])) : 'In 15 days' ?></strong> (<strong><?= $remDays ?> days remaining</strong>).
+                </p>
+                <?php if (!empty($employee['status_remarks'])): ?>
+                    <p style="margin:4px 0 0; color:#92400E; font-size:12.5px;">Remarks: <?= htmlspecialchars($employee['status_remarks']) ?></p>
+                <?php endif; ?>
+            </div>
+        <?php elseif ($employee['status'] === 'suspended'): ?>
+            <div style="margin-top:20px; padding:14px 18px; background:#FEF2F2; border-left:4px solid #EF4444; border-radius:8px; font-size:13px;">
+                <strong style="color:#991B1B;">⚠️ Account Suspended:</strong>
+                <p style="margin:4px 0 0; color:#7F1D1D;">This employee account has been suspended by administration. Portal login and daily updates are disabled.</p>
+                <?php if (!empty($employee['status_remarks'])): ?>
+                    <p style="margin:4px 0 0; color:#991B1B; font-size:12.5px;">Remarks: <?= htmlspecialchars($employee['status_remarks']) ?></p>
+                <?php endif; ?>
+            </div>
+        <?php elseif ($employee['status'] === 'terminated'): ?>
+            <div style="margin-top:20px; padding:14px 18px; background:#111827; border-left:4px solid #F97316; border-radius:8px; font-size:13px; color:#F3F4F6;">
+                <strong style="color:#F97316;">🛑 Employment Terminated:</strong>
+                <p style="margin:4px 0 0; color:#E5E7EB;">Employment record terminated. Portal credentials and permissions have been revoked.</p>
+                <?php if (!empty($employee['status_remarks'])): ?>
+                    <p style="margin:4px 0 0; color:#D1D5DB; font-size:12.5px;">Remarks: <?= htmlspecialchars($employee['status_remarks']) ?></p>
+                <?php endif; ?>
+            </div>
+        <?php elseif ($employee['status'] === 'pip'): ?>
             <div style="margin-top:20px; padding:14px 18px; background:#FEF2F2; border-left:4px solid #EF4444; border-radius:8px; font-size:13px;">
                 <strong style="color:#991B1B;">⚠️ Performance Improvement Plan (PIP) Active:</strong>
                 <p style="margin:4px 0 0; color:#7F1D1D;"><?= htmlspecialchars($employee['pip_reason'] ?? 'Under performance evaluation.') ?></p>
@@ -490,6 +542,336 @@ require __DIR__ . '/../layouts/header.php';
         </form>
     </div>
 </div>
+
+<!-- =========================================================================
+     MODAL: CHANGE STATUS / SUSPEND / TERMINATE / 15-DAY NOTICE PERIOD
+     ========================================================================= -->
+<div id="statusModal" class="fnx-modal-backdrop" style="display:none;">
+    <div class="fnx-modal-dialog" style="max-width:520px;">
+        <div class="fnx-modal-header">
+            <div>
+                <h3 style="margin:0; font-size:18px; font-weight:800; color:var(--fnx-navy);">Update Employment Status</h3>
+                <p id="statusModalEmpName" style="margin:2px 0 0; font-size:12.5px; color:var(--fnx-muted);"></p>
+            </div>
+            <button type="button" class="fnx-modal-close" onclick="fnxCloseModal('statusModal')">&times;</button>
+        </div>
+
+        <form method="POST" action="/futurenxt-handler.php?action=update_status">
+            <input type="hidden" id="statusEmpId" name="employee_id" value="">
+            <div class="fnx-modal-body">
+                <div style="margin-bottom:16px;">
+                    <label class="fnx-form-label">Employment Status *</label>
+                    <select id="statusSelect" name="status" class="fnx-select" onchange="toggleStatusNotices(this.value)" required>
+                        <option value="active">Active (Full Access)</option>
+                        <option value="resigned">Notice Period / Resignation (Strict 15 Days)</option>
+                        <option value="suspended">Suspended (Immediate Login Freeze)</option>
+                        <option value="terminated">Terminated (Permanent Access Revocation)</option>
+                        <option value="pip">Performance Improvement Plan (PIP)</option>
+                    </select>
+                </div>
+
+                <!-- 15-Day Notice Period Notice -->
+                <div id="noticePeriodBox" style="display:none; padding:12px 14px; background:#FEF3C7; border:1.5px solid #FDE68A; border-radius:8px; margin-bottom:16px;">
+                    <strong style="color:#92400E; font-size:13px; display:block; margin-bottom:4px;">📜 Company Notice Period Policy:</strong>
+                    <p style="margin:0; font-size:12.5px; color:#78350F; line-height:1.5;">
+                        Notice periods at FutureNxt are strictly <strong>15 calendar days</strong>. Setting status to Resigned automatically activates a 15-day countdown effective from today until <strong><?= date('d M Y', strtotime('+15 days')) ?></strong>.
+                    </p>
+                </div>
+
+                <!-- Suspended Warning -->
+                <div id="suspendedNoticeBox" style="display:none; padding:12px 14px; background:#FEF2F2; border:1.5px solid #FCA5A5; border-radius:8px; margin-bottom:16px;">
+                    <strong style="color:#991B1B; font-size:13px; display:block; margin-bottom:4px;">⚠️ Immediate Account Suspension:</strong>
+                    <p style="margin:0; font-size:12.5px; color:#7F1D1D; line-height:1.5;">
+                        The employee will be immediately locked out of the portal, active login sessions will be terminated, and they will be blocked from submitting daily updates.
+                    </p>
+                </div>
+
+                <!-- Terminated Warning -->
+                <div id="terminatedNoticeBox" style="display:none; padding:12px 14px; background:#111827; border:1.5px solid #374151; border-radius:8px; margin-bottom:16px;">
+                    <strong style="color:#F97316; font-size:13px; display:block; margin-bottom:4px;">🛑 Employment Termination:</strong>
+                    <p style="margin:0; font-size:12.5px; color:#F3F4F6; line-height:1.5;">
+                        Employment is terminated permanently. All portal access is revoked and active task assignments are archived.
+                    </p>
+                </div>
+
+                <!-- PIP Fields -->
+                <div id="pipFields" style="display:none; padding:14px; background:#FEF2F2; border:1px solid #FCA5A5; border-radius:10px; margin-bottom:16px;">
+                    <div style="margin-bottom:12px;">
+                        <label class="fnx-form-label" style="color:#991B1B;">Reason for PIP *</label>
+                        <textarea name="pip_reason" class="fnx-textarea" rows="2" placeholder="Describe the performance areas requiring improvement..."></textarea>
+                    </div>
+                    <div>
+                        <label class="fnx-form-label" style="color:#991B1B;">PIP Evaluation End Date</label>
+                        <input type="date" name="pip_end_date" class="fnx-input" value="<?= date('Y-m-d', strtotime('+30 days')) ?>">
+                    </div>
+                </div>
+
+                <!-- Status Remarks / Justification -->
+                <div style="margin-bottom:14px;">
+                    <label class="fnx-form-label">Status Remarks &amp; Notes (Optional)</label>
+                    <textarea id="statusRemarksText" name="status_remarks" class="fnx-textarea" rows="2" placeholder="Reason or administrative remarks for this status change..."></textarea>
+                </div>
+            </div>
+
+            <div class="fnx-modal-footer">
+                <button type="button" class="fnx-btn fnx-btn-outline" onclick="fnxCloseModal('statusModal')">Cancel</button>
+                <button type="submit" class="fnx-btn fnx-btn-orange">Confirm Status Change</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- =========================================================================
+     MODAL: ADMIN RESET PASSWORD VIA EMAIL OTP (NO CURRENT PASSWORD NEEDED)
+     ========================================================================= -->
+<div id="adminResetPasswordModal" class="fnx-modal-backdrop" style="display:none;">
+    <div class="fnx-modal-dialog" style="max-width:500px;">
+        <div class="fnx-modal-header">
+            <div>
+                <h3 style="margin:0; font-size:18px; font-weight:800; color:#111827;">🔑 Reset Employee Password</h3>
+                <p id="resetModalSubtitle" style="margin:2px 0 0; font-size:12.5px; color:#4B5563;"></p>
+            </div>
+            <button type="button" class="fnx-modal-close" onclick="fnxCloseModal('adminResetPasswordModal')">&times;</button>
+        </div>
+
+        <div class="fnx-modal-body">
+            <!-- STEP 1: Request OTP -->
+            <div id="otpStep1">
+                <div style="background:#FFF9F4; border:1px solid #F3DECB; border-radius:10px; padding:16px; margin-bottom:16px;">
+                    <p style="margin:0 0 10px; font-size:13.5px; color:#374151; line-height:1.5;">
+                        As an Administrator, you can update this employee's password without needing their current password.
+                    </p>
+                    <p style="margin:0; font-size:12.5px; color:#6B7280; line-height:1.5;">
+                        A secure 6-digit OTP will be dispatched to their registered email (<strong id="resetTargetEmailText"></strong>) from <strong>fnxt.admin@gmail.com</strong>.
+                    </p>
+                </div>
+
+                <div id="otpRequestAlert" style="display:none; margin-bottom:14px; padding:10px 14px; border-radius:8px; font-size:13px;"></div>
+
+                <button type="button" id="btnSendResetOtp" class="fnx-btn fnx-btn-orange" style="width:100%; justify-content:center; padding:11px 16px; font-size:14px; font-weight:700;" onclick="fnxSendPasswordOtp()">
+                    📧 Send 6-Digit OTP to Employee's Email →
+                </button>
+            </div>
+
+            <!-- STEP 2: Verify OTP & Enter New Password -->
+            <div id="otpStep2" style="display:none;">
+                <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:10px; padding:12px 14px; margin-bottom:16px; font-size:13px; color:#065F46;">
+                    ✓ 6-Digit OTP sent to <strong id="resetEmailConfirmed"></strong>. Valid for 15 minutes.
+                </div>
+
+                <div id="otpConfirmAlert" style="display:none; margin-bottom:14px; padding:10px 14px; border-radius:8px; font-size:13px;"></div>
+
+                <div style="margin-bottom:14px;">
+                    <label class="fnx-form-label">Enter 6-Digit Verification OTP *</label>
+                    <input type="text" id="resetOtpCode" class="fnx-input" maxlength="6" placeholder="• • • • • •" style="font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:900; letter-spacing:8px; text-align:center; padding:8px;" required>
+                </div>
+
+                <div style="margin-bottom:14px;">
+                    <label class="fnx-form-label">New Password *</label>
+                    <input type="password" id="resetNewPassword" class="fnx-input" placeholder="Enter new password (min. 6 characters)" required>
+                </div>
+
+                <div style="margin-bottom:18px;">
+                    <label class="fnx-form-label">Confirm New Password *</label>
+                    <input type="password" id="resetConfirmPassword" class="fnx-input" placeholder="Re-enter new password" required>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                    <button type="button" class="fnx-btn fnx-btn-outline" style="font-size:12px;" onclick="fnxSendPasswordOtp()">
+                        ↻ Resend OTP
+                    </button>
+                    <button type="button" id="btnConfirmReset" class="fnx-btn fnx-btn-orange" style="font-size:13.5px; font-weight:700;" onclick="fnxConfirmPasswordReset()">
+                        ✓ Verify OTP &amp; Update Password
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="fnx-modal-footer">
+            <button type="button" class="fnx-btn fnx-btn-outline" onclick="fnxCloseModal('adminResetPasswordModal')">Close Window</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentResetEmpId = null;
+let currentResetEmpEmail = '';
+
+function openStatusModal(id, name, currentStatus, noticeEndDate, remarks) {
+    document.getElementById('statusEmpId').value = id;
+    document.getElementById('statusModalEmpName').innerText = name;
+    const sel = document.getElementById('statusSelect');
+    sel.value = currentStatus;
+    const remEl = document.getElementById('statusRemarksText');
+    if (remEl) remEl.value = remarks || '';
+    toggleStatusNotices(currentStatus);
+    fnxOpenModal('statusModal');
+}
+
+function toggleStatusNotices(val) {
+    const pf = document.getElementById('pipFields');
+    const nb = document.getElementById('noticePeriodBox');
+    const sb = document.getElementById('suspendedNoticeBox');
+    const tb = document.getElementById('terminatedNoticeBox');
+
+    if (pf) pf.style.display = (val === 'pip') ? 'block' : 'none';
+    if (nb) nb.style.display = (val === 'resigned') ? 'block' : 'none';
+    if (sb) sb.style.display = (val === 'suspended') ? 'block' : 'none';
+    if (tb) tb.style.display = (val === 'terminated') ? 'block' : 'none';
+}
+
+function openAdminResetPasswordModal(id, name, code, email) {
+    currentResetEmpId = id;
+    currentResetEmpEmail = email || '';
+
+    document.getElementById('resetModalSubtitle').innerText = name + ' (' + code + ')';
+    document.getElementById('resetTargetEmailText').innerText = email || 'No email on record';
+
+    // Reset step views
+    document.getElementById('otpStep1').style.display = 'block';
+    document.getElementById('otpStep2').style.display = 'none';
+
+    const a1 = document.getElementById('otpRequestAlert');
+    if (a1) { a1.style.display = 'none'; a1.innerText = ''; }
+    const a2 = document.getElementById('otpConfirmAlert');
+    if (a2) { a2.style.display = 'none'; a2.innerText = ''; }
+
+    document.getElementById('resetOtpCode').value = '';
+    document.getElementById('resetNewPassword').value = '';
+    document.getElementById('resetConfirmPassword').value = '';
+
+    fnxOpenModal('adminResetPasswordModal');
+}
+
+function fnxSendPasswordOtp() {
+    if (!currentResetEmpId) return;
+
+    const btn = document.getElementById('btnSendResetOtp');
+    const alertBox = document.getElementById('otpRequestAlert');
+    const originalText = btn.innerText;
+
+    btn.disabled = true;
+    btn.innerText = '⏳ Dispatching OTP from fnxt.admin@gmail.com...';
+    if (alertBox) alertBox.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('employee_id', currentResetEmpId);
+
+    fetch('/futurenxt-handler.php?action=admin_request_password_otp', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerText = originalText;
+
+        if (data.success) {
+            document.getElementById('resetEmailConfirmed').innerText = data.email || currentResetEmpEmail;
+            document.getElementById('otpStep1').style.display = 'none';
+            document.getElementById('otpStep2').style.display = 'block';
+            document.getElementById('resetOtpCode').focus();
+        } else {
+            if (alertBox) {
+                alertBox.className = 'fnx-alert fnx-alert-danger';
+                alertBox.style.display = 'block';
+                alertBox.innerText = data.error || 'Failed to dispatch OTP. Please check server logs.';
+            } else {
+                alert(data.error || 'Failed to dispatch OTP.');
+            }
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerText = originalText;
+        if (alertBox) {
+            alertBox.className = 'fnx-alert fnx-alert-danger';
+            alertBox.style.display = 'block';
+            alertBox.innerText = 'Network error while dispatching OTP.';
+        }
+    });
+}
+
+function fnxConfirmPasswordReset() {
+    if (!currentResetEmpId) return;
+
+    const otp = document.getElementById('resetOtpCode').value.trim();
+    const newPass = document.getElementById('resetNewPassword').value.trim();
+    const confPass = document.getElementById('resetConfirmPassword').value.trim();
+    const alertBox = document.getElementById('otpConfirmAlert');
+
+    if (!otp || otp.length !== 6) {
+        if (alertBox) {
+            alertBox.className = 'fnx-alert fnx-alert-danger';
+            alertBox.style.display = 'block';
+            alertBox.innerText = 'Please enter the complete 6-digit OTP received via email.';
+        }
+        return;
+    }
+
+    if (!newPass || newPass.length < 6) {
+        if (alertBox) {
+            alertBox.className = 'fnx-alert fnx-alert-danger';
+            alertBox.style.display = 'block';
+            alertBox.innerText = 'New password must be at least 6 characters in length.';
+        }
+        return;
+    }
+
+    if (newPass !== confPass) {
+        if (alertBox) {
+            alertBox.className = 'fnx-alert fnx-alert-danger';
+            alertBox.style.display = 'block';
+            alertBox.innerText = 'Passwords do not match. Please verify both fields.';
+        }
+        return;
+    }
+
+    const btn = document.getElementById('btnConfirmReset');
+    const originalText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = '⏳ Verifying & Updating...';
+    if (alertBox) alertBox.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('employee_id', currentResetEmpId);
+    formData.append('otp_code', otp);
+    formData.append('new_password', newPass);
+
+    fetch('/futurenxt-handler.php?action=admin_confirm_password_reset', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerText = originalText;
+
+        if (data.success) {
+            alert('✓ Success: ' + (data.message || 'Password updated successfully!'));
+            fnxCloseModal('adminResetPasswordModal');
+            window.location.reload();
+        } else {
+            if (alertBox) {
+                alertBox.className = 'fnx-alert fnx-alert-danger';
+                alertBox.style.display = 'block';
+                alertBox.innerText = data.error || 'Failed to update password. Please check the OTP.';
+            } else {
+                alert(data.error || 'Failed to update password.');
+            }
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerText = originalText;
+        if (alertBox) {
+            alertBox.className = 'fnx-alert fnx-alert-danger';
+            alertBox.style.display = 'block';
+            alertBox.innerText = 'Network error while confirming password reset.';
+        }
+    });
+}
+</script>
 <?php endif; ?>
 
 <?php require __DIR__ . '/../layouts/footer.php'; ?>

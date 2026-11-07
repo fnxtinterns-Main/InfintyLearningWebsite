@@ -36,6 +36,9 @@ CREATE TABLE IF NOT EXISTS fnx_employees (
     status ENUM('active', 'suspended', 'pip', 'resigned', 'terminated') NOT NULL DEFAULT 'active',
     pip_reason TEXT NULL,
     pip_end_date DATE NULL,
+    notice_start_date DATE NULL,
+    notice_end_date DATE NULL,
+    status_remarks TEXT NULL,
     created_by BIGINT UNSIGNED NULL,
     last_login_at DATETIME NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -123,6 +126,44 @@ CREATE TABLE IF NOT EXISTS fnx_audit_logs (
     ip_address VARCHAR(50) NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_emp_audit (employee_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS fnx_daily_updates (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    employee_id BIGINT UNSIGNED NOT NULL,
+    update_date DATE NOT NULL,
+    tasks_summary TEXT NULL,
+    work_done TEXT NOT NULL,
+    blockers TEXT NULL,
+    plan_tomorrow TEXT NULL,
+    hours_spent DECIMAL(4,1) NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_emp_date (employee_id, update_date),
+    INDEX idx_date (update_date),
+    FOREIGN KEY (employee_id) REFERENCES fnx_employees(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS fnx_daily_update_tasks (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    daily_update_id BIGINT UNSIGNED NOT NULL,
+    task_id BIGINT UNSIGNED NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_update_task (daily_update_id, task_id),
+    INDEX idx_update (daily_update_id),
+    INDEX idx_task (task_id),
+    FOREIGN KEY (daily_update_id) REFERENCES fnx_daily_updates(id) ON DELETE CASCADE,
+    FOREIGN KEY (task_id) REFERENCES fnx_tasks(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS fnx_password_resets (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    employee_id BIGINT UNSIGNED NOT NULL,
+    otp_code VARCHAR(10) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_emp_otp (employee_id, otp_code),
+    FOREIGN KEY (employee_id) REFERENCES fnx_employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================

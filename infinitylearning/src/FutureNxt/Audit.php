@@ -9,7 +9,7 @@ final class Audit
     {
         try {
             $db = Database::connect();
-            if ($employeeId === null) {
+            if ($employeeId === null && class_exists(Auth::class)) {
                 $employeeId = Auth::id();
             }
             $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';

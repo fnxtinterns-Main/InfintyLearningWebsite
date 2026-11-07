@@ -197,18 +197,59 @@ if ($action === 'update_employee') {
 
 if ($action === 'update_status') {
     if (!Auth::isAdminOrExec()) {
-        sendResponse(false, 'Permission denied.');
+        sendResponse(false, 'Permission denied: Only Admin, CEO, and CTO can change employment status.');
     }
-    $empId  = (int)($_POST['employee_id'] ?? 0);
-    $status = trim((string)($_POST['status'] ?? 'active'));
-    $pipReason  = trim((string)($_POST['pip_reason'] ?? ''));
-    $pipEndDate = trim((string)($_POST['pip_end_date'] ?? ''));
+    $empId         = (int)($_POST['employee_id'] ?? 0);
+    $status        = trim((string)($_POST['status'] ?? 'active'));
+    $pipReason     = trim((string)($_POST['pip_reason'] ?? ''));
+    $pipEndDate    = trim((string)($_POST['pip_end_date'] ?? ''));
+    $statusRemarks = trim((string)($_POST['status_remarks'] ?? ''));
 
-    $ok = Employee::updateStatus($empId, $status, $pipReason, $pipEndDate);
+    $ok = Employee::updateStatus($empId, $status, $pipReason, $pipEndDate, $statusRemarks);
     if ($ok) {
-        sendResponse(true, "Employee status changed to " . strtoupper($status) . ".");
+        $msg = "Employee status changed to " . strtoupper($status) . ".";
+        if ($status === 'resigned') {
+            $msg .= " 15-day notice period active until " . date('d M Y', strtotime('+15 days')) . ".";
+        } elseif ($status === 'suspended') {
+            $msg .= " Account has been suspended and access revoked.";
+        } elseif ($status === 'terminated') {
+            $msg .= " Account terminated and portal access revoked.";
+        }
+        sendResponse(true, $msg);
     } else {
         sendResponse(false, 'Failed to update employee status.');
+    }
+}
+
+// -------------------------------------------------------------
+// ADMIN PASSWORD RESET VIA EMAIL OTP (NO CURRENT PASSWORD NEEDED)
+// -------------------------------------------------------------
+if ($action === 'admin_request_password_otp') {
+    if (!Auth::isAdminOrExec()) {
+        sendResponse(false, 'Permission denied: Only Admin/Executive Leadership can reset credentials.');
+    }
+    $empId = (int)($_POST['employee_id'] ?? 0);
+    $res = Employee::createPasswordResetOtp($empId);
+    if ($res['success']) {
+        sendResponse(true, $res['message'], $res);
+    } else {
+        sendResponse(false, $res['error']);
+    }
+}
+
+if ($action === 'admin_confirm_password_reset') {
+    if (!Auth::isAdminOrExec()) {
+        sendResponse(false, 'Permission denied: Only Admin/Executive Leadership can reset credentials.');
+    }
+    $empId       = (int)($_POST['employee_id'] ?? 0);
+    $otp         = trim((string)($_POST['otp_code'] ?? ''));
+    $newPassword = trim((string)($_POST['new_password'] ?? ''));
+
+    $res = Employee::verifyPasswordResetOtpAndChangePassword($empId, $otp, $newPassword);
+    if ($res['success']) {
+        sendResponse(true, $res['message']);
+    } else {
+        sendResponse(false, $res['error']);
     }
 }
 
@@ -372,6 +413,7 @@ if ($action === 'submit_daily_update') {
     $blockers     = trim((string)($_POST['blockers'] ?? ''));
     $planTomorrow = trim((string)($_POST['plan_tomorrow'] ?? ''));
     $hoursSpent   = !empty($_POST['hours_spent']) ? (float)$_POST['hours_spent'] : null;
+    $taskIds      = !empty($_POST['task_ids']) && is_array($_POST['task_ids']) ? $_POST['task_ids'] : [];
 
     $targetEmpId = $currentId;
     if (!empty($_POST['employee_id']) && Auth::isAdminOrExec()) {
@@ -385,7 +427,8 @@ if ($action === 'submit_daily_update') {
         $tasksSummary,
         $blockers,
         $planTomorrow,
-        $hoursSpent
+        $hoursSpent,
+        $taskIds
     );
 
     if ($res['success']) {
@@ -393,6 +436,16 @@ if ($action === 'submit_daily_update') {
     } else {
         sendResponse(false, $res['error']);
     }
+}
+
+if ($action === 'get_task_updates') {
+    $taskId   = (int)($_GET['task_id'] ?? 0);
+    $taskCode = trim((string)($_GET['task_code'] ?? ''));
+    if ($taskId <= 0) {
+        sendResponse(false, 'Invalid task ID');
+    }
+    $updates = DailyUpdate::getByTask($taskId, $taskCode);
+    sendResponse(true, 'Updates retrieved', ['updates' => $updates]);
 }
 
 // -------------------------------------------------------------

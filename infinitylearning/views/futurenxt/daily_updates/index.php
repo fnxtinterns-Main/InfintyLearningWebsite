@@ -44,6 +44,7 @@ $myTodayUpdate = DailyUpdate::getToday((int)$me['id'], date('Y-m-d'));
 
 // My active tasks for auto-filling
 $myActiveTasks = Task::listForEmployee((int)$me['id'], ['status' => 'in_progress']);
+$allOpenTasks  = Task::list(['exclude_status' => 'approved', 'limit' => 25]);
 
 // Company / Team Stats for selected date
 $managerIdForStats = (Auth::role() === 'manager' || Auth::role() === 'office_manager') ? (int)$me['id'] : null;
@@ -348,21 +349,38 @@ require __DIR__ . '/../layouts/header.php';
                     </div>
                 </div>
 
-                <!-- Active Tasks Selection -->
-                <?php if (!empty($myActiveTasks)): ?>
-                    <div style="margin-bottom:14px;">
-                        <label class="fnx-form-label">Tasks Worked On Today</label>
-                        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                <!-- Tasks Selection & Auto-Sync -->
+                <div style="margin-bottom:14px;">
+                    <label class="fnx-form-label" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>Tasks Worked On Today (Synchronized with Task View)</span>
+                        <span style="font-size:11px; color:var(--fnx-orange); font-weight:700;">🔗 Auto-Syncs to Task View</span>
+                    </label>
+                    <?php if (!empty($myActiveTasks)): ?>
+                        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
                             <?php foreach ($myActiveTasks as $at): ?>
                                 <label style="display:inline-flex; align-items:center; gap:6px; background:#FFF9F4; border:1px solid var(--fnx-border); padding:5px 10px; border-radius:6px; cursor:pointer; font-size:12px;">
-                                    <input type="checkbox" onchange="fnxAppendTaskSummary(this, '<?= htmlspecialchars(addslashes($at['task_code'] . ': ' . $at['title'])) ?>')" style="accent-color:var(--fnx-orange);">
+                                    <input type="checkbox" name="task_ids[]" value="<?= (int)$at['id'] ?>" onchange="fnxAppendTaskSummary(this, '<?= htmlspecialchars(addslashes($at['task_code'] . ': ' . $at['title'])) ?>')" style="accent-color:var(--fnx-orange);">
                                     <strong style="color:var(--fnx-orange);"><?= htmlspecialchars($at['task_code']) ?></strong>
                                     <span><?= htmlspecialchars(mb_substr($at['title'], 0, 30)) ?></span>
                                 </label>
                             <?php endforeach; ?>
                         </div>
-                    </div>
-                <?php endif; ?>
+                    <?php endif; ?>
+
+                    <?php if (!empty($allOpenTasks)): ?>
+                        <div style="margin-top:6px;">
+                            <select class="fnx-select" style="font-size:12px; padding:6px 10px;" onchange="fnxSelectDropdownTask(this)">
+                                <option value="">+ Link another task from list...</option>
+                                <?php foreach ($allOpenTasks as $ot): ?>
+                                    <option value="<?= (int)$ot['id'] ?>" data-code="<?= htmlspecialchars($ot['task_code']) ?>" data-title="<?= htmlspecialchars($ot['title']) ?>">
+                                        <?= htmlspecialchars($ot['task_code']) ?>: <?= htmlspecialchars($ot['title']) ?> (<?= ucfirst($ot['status']) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div id="additionalSelectedTasks" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;"></div>
+                        </div>
+                    <?php endif; ?>
+                </div>
 
                 <div style="margin-bottom:14px;">
                     <label class="fnx-form-label">Task(s) Summary / Subject Line</label>
@@ -419,6 +437,53 @@ function fnxAppendTaskSummary(chk, text) {
         parts = parts.filter(p => p !== text);
     }
     input.value = parts.join(', ');
+}
+
+function fnxSelectDropdownTask(sel) {
+    const val = sel.value;
+    if (!val) return;
+    const opt = sel.options[sel.selectedIndex];
+    const code = opt.getAttribute('data-code');
+    const title = opt.getAttribute('data-title');
+    const text = code + ': ' + title;
+
+    // Check if already added
+    const container = document.getElementById('additionalSelectedTasks');
+    if (container.querySelector('input[value="' + val + '"]')) {
+        sel.value = '';
+        return;
+    }
+
+    const badge = document.createElement('span');
+    badge.className = 'fnx-badge fnx-badge-orange';
+    badge.style.display = 'inline-flex';
+    badge.style.alignItems = 'center';
+    badge.style.gap = '6px';
+    badge.style.padding = '4px 8px';
+    badge.style.fontSize = '12px';
+    badge.innerHTML = '<strong>' + code + '</strong> ' + title.substring(0, 25) + ' <input type="hidden" name="task_ids[]" value="' + val + '"><button type="button" onclick="fnxRemoveSelectedTask(this, \'' + text.replace(/'/g, "\\'") + '\')" style="background:none; border:none; cursor:pointer; color:#B45309; font-weight:bold; font-size:14px; padding:0 2px;">&times;</button>';
+    container.appendChild(badge);
+
+    // Also append to summary
+    const input = document.getElementById('dailyTasksSummary');
+    if (input) {
+        let parts = input.value.split(',').map(s => s.trim()).filter(Boolean);
+        if (!parts.includes(text)) parts.push(text);
+        input.value = parts.join(', ');
+    }
+
+    sel.value = '';
+}
+
+function fnxRemoveSelectedTask(btn, text) {
+    const span = btn.closest('span');
+    if (span) span.remove();
+    const input = document.getElementById('dailyTasksSummary');
+    if (input) {
+        let parts = input.value.split(',').map(s => s.trim()).filter(Boolean);
+        parts = parts.filter(p => p !== text);
+        input.value = parts.join(', ');
+    }
 }
 
 // Auto-numbering pointers functionality

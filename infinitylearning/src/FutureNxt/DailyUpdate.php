@@ -17,7 +17,8 @@ final class DailyUpdate
         ?string $tasksSummary = null,
         ?string $blockers = null,
         ?string $planTomorrow = null,
-        ?float $hoursSpent = null
+        ?float $hoursSpent = null,
+        array $taskIds = []
     ): array {
         try {
             $db = Database::connect();
@@ -72,12 +73,88 @@ final class DailyUpdate
                 $id = (int)$chk->fetchColumn();
             }
 
+            // Sync tasks to fnx_daily_update_tasks
+            if ($id > 0) {
+                $cleanTaskIds = array_filter(array_map('intval', $taskIds), fn($v) => $v > 0);
+
+                // Auto-detect any TSK-xxxx codes mentioned in tasksSummary or workDone
+                $haystack = ($tasksSummary ?? '') . ' ' . $workDone;
+                if (preg_match_all('/TSK-\d{4}/i', $haystack, $matches)) {
+                    $foundCodes = array_unique(array_map('strtoupper', $matches[0]));
+                    if (!empty($foundCodes)) {
+                        $ph = implode(',', array_fill(0, count($foundCodes), '?'));
+                        $cStmt = $db->prepare("SELECT id FROM fnx_tasks WHERE UPPER(task_code) IN ($ph)");
+                        $cStmt->execute($foundCodes);
+                        $matchedIds = $cStmt->fetchAll(PDO::FETCH_COLUMN);
+                        foreach ($matchedIds as $mId) {
+                            $cleanTaskIds[] = (int)$mId;
+                        }
+                    }
+                }
+
+                $cleanTaskIds = array_unique($cleanTaskIds);
+
+                // Delete old associations for this update
+                $delRel = $db->prepare("DELETE FROM fnx_daily_update_tasks WHERE daily_update_id = ?");
+                $delRel->execute([$id]);
+
+                // Insert new associations
+                if (!empty($cleanTaskIds)) {
+                    $insRel = $db->prepare("INSERT IGNORE INTO fnx_daily_update_tasks (daily_update_id, task_id) VALUES (?, ?)");
+                    foreach ($cleanTaskIds as $tId) {
+                        $insRel->execute([$id, $tId]);
+                    }
+                }
+            }
+
             Audit::log('daily_update', 'daily_update', $id, "Submitted daily update for {$date}", $employeeId);
 
             return ['success' => true, 'id' => $id];
         } catch (\Throwable $e) {
             return ['success' => false, 'error' => 'Database error saving daily update: ' . $e->getMessage()];
         }
+    }
+
+    /**
+     * Get all daily updates linked to a specific task.
+     * Matches both junction table records and direct task_code mentions.
+     */
+    public static function getByTask(int $taskId, ?string $taskCode = null): array
+    {
+        $db = Database::connect();
+
+        $sql = "
+            SELECT u.*,
+                   e.full_name AS employee_name,
+                   e.emp_code,
+                   e.role AS employee_role,
+                   e.designation,
+                   e.photo_path
+            FROM fnx_daily_updates u
+            JOIN fnx_employees e ON e.id = u.employee_id
+            LEFT JOIN fnx_daily_update_tasks ut ON ut.daily_update_id = u.id AND ut.task_id = ?
+            WHERE ut.task_id IS NOT NULL
+        ";
+        $params = [$taskId];
+
+        if (!empty($taskCode)) {
+            $sql .= " OR u.tasks_summary LIKE ? OR u.work_done LIKE ?";
+            $params[] = '%' . $taskCode . '%';
+            $params[] = '%' . $taskCode . '%';
+        }
+
+        $sql .= " GROUP BY u.id ORDER BY u.update_date DESC, u.created_at DESC";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        foreach ($rows as &$r) {
+            $r['formatted_date'] = !empty($r['update_date']) ? date('d M Y', strtotime($r['update_date'])) : '';
+            $r['formatted_ist_time'] = !empty($r['updated_at']) ? Audit::formatIst($r['updated_at'], 'h:i A') : (!empty($r['created_at']) ? Audit::formatIst($r['created_at'], 'h:i A') : '');
+        }
+
+        return $rows;
     }
 
     /**

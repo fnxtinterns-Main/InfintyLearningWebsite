@@ -455,26 +455,158 @@ final class Employee
         return ['success' => true];
     }
 
-    public static function updateStatus(int $id, string $status, ?string $pipReason = null, ?string $pipEndDate = null): bool
-    {
+    public static function updateStatus(
+        int $id,
+        string $status,
+        ?string $pipReason = null,
+        ?string $pipEndDate = null,
+        ?string $statusRemarks = null
+    ): bool {
         $db = Database::connect();
         $curr = self::find($id);
         if (!$curr) return false;
 
+        $validStatuses = ['active', 'suspended', 'pip', 'resigned', 'terminated'];
+        if (!in_array($status, $validStatuses, true)) {
+            $status = 'active';
+        }
+
+        $noticeStartDate = null;
+        $noticeEndDate   = null;
+
+        // Company policy: Notice period strictly 15 calendar days
+        if ($status === 'resigned') {
+            $noticeStartDate = date('Y-m-d');
+            $noticeEndDate   = date('Y-m-d', strtotime('+15 days'));
+        }
+
         $stmt = $db->prepare("
             UPDATE fnx_employees 
-            SET status = ?, pip_reason = ?, pip_end_date = ? 
+            SET status = ?, 
+                pip_reason = ?, 
+                pip_end_date = ?,
+                notice_start_date = ?,
+                notice_end_date = ?,
+                status_remarks = ?,
+                updated_at = NOW()
             WHERE id = ?
         ");
         $stmt->execute([
             $status,
             $status === 'pip' ? $pipReason : null,
             $status === 'pip' && !empty($pipEndDate) ? $pipEndDate : null,
+            $noticeStartDate,
+            $noticeEndDate,
+            $statusRemarks ?: null,
             $id
         ]);
 
-        Audit::log('status_change', 'employee', $id, "Changed status of {$curr['emp_code']} to {$status}");
+        $logMsg = "Changed status of {$curr['emp_code']} to " . strtoupper($status);
+        if ($status === 'resigned') {
+            $logMsg .= " (15-day notice period active until {$noticeEndDate})";
+        } elseif ($status === 'suspended') {
+            $logMsg .= " (Account suspended; portal access revoked)";
+        } elseif ($status === 'terminated') {
+            $logMsg .= " (Employment terminated; portal access permanently revoked)";
+        }
+        if (!empty($statusRemarks)) {
+            $logMsg .= " · Remarks: {$statusRemarks}";
+        }
+
+        Audit::log('status_change', 'employee', $id, $logMsg);
         return true;
+    }
+
+    /**
+     * Admin initiates password reset for an employee without requiring their current password.
+     * Dispatches a 6-digit OTP to the employee's registered email via fnxt.admin@gmail.com.
+     */
+    public static function createPasswordResetOtp(int $employeeId): array
+    {
+        $db = Database::connect();
+        $emp = self::find($employeeId);
+        if (!$emp) {
+            return ['success' => false, 'error' => 'Employee record not found.'];
+        }
+        if (empty($emp['email'])) {
+            return ['success' => false, 'error' => 'Employee does not have a registered email address.'];
+        }
+
+        // Generate 6 digit numeric code
+        $otp = sprintf('%06d', random_int(100000, 999999));
+
+        // Invalidate older OTPs for this employee
+        $del = $db->prepare("DELETE FROM fnx_password_resets WHERE employee_id = ?");
+        $del->execute([$employeeId]);
+
+        // Insert new OTP with 15 min expiry
+        $ins = $db->prepare("
+            INSERT INTO fnx_password_resets (employee_id, otp_code, expires_at, created_at)
+            VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 15 MINUTE), NOW())
+        ");
+        $ins->execute([$employeeId, $otp]);
+
+        // Send Email via fnxt.admin@gmail.com
+        $sent = EmailNotifier::sendPasswordResetOtp($employeeId, $otp);
+
+        Audit::log('password_reset_otp_request', 'employee', $employeeId, "Admin generated password reset OTP for {$emp['emp_code']} ({$emp['email']})");
+
+        return [
+            'success' => true,
+            'email'   => $emp['email'],
+            'message' => "A 6-digit OTP has been dispatched to {$emp['email']}. Valid for 15 minutes."
+        ];
+    }
+
+    /**
+     * Admin confirms password reset after verifying the 6-digit OTP sent to employee's email.
+     */
+    public static function verifyPasswordResetOtpAndChangePassword(int $employeeId, string $otp, string $newPassword): array
+    {
+        $db = Database::connect();
+        $emp = self::find($employeeId);
+        if (!$emp) {
+            return ['success' => false, 'error' => 'Employee record not found.'];
+        }
+
+        $newPassword = trim($newPassword);
+        if (strlen($newPassword) < 6) {
+            return ['success' => false, 'error' => 'Password must be at least 6 characters in length.'];
+        }
+
+        $otp = trim($otp);
+        if ($otp === '') {
+            return ['success' => false, 'error' => 'Please enter the 6-digit OTP sent to the employee\'s email.'];
+        }
+
+        // Verify OTP in fnx_password_resets
+        $stmt = $db->prepare("
+            SELECT id FROM fnx_password_resets 
+            WHERE employee_id = ? AND otp_code = ? AND expires_at >= NOW()
+            LIMIT 1
+        ");
+        $stmt->execute([$employeeId, $otp]);
+        $resetRecord = $stmt->fetch();
+
+        if (!$resetRecord) {
+            return ['success' => false, 'error' => 'Invalid or expired OTP. Please verify the code or request a fresh one.'];
+        }
+
+        // Hash new password and update
+        $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+        $up = $db->prepare("UPDATE fnx_employees SET password_hash = ?, updated_at = NOW() WHERE id = ?");
+        $up->execute([$hash, $employeeId]);
+
+        // Invalidate OTP
+        $del = $db->prepare("DELETE FROM fnx_password_resets WHERE employee_id = ?");
+        $del->execute([$employeeId]);
+
+        Audit::log('password_reset_otp_complete', 'employee', $employeeId, "Admin successfully reset password for {$emp['emp_code']} via OTP verification");
+
+        return [
+            'success' => true, 
+            'message' => "Password for {$emp['full_name']} ({$emp['emp_code']}) has been successfully updated!"
+        ];
     }
 
     public static function updatePhoto(int $id, array $file): array

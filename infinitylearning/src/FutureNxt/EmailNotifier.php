@@ -6,6 +6,13 @@ namespace App\FutureNxt;
 use App\Mailer;
 use PDO;
 
+if (!class_exists('\\App\\Mailer')) {
+    $mPath = (defined('BASE_PATH') ? BASE_PATH : dirname(__DIR__, 2)) . '/src/Mailer.php';
+    if (file_exists($mPath)) {
+        require_once $mPath;
+    }
+}
+
 final class EmailNotifier
 {
     /**
@@ -23,6 +30,76 @@ final class EmailNotifier
             'from'      => 'fnxt.admin@gmail.com',
             'from_name' => 'FutureNxt Operations',
         ];
+    }
+
+    /**
+     * Send OTP email to employee when Admin initiates password reset.
+     * Sent strictly from fnxt.admin@gmail.com
+     */
+    public static function sendPasswordResetOtp(int $employeeId, string $otp): bool
+    {
+        try {
+            $db = Database::connect();
+            $stmt = $db->prepare("SELECT full_name, email, emp_code FROM fnx_employees WHERE id = ? LIMIT 1");
+            $stmt->execute([$employeeId]);
+            $emp = $stmt->fetch();
+            if (!$emp || empty($emp['email'])) {
+                return false;
+            }
+
+            $subject = "FutureNxt Account Verification: Your 6-Digit Password Reset OTP";
+
+            $html = "
+                <div style=\"font-family:'Plus Jakarta Sans',Arial,sans-serif; max-width:600px; margin:0 auto; background:#FFF9F4; padding:32px; border-radius:14px; border:1.5px solid #F3DECB;\">
+                    <div style=\"display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;\">
+                        <span style=\"background:#FF7A18; color:#FFF; font-size:12px; font-weight:800; padding:5px 12px; border-radius:6px; letter-spacing:0.04em; text-transform:uppercase;\">FutureNxt Security</span>
+                        <span style=\"font-size:12px; color:#6B7280;\">" . date('d M Y, h:i A') . " IST</span>
+                    </div>
+
+                    <h2 style=\"margin:0 0 12px; color:#111827; font-size:22px; font-weight:800;\">Password Reset Verification</h2>
+                    
+                    <p style=\"font-size:14px; color:#374151; line-height:1.6; margin:0 0 14px;\">
+                        Hello <strong>" . htmlspecialchars($emp['full_name']) . "</strong> (" . htmlspecialchars($emp['emp_code']) . "),
+                    </p>
+                    
+                    <p style=\"font-size:14px; color:#374151; line-height:1.6; margin:0 0 20px;\">
+                        An administrator has initiated a secure password reset for your FutureNxt Portal account. Please use the 6-digit verification code below to authorize this change:
+                    </p>
+
+                    <div style=\"text-align:center; margin:24px 0;\">
+                        <div style=\"display:inline-block; background:#FFFFFF; border:2px dashed #FF7A18; border-radius:12px; padding:18px 36px; box-shadow:0 4px 12px rgba(255, 122, 24, 0.12);\">
+                            <div style=\"font-size:11px; font-weight:800; color:#FF7A18; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px;\">One-Time Passcode (OTP)</div>
+                            <div style=\"font-size:36px; font-weight:900; letter-spacing:8px; color:#111827; font-family:'JetBrains Mono',monospace;\">" . htmlspecialchars($otp) . "</div>
+                            <div style=\"font-size:11px; color:#9CA3AF; margin-top:6px;\">Valid for 15 minutes</div>
+                        </div>
+                    </div>
+
+                    <div style=\"background:#FFF; border:1px solid #E5E7EB; border-left:4px solid #FF7A18; border-radius:8px; padding:14px 18px; margin:20px 0;\">
+                        <div style=\"font-size:12.5px; font-weight:700; color:#111827; margin-bottom:4px;\">🛡️ Security Information:</div>
+                        <ul style=\"margin:4px 0 0; padding-left:18px; font-size:12.5px; color:#4B5563; line-height:1.5;\">
+                            <li>Provide this verification code to your portal administrator to finalize your password update.</li>
+                            <li>This code will expire automatically in 15 minutes for your protection.</li>
+                            <li>If you did not expect a password update, please contact administration at <a href=\"mailto:fnxt.admin@gmail.com\" style=\"color:#FF7A18; font-weight:700;\">fnxt.admin@gmail.com</a> immediately.</li>
+                        </ul>
+                    </div>
+
+                    <p style=\"font-size:12px; color:#9CA3AF; margin:24px 0 0; border-top:1px solid #F3DECB; padding-top:14px; text-align:center;\">
+                        Sent via <strong>fnxt.admin@gmail.com</strong> · FutureNxt Technologies Operations System<br>
+                        This is an automated system notification.
+                    </p>
+                </div>
+            ";
+
+            $sent = Mailer::send($emp['email'], $subject, $html, $emp['full_name'], self::getSmtpConfig());
+            if (!$sent) {
+                // Seamless fallback to primary server SMTP to guarantee immediate delivery
+                $sent = Mailer::send($emp['email'], $subject, $html, $emp['full_name']);
+            }
+            return $sent;
+        } catch (\Throwable $e) {
+            error_log("[EmailNotifier] Error sending OTP email: " . $e->getMessage());
+            return false;
+        }
     }
     /**
      * Send email notification to employee when their leave request is reviewed (approved or rejected).

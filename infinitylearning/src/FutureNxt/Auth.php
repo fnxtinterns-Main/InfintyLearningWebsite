@@ -149,8 +149,16 @@ final class Auth
             return ['success' => false, 'error' => 'Invalid credentials. No employee record found.'];
         }
 
-        if (in_array($employee['status'], ['suspended', 'terminated'], true)) {
-            return ['success' => false, 'error' => 'Your account is suspended or inactive. Please contact the administrator.'];
+        if ($employee['status'] === 'suspended') {
+            return ['success' => false, 'error' => 'Your account has been suspended by administration. Access to the portal is temporarily disabled. Please contact HR.'];
+        }
+
+        if ($employee['status'] === 'terminated') {
+            return ['success' => false, 'error' => 'Your employment has been terminated. Portal access has been permanently revoked.'];
+        }
+
+        if ($employee['status'] === 'resigned' && !empty($employee['notice_end_date']) && strtotime($employee['notice_end_date']) < strtotime(date('Y-m-d'))) {
+            return ['success' => false, 'error' => 'Your 15-day notice period has concluded. Thank you for your service with FutureNxt.'];
         }
 
         $pwMatches = password_verify($password, $employee['password_hash']);
