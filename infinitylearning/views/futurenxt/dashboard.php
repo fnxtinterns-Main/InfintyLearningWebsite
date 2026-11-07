@@ -60,11 +60,11 @@ require __DIR__ . '/layouts/header.php';
             <?php endif; ?>
             <?php if (Auth::isAdminOrExec()): ?>
                 <a href="/futurenxt/employees?action=new" class="fnx-btn fnx-btn-outline" style="color:#111827 !important; border-color:#111827 !important; background:#FFFFFF !important;">
-                    <span>+</span> Onboard Employee
+                    <span>+</span> Onboard Partner
                 </a>
             <?php endif; ?>
             <a href="/futurenxt/leaves?action=new" class="fnx-btn fnx-btn-outline" style="color:#111827 !important; border-color:#111827 !important; background:#FFFFFF !important;">
-                Apply Leave / WFH
+                Apply Leave / WFA
             </a>
         </div>
     </div>

@@ -101,6 +101,124 @@ final class EmailNotifier
             return false;
         }
     }
+
+    /**
+     * Send official onboarding welcome email to partner with their login email, partner ID, and password.
+     */
+    public static function sendPartnerOnboarding(int $partnerId, string $plainPassword): bool
+    {
+        try {
+            $db = Database::connect();
+            $stmt = $db->prepare("
+                SELECT p.*, mgr.full_name AS manager_name, mgr.emp_code AS manager_code
+                FROM fnx_employees p
+                LEFT JOIN fnx_employees mgr ON mgr.id = p.manager_id
+                WHERE p.id = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$partnerId]);
+            $partner = $stmt->fetch();
+            if (!$partner || empty($partner['email'])) {
+                return false;
+            }
+
+            $subject = "Welcome to FutureNxt Technologies — Official Portal Access & Credentials";
+
+            $loginUrl = "https://infintylearning.net/futurenxt/login";
+            $roleName = ucfirst(str_replace('_', ' ', (string)($partner['role'] ?? 'Partner')));
+
+            $html = "
+                <div style=\"font-family:'Plus Jakarta Sans',Arial,sans-serif; max-width:620px; margin:0 auto; background:#FFF9F4; padding:32px; border-radius:14px; border:1.5px solid #F3DECB;\">
+                    <div style=\"display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;\">
+                        <span style=\"background:#FF7A18; color:#FFF; font-size:12px; font-weight:800; padding:5px 12px; border-radius:6px; letter-spacing:0.04em; text-transform:uppercase;\">FutureNxt Technologies</span>
+                        <span style=\"font-size:12px; color:#6B7280;\">" . date('d M Y') . "</span>
+                    </div>
+
+                    <h2 style=\"margin:0 0 10px; color:#111827; font-size:22px; font-weight:800;\">Welcome to FutureNxt Technologies!</h2>
+                    
+                    <p style=\"font-size:14px; color:#374151; line-height:1.6; margin:0 0 14px;\">
+                        Dear <strong>" . htmlspecialchars($partner['full_name']) . "</strong>,
+                    </p>
+                    
+                    <p style=\"font-size:14px; color:#374151; line-height:1.6; margin:0 0 20px;\">
+                        We are thrilled to welcome you to <strong>FutureNxt Technologies</strong> as our <strong>" . htmlspecialchars($partner['designation'] ?: $roleName) . "</strong> (" . htmlspecialchars($partner['department'] ?? 'General') . " Department). Your official Corporate Operations Portal account is now active and ready for use.
+                    </p>
+
+                    <!-- Credentials Box -->
+                    <div style=\"background:#FFFFFF; border:1.5px solid #F3DECB; border-radius:12px; padding:22px; margin:22px 0; box-shadow:0 4px 14px rgba(0,0,0,0.04);\">
+                        <div style=\"font-size:12px; font-weight:800; color:#FF7A18; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:14px;\">
+                            🔑 Your Portal Access Credentials
+                        </div>
+                        <table style=\"width:100%; border-collapse:collapse; font-size:13.5px;\">
+                            <tr>
+                                <td style=\"padding:7px 0; color:#6B7280; width:140px; font-weight:600;\">Portal URL:</td>
+                                <td style=\"padding:7px 0;\">
+                                    <a href=\"{$loginUrl}\" style=\"color:#FF7A18; font-weight:700; text-decoration:none;\">https://infintylearning.net/futurenxt/login</a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style=\"padding:7px 0; color:#6B7280; font-weight:600;\">Partner ID:</td>
+                                <td style=\"padding:7px 0; color:#111827; font-weight:800; font-family:'JetBrains Mono',monospace;\">" . htmlspecialchars($partner['emp_code']) . "</td>
+                            </tr>
+                            <tr>
+                                <td style=\"padding:7px 0; color:#6B7280; font-weight:600;\">Login Email:</td>
+                                <td style=\"padding:7px 0; color:#111827; font-weight:700;\">" . htmlspecialchars($partner['email']) . "</td>
+                            </tr>
+                            <tr>
+                                <td style=\"padding:7px 0; color:#6B7280; font-weight:600;\">Access Password:</td>
+                                <td style=\"padding:7px 0;\">
+                                    <span style=\"background:#FFF4EC; border:1px solid #FF7A18; color:#B45309; font-weight:800; font-family:'JetBrains Mono',monospace; padding:3px 10px; border-radius:6px; font-size:14px;\">" . htmlspecialchars($plainPassword) . "</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style=\"padding:7px 0; color:#6B7280; font-weight:600;\">Designation:</td>
+                                <td style=\"padding:7px 0; color:#111827;\">" . htmlspecialchars($partner['designation'] ?? '') . " (" . htmlspecialchars($roleName) . ")</td>
+                            </tr>
+                            " . (!empty($partner['manager_name']) ? "
+                            <tr>
+                                <td style=\"padding:7px 0; color:#6B7280; font-weight:600;\">Reporting To:</td>
+                                <td style=\"padding:7px 0; color:#111827;\">" . htmlspecialchars($partner['manager_name']) . " (" . htmlspecialchars($partner['manager_code']) . ")</td>
+                            </tr>" : "") . "
+                        </table>
+                    </div>
+
+                    <div style=\"text-align:center; margin:24px 0;\">
+                        <a href=\"{$loginUrl}\" style=\"display:inline-block; background:#FF7A18; color:#FFFFFF; text-decoration:none; padding:12px 32px; border-radius:8px; font-weight:800; font-size:14px; box-shadow:0 4px 12px rgba(255,122,24,0.25);\">
+                            Sign In to FutureNxt Portal →
+                        </a>
+                    </div>
+
+                    <!-- Operational Guidelines -->
+                    <div style=\"background:#FFFFFF; border:1px solid #E5E7EB; border-left:4px solid #111827; border-radius:8px; padding:16px 18px; margin:20px 0;\">
+                        <div style=\"font-size:13px; font-weight:800; color:#111827; margin-bottom:6px;\">📋 Important Partner Guidelines:</div>
+                        <ul style=\"margin:0; padding-left:18px; font-size:12.5px; color:#4B5563; line-height:1.6;\">
+                            <li><strong>Daily Updates:</strong> Submit your daily work update before end-of-day detailing your accomplishments and blockers.</li>
+                            <li><strong>Task Management:</strong> Check your assigned tasks, review requirements, submit documentation, and track completion progress.</li>
+                            <li><strong>Leaves &amp; WFA:</strong> Submit leave and Work From Anywhere (WFA) requests with advance notice for management review.</li>
+                            <li><strong>Security:</strong> After your initial login, you can update your password anytime under <em>My Profile</em>.</li>
+                        </ul>
+                    </div>
+
+                    <p style=\"font-size:12px; color:#9CA3AF; margin:24px 0 0; border-top:1px solid #F3DECB; padding-top:14px; text-align:center;\">
+                        FutureNxt Technologies Corporate Operations · Sent via <strong>fnxt.admin@gmail.com</strong><br>
+                        Have questions? Contact Administration at <a href=\"mailto:fnxt.admin@gmail.com\" style=\"color:#FF7A18; text-decoration:none; font-weight:700;\">fnxt.admin@gmail.com</a>.
+                    </p>
+                </div>
+            ";
+
+            $sent = Mailer::send($partner['email'], $subject, $html, $partner['full_name'], self::getSmtpConfig());
+            if (!$sent) {
+                $sent = Mailer::send($partner['email'], $subject, $html, $partner['full_name']);
+            }
+
+            Audit::log('onboarding_email_sent', 'employee', $partnerId, "Sent onboarding credentials email to {$partner['emp_code']} ({$partner['email']})");
+
+            return $sent;
+        } catch (\Throwable $e) {
+            error_log("[EmailNotifier] Error sending onboarding email: " . $e->getMessage());
+            return false;
+        }
+    }
     /**
      * Send email notification to employee when their leave request is reviewed (approved or rejected).
      */

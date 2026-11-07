@@ -280,7 +280,7 @@ final class Employee
         // Password
         $password = trim((string)($data['password'] ?? ''));
         if ($password === '') {
-            $password = 'Inflearning@99'; // Default initial password
+            $password = 'Futurenxt@2026'; // Default initial password
         }
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
 
@@ -346,7 +346,10 @@ final class Employee
         ]);
 
         $newId = (int)$db->lastInsertId();
-        Audit::log('create', 'employee', $newId, "Created employee {$empCode} ({$fullName}) with role {$role}");
+        Audit::log('create', 'employee', $newId, "Created partner {$empCode} ({$fullName}) with role {$role}");
+
+        // Automatically dispatch official onboarding email with credentials to new partner
+        EmailNotifier::sendPartnerOnboarding($newId, $password);
 
         return ['success' => true, 'id' => $newId, 'emp_code' => $empCode, 'initial_password' => $password];
     }

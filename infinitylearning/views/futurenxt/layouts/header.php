@@ -737,7 +737,7 @@ $activePage = $activePage ?? 'dashboard';
             <li><a href="/futurenxt/daily-updates" class="<?= $activePage === 'daily_updates' ? 'active' : '' ?>">📝 Daily Updates</a></li>
             <li><a href="/futurenxt/notices" class="<?= $activePage === 'notices' ? 'active' : '' ?>">📢 Notices</a></li>
             <li><a href="/futurenxt/leaves" class="<?= $activePage === 'leaves' ? 'active' : '' ?>">🏖️ Leaves</a></li>
-            <li><a href="/futurenxt/wfh" class="<?= $activePage === 'wfh' ? 'active' : '' ?>">🏠 WFH</a></li>
+            <li><a href="/futurenxt/wfh" class="<?= $activePage === 'wfh' ? 'active' : '' ?>">🏠 WFA</a></li>
         </ul>
 
         <!-- Top Right: Notifications & Partner Photo Menu -->
@@ -786,7 +786,7 @@ $activePage = $activePage ?? 'dashboard';
                         <span>🏖️</span> Request Leave
                     </a>
                     <a href="/futurenxt/wfh" class="fnx-dropdown-item">
-                        <span>🏠</span> Request WFH
+                        <span>🏠</span> Request WFA
                     </a>
                     <div class="fnx-dropdown-divider"></div>
                     <a href="/futurenxt-handler.php?action=logout" class="fnx-dropdown-item fnx-dropdown-logout">

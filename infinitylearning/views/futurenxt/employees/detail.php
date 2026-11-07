@@ -36,7 +36,7 @@ require __DIR__ . '/../layouts/header.php';
 
 <div class="fnx-container">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
-        <a href="/futurenxt/employees" class="fnx-btn fnx-btn-outline">← Back to Personnel Directory</a>
+        <a href="/futurenxt/employees" class="fnx-btn fnx-btn-outline">← Back to Partners Directory</a>
         <?php if (Auth::isAdminOrExec()): ?>
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                 <?php if ($employee['status'] === 'active'): ?>
@@ -57,6 +57,9 @@ require __DIR__ . '/../layouts/header.php';
                 <?php endif; ?>
 
                 <?php if ((int)$employee['id'] !== (int)$me['id']): ?>
+                    <button type="button" onclick="sendDetailOnboardingEmail(<?= (int)$employee['id'] ?>, '<?= htmlspecialchars(addslashes($employee['full_name'])) ?>', '<?= htmlspecialchars(addslashes($employee['email'])) ?>')" class="fnx-btn fnx-btn-outline" style="font-size:13px; padding:7px 14px; color:#2563EB; border-color:#93C5FD;">
+                        📧 Send Onboarding Email
+                    </button>
                     <button type="button" onclick="openAdminResetPasswordModal(<?= (int)$employee['id'] ?>, '<?= htmlspecialchars(addslashes($employee['full_name'])) ?>', '<?= htmlspecialchars(addslashes($employee['emp_code'])) ?>', '<?= htmlspecialchars(addslashes($employee['email'])) ?>')" class="fnx-btn fnx-btn-outline" style="font-size:13px; padding:7px 14px; color:#D97706; border-color:#FCD34D;">
                         🔑 Reset Password (OTP)
                     </button>
@@ -353,7 +356,7 @@ require __DIR__ . '/../layouts/header.php';
                         <h3 style="margin:0; font-size:16px; font-weight:800; color:#111827 !important; display:flex; align-items:center; gap:8px;">
                             <span>👥</span> Team Members Reporting to <?= htmlspecialchars($employee['full_name']) ?>
                         </h3>
-                        <span class="fnx-badge fnx-badge-orange"><?= count($employee['reportees']) ?> Personnel</span>
+                        <span class="fnx-badge fnx-badge-orange"><?= count($employee['reportees']) ?> Partner(s)</span>
                     </div>
 
                     <div style="display:flex; flex-direction:column; gap:10px;">
@@ -869,6 +872,40 @@ function fnxConfirmPasswordReset() {
             alertBox.style.display = 'block';
             alertBox.innerText = 'Network error while confirming password reset.';
         }
+    });
+}
+
+function sendDetailOnboardingEmail(id, name, email) {
+    if (!confirm('Dispatch official onboarding credentials email to ' + name + ' (' + email + ')?')) {
+        return;
+    }
+    const btn = event.target;
+    const oldText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = '⏳ Sending...';
+    
+    const formData = new FormData();
+    formData.append('partner_id', id);
+    formData.append('ajax', '1');
+    
+    fetch('/futurenxt-handler.php?action=resend_onboarding_email', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(d => {
+        btn.disabled = false;
+        btn.innerText = oldText;
+        if (d.success) {
+            alert('✓ ' + d.message);
+        } else {
+            alert('❌ ' + (d.message || d.error || 'Failed to dispatch email.'));
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerText = oldText;
+        alert('Network or server error while sending onboarding email.');
     });
 }
 </script>

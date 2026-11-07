@@ -28,15 +28,15 @@ require __DIR__ . '/../layouts/header.php';
 <div class="fnx-container">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:24px;">
         <div>
-            <h1 style="margin:0 0 4px; font-size:24px; font-weight:800; color:var(--fnx-navy);">Personnel &amp; Partners</h1>
+            <h1 style="margin:0 0 4px; font-size:24px; font-weight:800; color:var(--fnx-navy);">Partners &amp; Team</h1>
             <p style="margin:0; font-size:13.5px; color:var(--fnx-muted);">
-                Directory of executives, officers, managers, employees, and interns across FutureNxt.
+                Directory of executives, officers, managers, and partners across FutureNxt.
             </p>
         </div>
         <div style="display:flex; gap:10px;">
             <?php if (Auth::isAdminOrExec() || Auth::role() === 'manager' || Auth::role() === 'office_manager'): ?>
                 <button type="button" class="fnx-btn fnx-btn-orange" onclick="fnxOpenModal('onboardModal'); fnxUpdateCodePreview();">
-                    <span>+</span> Onboard New Personnel
+                    <span>+</span> Onboard New Partner
                 </button>
             <?php endif; ?>
         </div>
@@ -95,7 +95,7 @@ require __DIR__ . '/../layouts/header.php';
             <table class="fnx-table">
                 <thead>
                     <tr>
-                        <th>Personnel</th>
+                        <th>Partner</th>
                         <th>ID Code</th>
                         <th>Role &amp; Department</th>
                         <th>Contact</th>
@@ -193,6 +193,11 @@ require __DIR__ . '/../layouts/header.php';
                                             View Profile
                                         </a>
                                         <?php if (Auth::isAdminOrExec()): ?>
+                                            <button type="button" class="fnx-btn fnx-btn-outline" style="padding:4px 8px; font-size:11.5px; color:#2563EB; border-color:#93C5FD;" 
+                                                    title="Send Onboarding Credentials to Partner Email"
+                                                    onclick="resendOnboardingEmail(<?= (int)$emp['id'] ?>, '<?= htmlspecialchars(addslashes($emp['full_name'])) ?>', '<?= htmlspecialchars(addslashes($emp['email'])) ?>')">
+                                                📧 Onboarding Mail
+                                            </button>
                                             <button type="button" class="fnx-btn fnx-btn-orange" style="padding:4px 9px; font-size:11.5px;" onclick='openEditEmployeeModal(<?= json_encode($emp, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>)'>
                                                 ✏️ Edit
                                             </button>
@@ -942,6 +947,40 @@ function fnxConfirmPasswordReset() {
             alertBox.style.display = 'block';
             alertBox.innerText = 'Network error while confirming password reset.';
         }
+    });
+}
+
+function resendOnboardingEmail(id, name, email) {
+    if (!confirm('Dispatch official onboarding credentials email to ' + name + ' (' + email + ')?')) {
+        return;
+    }
+    const btn = event.target;
+    const oldText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = '⏳ Sending...';
+    
+    const formData = new FormData();
+    formData.append('partner_id', id);
+    formData.append('ajax', '1');
+    
+    fetch('/futurenxt-handler.php?action=resend_onboarding_email', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(d => {
+        btn.disabled = false;
+        btn.innerText = oldText;
+        if (d.success) {
+            alert('✓ ' + d.message);
+        } else {
+            alert('❌ ' + (d.message || d.error || 'Failed to dispatch email.'));
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerText = oldText;
+        alert('Network or server error while sending onboarding email.');
     });
 }
 

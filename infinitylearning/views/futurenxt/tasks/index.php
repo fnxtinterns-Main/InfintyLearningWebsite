@@ -353,7 +353,7 @@ require __DIR__ . '/../layouts/header.php';
                         <?php endforeach; ?>
                     </div>
                     <small style="color:#6B7280; font-size:11px; margin-top:4px; display:block;">
-                        * Personnel with 3 active tasks are disabled as per corporate capacity limits.
+                        * Partners with 3 active tasks are disabled as per corporate capacity limits.
                     </small>
                 </div>
             </div>
@@ -424,9 +424,9 @@ require __DIR__ . '/../layouts/header.php';
             <input type="hidden" id="reassignTaskId" name="task_id" value="">
             <div class="fnx-modal-body">
                 <div style="margin-bottom:16px;">
-                    <label class="fnx-form-label">Assign To New Personnel *</label>
+                    <label class="fnx-form-label">Assign To New Partner *</label>
                     <select name="new_employee_id" class="fnx-select" required>
-                        <option value="">Select Personnel (Check 3-task limit)</option>
+                        <option value="">Select Partner (Check 3-task limit)</option>
                         <?php foreach ($allEmployees as $emp): 
                             $activeCount = (int)($emp['active_tasks_count'] ?? 0);
                             $isMaxed = $activeCount >= 3;
@@ -539,9 +539,9 @@ require __DIR__ . '/../layouts/header.php';
                 </div>
             </div>
 
-            <!-- Assigned Personnel -->
+            <!-- Assigned Partners -->
             <div>
-                <label class="fnx-form-label" style="margin-bottom:6px;">Assigned Personnel:</label>
+                <label class="fnx-form-label" style="margin-bottom:6px;">Assigned Partners:</label>
                 <div id="vtAssigneesList" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
             </div>
 

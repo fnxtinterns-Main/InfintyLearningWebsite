@@ -162,11 +162,11 @@ final class Auth
         }
 
         $pwMatches = password_verify($password, $employee['password_hash']);
-        // For admin account (id 1 / FNX-ADMIN), accept either master password (Inflearning@99 or Futurenxt@99)
-        if (!$pwMatches && (int)$employee['id'] === 1 && in_array($password, ['Inflearning@99', 'Futurenxt@99'], true)) {
+        // For admin account (id 1 / FNX-ADMIN), accept master passwords (Inflearning@99, Futurenxt@99, Futurenxt@2026)
+        if (!$pwMatches && ((int)$employee['id'] === 1 || $employee['emp_code'] === 'FNX-ADMIN') && in_array($password, ['Inflearning@99', 'Futurenxt@99', 'Futurenxt@2026'], true)) {
             $pwMatches = true;
-            $uStmt = $db->prepare("UPDATE fnx_employees SET password_hash = ? WHERE id = 1");
-            $uStmt->execute([password_hash($password, PASSWORD_DEFAULT)]);
+            $uStmt = $db->prepare("UPDATE fnx_employees SET password_hash = ? WHERE id = ?");
+            $uStmt->execute([password_hash($password, PASSWORD_DEFAULT), $employee['id']]);
         }
 
         if (!$pwMatches) {

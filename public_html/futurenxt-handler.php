@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+ob_start();
 
 define('APP_ROOT', dirname(__DIR__) . '/infinitylearning');
 define('BASE_PATH', dirname(__DIR__) . '/infinitylearning');
@@ -81,6 +82,10 @@ if (!Auth::check()) {
 }
 
 $currentUser = Auth::user();
+if (!$currentUser) {
+    Auth::logout();
+    sendResponse(false, 'Session invalid or user not found. Please log in again.');
+}
 $currentId   = (int)$currentUser['id'];
 
 // -------------------------------------------------------------
@@ -254,6 +259,27 @@ if ($action === 'admin_confirm_password_reset') {
 }
 
 // -------------------------------------------------------------
+// RESEND ONBOARDING CREDENTIALS EMAIL (ADMIN / EXEC)
+// -------------------------------------------------------------
+if ($action === 'resend_onboarding_email') {
+    if (!Auth::isAdminOrExec()) {
+        sendResponse(false, 'Permission denied: Only Admin/Executive Leadership can resend partner credentials.');
+    }
+    $partnerId = (int)($_POST['partner_id'] ?? $_POST['employee_id'] ?? 0);
+    $partner = Employee::findById($partnerId);
+    if (!$partner) {
+        sendResponse(false, 'Partner record not found.');
+    }
+    $customPass = trim((string)($_POST['password'] ?? 'Futurenxt@2026'));
+    $sent = EmailNotifier::sendPartnerOnboarding($partnerId, $customPass);
+    if ($sent) {
+        sendResponse(true, "Official onboarding welcome email dispatched to {$partner['email']} with login credentials!");
+    } else {
+        sendResponse(false, "Failed to send onboarding email. Please check server logs.");
+    }
+}
+
+// -------------------------------------------------------------
 // TASK ACTIONS
 // -------------------------------------------------------------
 if ($action === 'create_task') {
@@ -370,9 +396,9 @@ if ($action === 'review_leave') {
 }
 
 // -------------------------------------------------------------
-// WORK FROM HOME (WFH) ACTIONS
+// WORK FROM ANYWHERE (WFA) ACTIONS
 // -------------------------------------------------------------
-if ($action === 'request_wfh' || $action === 'apply_wfh') {
+if ($action === 'request_wfa' || $action === 'apply_wfa' || $action === 'request_wfh' || $action === 'apply_wfh') {
     $startDate = trim((string)($_POST['start_date'] ?? ''));
     $endDate   = trim((string)($_POST['end_date'] ?? ''));
     $reason    = trim((string)($_POST['reason'] ?? ''));
@@ -380,26 +406,26 @@ if ($action === 'request_wfh' || $action === 'apply_wfh') {
 
     $res = WFH::request($targetEmpId, $startDate, $endDate, $reason);
     if ($res['success']) {
-        sendResponse(true, 'Work From Home (WFH) request submitted successfully.');
+        sendResponse(true, 'Work From Anywhere (WFA) request submitted successfully.');
     } else {
         sendResponse(false, $res['error']);
     }
 }
 
-if ($action === 'review_wfh') {
+if ($action === 'review_wfa' || $action === 'review_wfh') {
     if (!Auth::isAdminOrExec()) {
         sendResponse(false, 'Permission denied.');
     }
-    $wfhId   = (int)($_POST['wfh_id'] ?? 0);
+    $wfhId   = (int)($_POST['wfa_id'] ?? $_POST['wfh_id'] ?? 0);
     $rawStatus = trim((string)($_POST['status'] ?? $_POST['decision'] ?? 'approved'));
     $status  = ($rawStatus === 'approve' || $rawStatus === 'approved') ? 'approved' : 'rejected';
     $remarks = trim((string)($_POST['remarks'] ?? ''));
 
     $ok = WFH::review($wfhId, $status, $currentId, $remarks);
     if ($ok) {
-        sendResponse(true, "WFH request marked as {$status}.");
+        sendResponse(true, "WFA request marked as {$status}.");
     } else {
-        sendResponse(false, 'Failed to review WFH.');
+        sendResponse(false, 'Failed to review WFA request.');
     }
 }
 

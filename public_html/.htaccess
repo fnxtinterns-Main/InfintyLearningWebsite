@@ -79,9 +79,6 @@ RewriteRule ^ index.php [END]
 Options -Indexes
 
 # ------------------------------------------------------------
-# 6. Custom Maintenance / Error Documents
+# 6. Custom Maintenance Document (503 Service Unavailable)
 # ------------------------------------------------------------
-ErrorDocument 403 /maintenance.html
-ErrorDocument 500 /maintenance.html
-ErrorDocument 502 /maintenance.html
 ErrorDocument 503 /maintenance.html

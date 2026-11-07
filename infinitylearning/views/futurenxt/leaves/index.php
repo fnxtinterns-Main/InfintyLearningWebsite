@@ -46,7 +46,7 @@ require __DIR__ . '/../layouts/header.php';
                 <span>+</span> Apply for Leave
             </button>
             <a href="/futurenxt/wfh" class="fnx-btn fnx-btn-outline">
-                💻 Work From Home (WFH) Portal →
+                💻 Work From Anywhere (WFA) Portal →
             </a>
         </div>
     </div>
@@ -187,7 +187,7 @@ require __DIR__ . '/../layouts/header.php';
             <div class="fnx-modal-body">
                 <?php if (Auth::isAdminOrExec()): ?>
                     <div style="margin-bottom:14px;">
-                        <label class="fnx-form-label">Employee / Partner *</label>
+                        <label class="fnx-form-label">Partner *</label>
                         <select name="employee_id" class="fnx-select" required>
                             <?php foreach ($allEmployees as $emp): ?>
                                 <option value="<?= $emp['id'] ?>" <?= ((int)$emp['id'] === (int)$me['id']) ? 'selected' : '' ?>>
@@ -255,7 +255,7 @@ require __DIR__ . '/../layouts/header.php';
                         <span>⚠️</span> Active Task Delivery Conflicts Detected!
                     </strong>
                     <p style="margin:4px 0 10px; font-size:12px; color:#7F1D1D;">
-                        The following active tasks are assigned to this employee and are due during the requested leave period. Reassign these tasks to ensure project deadlines are not hindered:
+                        The following active tasks are assigned to this partner and are due during the requested leave period. Reassign these tasks to ensure project deadlines are not hindered:
                     </p>
                     <div id="conflictsList" style="display:flex; flex-direction:column; gap:8px;"></div>
                 </div>

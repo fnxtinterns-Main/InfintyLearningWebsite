@@ -21,7 +21,7 @@ final class WFH
                 return ['success' => false, 'error' => 'Start date cannot be after end date.'];
             }
             if ($reason === '') {
-                return ['success' => false, 'error' => 'Please provide a reason or justification for WFH.'];
+                return ['success' => false, 'error' => 'Please provide a reason or justification for WFA (Work From Anywhere).'];
             }
 
             $start = strtotime($startDate);
@@ -35,11 +35,11 @@ final class WFH
             $stmt->execute([$employeeId, $startDate, $endDate, $totalDays, $reason]);
             $wfhId = (int)$db->lastInsertId();
 
-            Audit::log('request_wfh', 'wfh', $wfhId, "Requested WFH from {$startDate} to {$endDate} ({$totalDays} days)", $employeeId);
+            Audit::log('request_wfa', 'wfh', $wfhId, "Requested WFA from {$startDate} to {$endDate} ({$totalDays} days)", $employeeId);
 
             return ['success' => true, 'id' => $wfhId];
         } catch (\Throwable $e) {
-            return ['success' => false, 'error' => 'Database error while requesting WFH: ' . $e->getMessage()];
+            return ['success' => false, 'error' => 'Database error while requesting WFA: ' . $e->getMessage()];
         }
     }
 
@@ -110,7 +110,7 @@ final class WFH
         ");
         $stmt->execute([$status, $reviewerId, trim((string)$remarks) ?: null, $wfhId]);
 
-        Audit::log($status . '_wfh', 'wfh', $wfhId, "{$status} WFH request #{$wfhId}", $reviewerId);
+        Audit::log($status . '_wfa', 'wfh', $wfhId, "{$status} WFA request #{$wfhId}", $reviewerId);
         return true;
     }
 }

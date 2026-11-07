@@ -8,7 +8,7 @@ use App\Helper;
 
 Auth::requireLogin();
 $me = Auth::user();
-$pageTitle = 'Work From Home (WFH) Operations';
+$pageTitle = 'Work From Anywhere (WFA) Operations';
 $activePage = 'wfh';
 
 $statusFilter = $_GET['status'] ?? '';
@@ -35,14 +35,14 @@ require __DIR__ . '/../layouts/header.php';
 <div class="fnx-container">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:24px;">
         <div>
-            <h1 style="margin:0 0 4px; font-size:24px; font-weight:800; color:var(--fnx-navy);">Work From Home (WFH)</h1>
+            <h1 style="margin:0 0 4px; font-size:24px; font-weight:800; color:var(--fnx-navy);">Work From Anywhere (WFA)</h1>
             <p style="margin:0; font-size:13.5px; color:var(--fnx-muted);">
                 Submit remote work requests and manage manager/executive approvals.
             </p>
         </div>
         <div style="display:flex; gap:10px;">
             <button type="button" class="fnx-btn fnx-btn-orange" onclick="fnxOpenModal('requestWfhModal')">
-                <span>+</span> Request WFH
+                <span>+</span> Request WFA
             </button>
             <a href="/futurenxt/leaves" class="fnx-btn fnx-btn-outline">
                 🏖️ Leave Portal →
@@ -62,13 +62,13 @@ require __DIR__ . '/../layouts/header.php';
         </div>
     <?php endif; ?>
 
-    <!-- Table of WFH requests -->
+    <!-- Table of WFA requests -->
     <div class="fnx-card">
         <div class="fnx-table-wrap">
             <table class="fnx-table">
                 <thead>
                     <tr>
-                        <th>Personnel</th>
+                        <th>Partner</th>
                         <th>Remote Dates</th>
                         <th>Days</th>
                         <th>Deliverables &amp; Reason</th>
@@ -80,7 +80,7 @@ require __DIR__ . '/../layouts/header.php';
                     <?php if (empty($wfhs)): ?>
                         <tr>
                             <td colspan="6" style="text-align:center; padding:36px; color:var(--fnx-muted);">
-                                No WFH requests recorded.
+                                No WFA requests recorded.
                             </td>
                         </tr>
                     <?php else: ?>
@@ -132,24 +132,24 @@ require __DIR__ . '/../layouts/header.php';
 </div>
 
 <!-- =========================================================================
-     MODAL: REQUEST WFH
+     MODAL: REQUEST WFA
      ========================================================================= -->
 <div id="requestWfhModal" class="fnx-modal-backdrop" style="display:none;">
     <div class="fnx-modal-dialog" style="max-width:520px;">
         <div class="fnx-modal-header">
             <div>
-                <h3 style="margin:0; font-size:18px; font-weight:800; color:var(--fnx-navy);">Request Work From Home (WFH)</h3>
+                <h3 style="margin:0; font-size:18px; font-weight:800; color:var(--fnx-navy);">Request Work From Anywhere (WFA)</h3>
                 <p style="margin:2px 0 0; font-size:12.5px; color:var(--fnx-muted);">Ensure active internet connection and availability during working hours.</p>
             </div>
             <button type="button" class="fnx-modal-close" onclick="fnxCloseModal('requestWfhModal')">&times;</button>
         </div>
 
-        <form method="POST" action="/futurenxt-handler.php?action=request_wfh">
+        <form method="POST" action="/futurenxt-handler.php?action=request_wfa">
             <input type="hidden" name="redirect_url" value="/futurenxt/wfh">
             <div class="fnx-modal-body">
                 <?php if (Auth::isAdminOrExec()): ?>
                     <div style="margin-bottom:14px;">
-                        <label class="fnx-form-label">Employee / Partner *</label>
+                        <label class="fnx-form-label">Partner *</label>
                         <select name="employee_id" class="fnx-select" required>
                             <?php foreach ($allEmployees as $emp): ?>
                                 <option value="<?= $emp['id'] ?>" <?= ((int)$emp['id'] === (int)$me['id']) ? 'selected' : '' ?>>
@@ -172,39 +172,39 @@ require __DIR__ . '/../layouts/header.php';
 
                 <div style="margin-bottom:16px;">
                     <label class="fnx-form-label">Reason &amp; Deliverables *</label>
-                    <textarea name="reason" class="fnx-textarea" rows="3" placeholder="Outline your deliverables and reasons for WFH..." required></textarea>
+                    <textarea name="reason" class="fnx-textarea" rows="3" placeholder="Outline your deliverables and reasons for WFA..." required></textarea>
                 </div>
             </div>
 
             <div class="fnx-modal-footer">
                 <button type="button" class="fnx-btn fnx-btn-outline" onclick="fnxCloseModal('requestWfhModal')">Cancel</button>
-                <button type="submit" class="fnx-btn fnx-btn-orange">Submit WFH Request →</button>
+                <button type="submit" class="fnx-btn fnx-btn-orange">Submit WFA Request →</button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- =========================================================================
-     MODAL: REVIEW WFH
+     MODAL: REVIEW WFA
      ========================================================================= -->
 <div id="wfhReviewModal" class="fnx-modal-backdrop" style="display:none;">
     <div class="fnx-modal-dialog" style="max-width:480px;">
         <div class="fnx-modal-header">
             <div>
-                <h3 style="margin:0; font-size:17px; font-weight:800; color:var(--fnx-navy);">Review WFH Request</h3>
+                <h3 style="margin:0; font-size:17px; font-weight:800; color:var(--fnx-navy);">Review WFA Request</h3>
                 <p id="wfhApplicantName" style="margin:2px 0 0; font-size:12.5px; color:var(--fnx-muted);"></p>
             </div>
             <button type="button" class="fnx-modal-close" onclick="fnxCloseModal('wfhReviewModal')">&times;</button>
         </div>
 
-        <form method="POST" action="/futurenxt-handler.php?action=review_wfh">
+        <form method="POST" action="/futurenxt-handler.php?action=review_wfa">
             <input type="hidden" id="reviewWfhId" name="wfh_id" value="">
             <div class="fnx-modal-body">
                 <div style="margin-bottom:16px;">
                     <label class="fnx-form-label">Decision *</label>
                     <select name="decision" class="fnx-select" required>
-                        <option value="approve">Approve WFH Request</option>
-                        <option value="reject">Reject WFH Request</option>
+                        <option value="approve">Approve WFA Request</option>
+                        <option value="reject">Reject WFA Request</option>
                     </select>
                 </div>
 

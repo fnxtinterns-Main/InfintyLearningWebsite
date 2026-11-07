@@ -184,7 +184,7 @@ unset($_SESSION['fnx_error'], $_SESSION['fnx_success']);
             <div class="brand-header">
                 <img src="/assets/img/futurenxt-logo.jpg" alt="FutureNxt" class="brand-logo-img">
                 <h1 class="card-title">Enterprise Management</h1>
-                <p class="card-desc">Sign in with your Email or Employee ID</p>
+                <p class="card-desc">Sign in with your Email or Partner ID</p>
             </div>
 
             <?php if (!empty($error)): ?>
@@ -203,7 +203,7 @@ unset($_SESSION['fnx_error'], $_SESSION['fnx_success']);
 
             <form method="POST" action="/futurenxt-handler.php?action=login" autocomplete="off">
                 <div class="form-group">
-                    <label class="form-label" for="login_identifier">Corporate Email or Employee ID</label>
+                    <label class="form-label" for="login_identifier">Corporate Email or Partner ID</label>
                     <input type="text" id="login_identifier" name="login_identifier" class="form-input" 
                            placeholder="e.g. fnxt.interns@gmail.com or FNX-CEO" required autofocus>
                 </div>

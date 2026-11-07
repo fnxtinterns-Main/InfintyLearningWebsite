@@ -152,7 +152,7 @@ require __DIR__ . '/../layouts/header.php';
                     <?= $stats['pending'] ?>
                 </div>
                 <div style="font-size:12px; color:#4B5563; margin-top:4px;">
-                    <?= $stats['pending'] > 0 ? 'Awaiting submission' : 'All personnel completed ✓' ?>
+                    <?= $stats['pending'] > 0 ? 'Awaiting submission' : 'All partners completed ✓' ?>
                 </div>
             </div>
             <div class="fnx-card">
@@ -164,12 +164,12 @@ require __DIR__ . '/../layouts/header.php';
             </div>
         </div>
 
-        <!-- Pending Employees Drawer if any -->
+        <!-- Pending Partners Drawer if any -->
         <?php if (!empty($pendingPersonnel)): ?>
             <div class="fnx-card" style="margin-bottom:24px; padding:16px 20px; background:#FFF; border-left:4px solid #F59E0B;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                     <strong style="font-size:13.5px; color:#B45309; display:flex; align-items:center; gap:6px;">
-                        <span>⚠️</span> <?= count($pendingPersonnel) ?> Personnel Pending Update for <?= date('d M Y', strtotime($selectedDate)) ?>:
+                        <span>⚠️</span> <?= count($pendingPersonnel) ?> Partners Pending Update for <?= date('d M Y', strtotime($selectedDate)) ?>:
                     </strong>
                 </div>
                 <div style="display:flex; flex-wrap:wrap; gap:8px;">

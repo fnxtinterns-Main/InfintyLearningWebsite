@@ -11,7 +11,7 @@ declare(strict_types=1);
                 <a href="/futurenxt/dashboard">Dashboard</a>
                 <a href="/futurenxt/tasks">Tasks</a>
                 <a href="/futurenxt/daily-updates">Daily Updates</a>
-                <a href="/futurenxt/leaves">Leaves &amp; WFH</a>
+                <a href="/futurenxt/leaves">Leaves &amp; WFA</a>
                 <a href="/futurenxt/profile">My Profile</a>
                 <a href="https://infintylearning.net" target="_blank">Infinity Learning</a>
             </div>
