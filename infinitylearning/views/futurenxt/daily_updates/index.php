@@ -5,6 +5,7 @@ use App\FutureNxt\Auth;
 use App\FutureNxt\Employee;
 use App\FutureNxt\DailyUpdate;
 use App\FutureNxt\Task;
+use App\FutureNxt\Audit;
 use App\Helper;
 
 Auth::requireLogin();

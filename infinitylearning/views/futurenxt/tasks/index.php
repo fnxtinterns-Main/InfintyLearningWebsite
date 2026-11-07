@@ -4,6 +4,7 @@ declare(strict_types=1);
 use App\FutureNxt\Auth;
 use App\FutureNxt\Employee;
 use App\FutureNxt\Task;
+use App\FutureNxt\Audit;
 use App\Helper;
 
 Auth::requireLogin();
