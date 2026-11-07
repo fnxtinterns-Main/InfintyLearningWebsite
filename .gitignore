@@ -40,3 +40,17 @@ DO_NOT_UPLOAD_HERE
 setup_admin.php
 public_html/setup_admin.php
 
+# Internal Documentation & Scripts (Kept locally, excluded from GitHub)
+Futurenxt portal document.pdf
+Improvement of infinty learning.pdf
+Improvemt plan 2.docx
+Infinity Learning Document.pdf
+Infinity_Learning_Chatbot_Knowledge_Base_400_QA.docx
+improvemen plan 2&3.pdf
+improvement plan 3.docx
+dispatch_onboarding_emails.php
+check_passwords.php
+check_status.php
+test_otp.php
+
+
