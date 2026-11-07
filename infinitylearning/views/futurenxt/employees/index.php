@@ -507,7 +507,7 @@ require __DIR__ . '/../layouts/header.php';
     <div class="fnx-modal-dialog" style="max-width:500px;">
         <div class="fnx-modal-header">
             <div>
-                <h3 style="margin:0; font-size:18px; font-weight:800; color:#111827;">🔑 Reset Employee Password</h3>
+                <h3 style="margin:0; font-size:18px; font-weight:800; color:#111827;">🔑 Reset Partner Password</h3>
                 <p id="resetModalSubtitle" style="margin:2px 0 0; font-size:12.5px; color:#4B5563;"></p>
             </div>
             <button type="button" class="fnx-modal-close" onclick="fnxCloseModal('adminResetPasswordModal')">&times;</button>
@@ -518,7 +518,7 @@ require __DIR__ . '/../layouts/header.php';
             <div id="otpStep1">
                 <div style="background:#FFF9F4; border:1px solid #F3DECB; border-radius:10px; padding:16px; margin-bottom:16px;">
                     <p style="margin:0 0 10px; font-size:13.5px; color:#374151; line-height:1.5;">
-                        As an Administrator, you can update this employee's password without needing their current password.
+                        As an Administrator, you can update this partner's password without needing their current password.
                     </p>
                     <p style="margin:0; font-size:12.5px; color:#6B7280; line-height:1.5;">
                         A secure 6-digit OTP will be dispatched to their registered email (<strong id="resetTargetEmailText"></strong>) from <strong>fnxt.admin@gmail.com</strong>.
@@ -528,7 +528,7 @@ require __DIR__ . '/../layouts/header.php';
                 <div id="otpRequestAlert" style="display:none; margin-bottom:14px; padding:10px 14px; border-radius:8px; font-size:13px;"></div>
 
                 <button type="button" id="btnSendResetOtp" class="fnx-btn fnx-btn-orange" style="width:100%; justify-content:center; padding:11px 16px; font-size:14px; font-weight:700;" onclick="fnxSendPasswordOtp()">
-                    📧 Send 6-Digit OTP to Employee's Email →
+                    📧 Send 6-Digit OTP to Partner's Email →
                 </button>
             </div>
 
@@ -834,9 +834,11 @@ function fnxSendPasswordOtp() {
 
     const formData = new FormData();
     formData.append('employee_id', currentResetEmpId);
+    formData.append('ajax', '1');
 
     fetch('/futurenxt-handler.php?action=admin_request_password_otp', {
         method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
         body: formData
     })
     .then(r => r.json())
@@ -915,9 +917,11 @@ function fnxConfirmPasswordReset() {
     formData.append('employee_id', currentResetEmpId);
     formData.append('otp_code', otp);
     formData.append('new_password', newPass);
+    formData.append('ajax', '1');
 
     fetch('/futurenxt-handler.php?action=admin_confirm_password_reset', {
         method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
         body: formData
     })
     .then(r => r.json())

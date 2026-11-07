@@ -759,9 +759,11 @@ function fnxSendPasswordOtp() {
 
     const formData = new FormData();
     formData.append('employee_id', currentResetEmpId);
+    formData.append('ajax', '1');
 
     fetch('/futurenxt-handler.php?action=admin_request_password_otp', {
         method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
         body: formData
     })
     .then(r => r.json())
@@ -840,9 +842,11 @@ function fnxConfirmPasswordReset() {
     formData.append('employee_id', currentResetEmpId);
     formData.append('otp_code', otp);
     formData.append('new_password', newPass);
+    formData.append('ajax', '1');
 
     fetch('/futurenxt-handler.php?action=admin_confirm_password_reset', {
         method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
         body: formData
     })
     .then(r => r.json())

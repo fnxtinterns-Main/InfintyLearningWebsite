@@ -230,6 +230,7 @@ if ($action === 'update_status') {
 // ADMIN PASSWORD RESET VIA EMAIL OTP (NO CURRENT PASSWORD NEEDED)
 // -------------------------------------------------------------
 if ($action === 'admin_request_password_otp') {
+    $isAjax = true;
     if (!Auth::isAdminOrExec()) {
         sendResponse(false, 'Permission denied: Only Admin/Executive Leadership can reset credentials.');
     }
@@ -243,6 +244,7 @@ if ($action === 'admin_request_password_otp') {
 }
 
 if ($action === 'admin_confirm_password_reset') {
+    $isAjax = true;
     if (!Auth::isAdminOrExec()) {
         sendResponse(false, 'Permission denied: Only Admin/Executive Leadership can reset credentials.');
     }
