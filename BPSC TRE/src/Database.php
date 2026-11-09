@@ -1,7 +1,7 @@
 <?php
 /**
  * Infinity Learning - SQL Database Connection & Migration Engine
- * Powered by PDO SQL (SQLite / MySQL) with prepared statements
+ * Powered by PDO SQL (MySQL primary with isolated bpsc_ tables)
  */
 
 if (!defined('BPSC_PORTAL')) {
@@ -10,66 +10,57 @@ if (!defined('BPSC_PORTAL')) {
 
 class Database {
     private static ?PDO $pdo = null;
-    private static string $dbFile = __DIR__ . '/../database/bpsc_portal.sqlite';
-    private static string $schemaFile = __DIR__ . '/../database/schema.sql';
+
+    public static function isMysql(): bool {
+        return (defined('DB_DRIVER') ? strtolower(DB_DRIVER) : 'mysql') === 'mysql';
+    }
 
     /**
      * Get active PDO database connection with auto-initialization
      */
     public static function getConnection(): PDO {
         if (self::$pdo === null) {
-            $driver = defined('DB_DRIVER') ? strtolower(DB_DRIVER) : 'sqlite';
+            $driver = defined('DB_DRIVER') ? strtolower(DB_DRIVER) : 'mysql';
 
             if ($driver === 'mysql') {
-                $dsn = sprintf(
-                    'mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4',
-                    defined('DB_HOST') ? DB_HOST : '127.0.0.1',
-                    defined('DB_PORT') ? DB_PORT : '3306',
-                    defined('DB_NAME') ? DB_NAME : 'infinity_bpsc'
-                );
-                $user = defined('DB_USER') ? DB_USER : 'root';
-                $pass = defined('DB_PASS') ? DB_PASS : '';
+                $host = defined('DB_HOST') ? DB_HOST : '127.0.0.1';
+                $port = defined('DB_PORT') ? DB_PORT : '3306';
+                $dbname = defined('DB_NAME') ? DB_NAME : 'u999011396_inflearning';
+                $user = defined('DB_USER') ? DB_USER : 'u999011396_Inflearning';
+                $pass = defined('DB_PASS') ? DB_PASS : 'Infinitylearning@123';
+
+                $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
 
                 self::$pdo = new PDO($dsn, $user, $pass, [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false
+                    PDO::ATTR_EMULATE_PREPARES   => false,
                 ]);
             } else {
-                $isNew = !file_exists(self::$dbFile);
-                
-                self::$pdo = new PDO('sqlite:' . self::$dbFile, null, null, [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                $dbFile = __DIR__ . '/../database/bpsc_portal.sqlite';
+                self::$pdo = new PDO('sqlite:' . $dbFile, null, null, [
+                    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false
+                    PDO::ATTR_EMULATE_PREPARES   => false
                 ]);
-
                 self::$pdo->exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;');
-
-                if ($isNew || filesize(self::$dbFile) === 0) {
-                    self::migrateSchema();
-                }
             }
         }
         return self::$pdo;
     }
 
     /**
-     * Execute SQL migration from database/schema.sql
-     */
-    public static function migrateSchema(): void {
-        if (file_exists(self::$schemaFile)) {
-            $sql = file_get_contents(self::$schemaFile);
-            if (!empty($sql)) {
-                self::getConnection()->exec($sql);
-            }
-        }
-    }
-
-    /**
-     * Execute a prepared SQL query and return the statement
+     * Rewrite and execute a prepared SQL query
      */
     public static function query(string $sql, array $params = []): PDOStatement {
+        // Rewrite queries for MySQL compatibility and table isolation
+        if (self::isMysql()) {
+            // Replace SQLite INSERT OR IGNORE with MySQL INSERT IGNORE
+            $sql = preg_replace('/INSERT\s+OR\s+IGNORE\s+INTO/i', 'INSERT IGNORE INTO', $sql);
+            // Prefix isolated tables if not already prefixed
+            $sql = preg_replace('/(?<!bpsc_)\b(users|question_papers|notes|test_results|question_bank)\b/i', 'bpsc_$1', $sql);
+        }
+
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute($params);
         return $stmt;
@@ -97,4 +88,3 @@ class Database {
         return self::query($sql, $params)->rowCount() >= 0;
     }
 }
-
