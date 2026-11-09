@@ -119,6 +119,12 @@ $isLoggedInAdmin = ($currentUser && ($currentUser['role'] ?? '') === 'admin');
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Gateway & Provisioning — Infinity Learning BPSC TRE 4.0</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/assets/img/logo.png">
+  <link rel="shortcut icon" type="image/png" href="/assets/img/logo.png">
+  <link rel="apple-touch-icon" href="/assets/img/logo.png">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -148,8 +154,8 @@ $isLoggedInAdmin = ($currentUser && ($currentUser['role'] ?? '') === 'admin');
   <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50 px-6 py-4">
     <div class="max-w-6xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-brand-orange flex items-center justify-center text-white font-black text-xl shadow-lg shadow-orange-500/20">
-          ∞
+        <div class="w-10 h-10 rounded-xl bg-white border border-slate-700 p-1 flex items-center justify-center shadow-lg shadow-orange-500/10">
+          <img src="/assets/img/logo.png" alt="Infinity Learning" class="w-full h-full object-contain">
         </div>
         <div>
           <h1 class="text-base font-black tracking-tight text-white">INFINITY LEARNING</h1>

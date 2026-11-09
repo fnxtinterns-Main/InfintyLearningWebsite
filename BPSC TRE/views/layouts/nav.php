@@ -32,8 +32,8 @@ $isStudent = (!$isTeacher && !$isAdmin);
         
         <!-- Left: Brand Scope -->
         <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-          <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-brand-orange to-amber-500 flex items-center justify-center text-white font-serif font-bold text-base sm:text-xl shadow-sm cursor-pointer" onclick="returnToDashboard(event)" title="Infinity Learning Portal">
-            ∞
+          <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white border border-brand-peachBorder p-1 flex items-center justify-center shadow-sm cursor-pointer" onclick="returnToDashboard(event)" title="Infinity Learning Portal">
+            <img src="/assets/img/logo.png" alt="Infinity Learning" class="w-full h-full object-contain">
           </div>
           <div>
             <div class="flex items-center gap-1.5 sm:gap-2">

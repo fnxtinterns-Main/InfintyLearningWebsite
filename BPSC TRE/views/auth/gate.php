@@ -18,8 +18,8 @@ $cadreLevels = UserManager::getCadreLevels();
       
       <!-- Brand Crest & Main Portal Connection Badge -->
       <div class="text-center space-y-2">
-        <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-brand-orange to-amber-500 flex items-center justify-center text-white font-serif font-bold text-3xl shadow-sm">
-          ∞
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-white border border-brand-peachBorder p-2 flex items-center justify-center shadow-md">
+          <img src="/assets/img/logo.png" alt="Infinity Learning" class="w-full h-full object-contain">
         </div>
         <div>
           <h1 class="text-2xl font-black text-brand-slateText tracking-tight">Infinity Learning</h1>
