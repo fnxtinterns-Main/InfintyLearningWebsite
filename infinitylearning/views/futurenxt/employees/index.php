@@ -1054,7 +1054,7 @@ window.FNX_PARTNERS_DATA = <?= $partnersCatalogJson ?>;
 let activeSuggestIndex = -1;
 
 function escapeRegex(string) {
-    return (string || '').replace(/[/-\^$*+?.()|[]{}]/g, '\\<?php require __DIR__ . '/../layouts/footer.php'; ?>');
+    return (string || '').replace(/[.*+?^${}()|[\]\\]/g, function(c) { return '\\' + c; });
 }
 
 function escapeHtml(text) {
