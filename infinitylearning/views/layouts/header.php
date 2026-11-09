@@ -55,6 +55,7 @@ if ($user && !empty($user['school_id'])) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= Helper::e($pageTitle ?? 'Infinity Learning — Learn. Grow. Achieve.') ?></title>
 <meta name="description" content="Infinity Learning — unified platform for academics, AI learning, activities, competitions and achievements.">
+<meta name="google-site-verification" content="google5ab7b0c55382f117">
 <link rel="icon" href="/assets/img/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
