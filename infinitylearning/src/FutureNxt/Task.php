@@ -154,8 +154,9 @@ final class Task
             $sql .= " AND t.priority = ?";
             $params[] = $filters['priority'];
         }
-        if (!empty($filters['q'])) {
-            $q = '%' . trim($filters['q']) . '%';
+        $searchKey = !empty($filters['search']) ? $filters['search'] : (!empty($filters['q']) ? $filters['q'] : '');
+        if (!empty($searchKey)) {
+            $q = '%' . trim((string)$searchKey) . '%';
             $sql .= " AND (t.title LIKE ? OR t.task_code LIKE ? OR t.description LIKE ?)";
             $params[] = $q;
             $params[] = $q;

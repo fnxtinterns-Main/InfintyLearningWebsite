@@ -119,8 +119,9 @@ final class Employee
             $sql .= " AND e.manager_id = ?";
             $params[] = (int)$filters['manager_id'];
         }
-        if (!empty($filters['q'])) {
-            $q = '%' . trim($filters['q']) . '%';
+        $searchKey = !empty($filters['search']) ? $filters['search'] : (!empty($filters['q']) ? $filters['q'] : '');
+        if (!empty($searchKey)) {
+            $q = '%' . trim((string)$searchKey) . '%';
             $sql .= " AND (e.full_name LIKE ? OR e.email LIKE ? OR e.emp_code LIKE ? OR e.phone LIKE ? OR e.designation LIKE ?)";
             $params[] = $q;
             $params[] = $q;

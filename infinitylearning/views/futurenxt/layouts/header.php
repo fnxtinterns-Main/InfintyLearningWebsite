@@ -676,6 +676,53 @@ $activePage = $activePage ?? 'dashboard';
         }
         .fnx-pw-eye:hover { color: var(--fnx-orange); }
 
+        
+        /* Live Search Autocomplete Suggestion Dropdown */
+        .fnx-suggest-dropdown {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            background: #FFFFFF !important;
+            border: 1.5px solid var(--fnx-border) !important;
+            border-radius: 14px;
+            box-shadow: 0 16px 36px rgba(17, 24, 39, 0.14);
+            z-index: 1000;
+            max-height: 380px;
+            overflow-y: auto;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            box-sizing: border-box;
+            animation: fnxDrop 0.18s ease-out;
+        }
+        .fnx-suggest-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 9px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-decoration: none;
+            color: #111827 !important;
+            background: #FFFFFF;
+            border: 1px solid transparent;
+        }
+        .fnx-suggest-item:hover, .fnx-suggest-item.active {
+            background: #FFF7F0 !important;
+            border-color: #F3DECB !important;
+        }
+        .fnx-suggest-item mark {
+            background: #FFE7D2 !important;
+            color: #E05300 !important;
+            font-weight: 800;
+            padding: 1px 3px;
+            border-radius: 3px;
+        }
+
         /* Global Footer */
         .fnx-footer {
             background: #FFFFFF !important;

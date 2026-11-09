@@ -10,12 +10,18 @@ $me = Auth::user();
 $pageTitle = 'Personnel & Partners Directory';
 $activePage = 'employees';
 
+$searchQuery = trim((string)($_GET['search'] ?? $_GET['q'] ?? ''));
+$roleFilter = trim((string)($_GET['role'] ?? ''));
+$statusFilter = trim((string)($_GET['status'] ?? ''));
+
 $filters = [
-    'role' => $_GET['role'] ?? '',
-    'status' => $_GET['status'] ?? '',
-    'search' => $_GET['search'] ?? '',
+    'role' => $roleFilter,
+    'status' => $statusFilter,
+    'search' => $searchQuery,
+    'q' => $searchQuery,
 ];
 $employees = Employee::list($filters);
+$allPartnersRoster = Employee::list([]);
 $managersList = Employee::getManagers();
 
 $error = $_SESSION['fnx_error'] ?? null;
@@ -57,8 +63,14 @@ require __DIR__ . '/../layouts/header.php';
     <!-- Filter Bar -->
     <div class="fnx-card" style="padding:16px 20px; margin-bottom:24px;">
         <form method="GET" action="/futurenxt/employees" class="fnx-filter-form" style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
-            <div style="flex:1; min-width:200px;" class="fnx-filter-search">
-                <input type="text" name="search" class="fnx-input" placeholder="Search by name, email, phone, or code (e.g. FNX-I-001)..." value="<?= htmlspecialchars($filters['search']) ?>">
+            <div style="flex:1; min-width:200px; position:relative;" class="fnx-filter-search">
+                <input type="text" name="search" id="partnerSearchInput" class="fnx-input" autocomplete="off"
+                       placeholder="Search by name, email, phone, or code (e.g. FNX-I-001)..." 
+                       value="<?= htmlspecialchars($filters['search']) ?>"
+                       oninput="fnxHandlePartnerSearchInput(this.value)"
+                       onfocus="fnxHandlePartnerSearchInput(this.value)"
+                       onkeydown="fnxHandleSearchKeydown(event)">
+                <div id="partnerSuggestionsBox" class="fnx-suggest-dropdown" style="display:none;"></div>
             </div>
             <div style="min-width:140px;" class="fnx-filter-item">
                 <select name="role" class="fnx-select">
@@ -1018,5 +1030,221 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <?php endif; ?>
+
+
+<?php
+$partnersCatalogJson = json_encode(array_map(function($e) {
+    return [
+        'id' => (int)$e['id'],
+        'name' => (string)($e['full_name'] ?? ''),
+        'code' => (string)($e['emp_code'] ?? ''),
+        'email' => (string)($e['email'] ?? ''),
+        'phone' => (string)($e['phone'] ?? ''),
+        'role' => (string)($e['role'] ?? ''),
+        'designation' => (string)($e['designation'] ?? ucfirst($e['role'] ?? 'Partner')),
+        'department' => (string)($e['department'] ?? 'Operations'),
+        'status' => (string)($e['status'] ?? 'active'),
+        'photo' => !empty($e['photo_path']) ? $e['photo_path'] : '/assets/img/avatar-default.png'
+    ];
+}, $allPartnersRoster ?? []), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+?>
+
+<script>
+window.FNX_PARTNERS_DATA = <?= $partnersCatalogJson ?>;
+let activeSuggestIndex = -1;
+
+function escapeRegex(string) {
+    return (string || '').replace(/[/-\^$*+?.()|[]{}]/g, '\\<?php require __DIR__ . '/../layouts/footer.php'; ?>');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.innerText = text || '';
+    return div.innerHTML;
+}
+
+function highlightMatch(text, query) {
+    if (!query || !text) return escapeHtml(text || '');
+    const escaped = escapeRegex(query.trim());
+    const regex = new RegExp('(' + escaped + ')', 'gi');
+    return escapeHtml(text).replace(regex, '<mark>$1</mark>');
+}
+
+function fnxHandlePartnerSearchInput(query) {
+    query = (query || '').trim();
+    const box = document.getElementById('partnerSuggestionsBox');
+    if (!box) return;
+
+    // Filter table rows live as user types
+    fnxFilterTableRowsLive(query);
+
+    if (query.length === 0) {
+        box.style.display = 'none';
+        box.innerHTML = '';
+        activeSuggestIndex = -1;
+        return;
+    }
+
+    const qLower = query.toLowerCase();
+    const matches = (window.FNX_PARTNERS_DATA || []).filter(p => {
+        return (p.name && p.name.toLowerCase().includes(qLower)) ||
+               (p.code && p.code.toLowerCase().includes(qLower)) ||
+               (p.email && p.email.toLowerCase().includes(qLower)) ||
+               (p.phone && p.phone.toLowerCase().includes(qLower)) ||
+               (p.role && p.role.toLowerCase().includes(qLower)) ||
+               (p.designation && p.designation.toLowerCase().includes(qLower)) ||
+               (p.department && p.department.toLowerCase().includes(qLower));
+    }).slice(0, 7);
+
+    if (matches.length === 0) {
+        box.innerHTML = '<div style="padding:12px 14px; font-size:12.5px; color:#6B7280; text-align:center;">' +
+            'No matching partner found for "<strong>' + escapeHtml(query) + '</strong>"' +
+            '</div>';
+        box.style.display = 'flex';
+        activeSuggestIndex = -1;
+        return;
+    }
+
+    let html = '<div style="padding:6px 10px; font-size:11px; font-weight:800; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.04em; border-bottom:1px solid #F3DECB;">' +
+        'Matching Partners (' + matches.length + ')' +
+        '</div>';
+
+    matches.forEach((p, idx) => {
+        const statusBadge = p.status === 'active'
+            ? '<span class="fnx-badge fnx-badge-success" style="font-size:10px; padding:1px 6px;">Active</span>'
+            : '<span class="fnx-badge fnx-badge-warning" style="font-size:10px; padding:1px 6px;">' + escapeHtml(p.status) + '</span>';
+
+        html += '<div class="fnx-suggest-item" data-index="' + idx + '" onclick="fnxSelectSuggestion(\'' + escapeHtml(p.code) + '\')">' +
+            '<div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">' +
+                '<img src="' + escapeHtml(p.photo) + '" alt="" onerror="this.src=\'/assets/img/avatar-default.png\'" style="width:34px; height:34px; border-radius:8px; object-fit:cover; border:1px solid #F3DECB; flex-shrink:0;">' +
+                '<div style="min-width:0; flex:1;">' +
+                    '<div style="display:flex; align-items:center; gap:8px;">' +
+                        '<strong style="font-size:13px; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' +
+                            highlightMatch(p.name, query) +
+                        '</strong>' +
+                        '<span class="fnx-badge fnx-badge-orange" style="font-family:\'JetBrains Mono\',monospace; font-size:10.5px; padding:1px 5px; flex-shrink:0;">' +
+                            highlightMatch(p.code, query) +
+                        '</span>' +
+                    '</div>' +
+                    '<div style="font-size:11.5px; color:#4B5563; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' +
+                        highlightMatch(p.designation, query) + ' · ' + highlightMatch(p.department, query) +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">' +
+                statusBadge +
+                '<span style="font-size:11px; color:#FF7A18; font-weight:700;">Filter ↵</span>' +
+            '</div>' +
+        '</div>';
+    });
+
+    box.innerHTML = html;
+    box.style.display = 'flex';
+    activeSuggestIndex = -1;
+}
+
+function fnxSelectSuggestion(code) {
+    const input = document.getElementById('partnerSearchInput');
+    if (input) {
+        input.value = code;
+    }
+    const box = document.getElementById('partnerSuggestionsBox');
+    if (box) box.style.display = 'none';
+
+    // Submit the filter form
+    input.closest('form').submit();
+}
+
+function fnxFilterTableRowsLive(query) {
+    const tableBody = document.querySelector('.fnx-table tbody');
+    if (!tableBody) return;
+    const rows = tableBody.querySelectorAll('tr');
+    if (!rows.length) return;
+
+    const q = (query || '').toLowerCase().trim();
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        if (row.id === 'fnxNoResultsRow') return;
+
+        if (!q) {
+            row.style.display = '';
+            visibleCount++;
+            return;
+        }
+
+        const text = row.innerText.toLowerCase();
+        if (text.includes(q)) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    let noResultsRow = document.getElementById('fnxNoResultsRow');
+    if (visibleCount === 0 && q) {
+        if (!noResultsRow) {
+            noResultsRow = document.createElement('tr');
+            noResultsRow.id = 'fnxNoResultsRow';
+            noResultsRow.innerHTML = '<td colspan="7" style="text-align:center; padding:36px; color:var(--fnx-muted);">' +
+                '<div style="font-size:24px; margin-bottom:8px;">🔍</div>' +
+                '<div style="font-weight:700; color:#111827; font-size:14px;">No matching partners found</div>' +
+                '<div style="font-size:12.5px; color:#6B7280; margin-top:4px;">No partner records match "<strong>' + escapeHtml(q) + '</strong>". Try checking spelling or employee code.</div>' +
+                '</td>';
+            tableBody.appendChild(noResultsRow);
+        } else {
+            noResultsRow.style.display = '';
+            const strong = noResultsRow.querySelector('strong');
+            if (strong) strong.innerText = q;
+        }
+    } else if (noResultsRow) {
+        noResultsRow.style.display = 'none';
+    }
+}
+
+function fnxHandleSearchKeydown(e) {
+    const box = document.getElementById('partnerSuggestionsBox');
+    if (!box || box.style.display === 'none') return;
+
+    const items = box.querySelectorAll('.fnx-suggest-item');
+    if (!items.length) return;
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeSuggestIndex = (activeSuggestIndex + 1) % items.length;
+        updateActiveSuggestItem(items);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeSuggestIndex = (activeSuggestIndex - 1 + items.length) % items.length;
+        updateActiveSuggestItem(items);
+    } else if (e.key === 'Enter' && activeSuggestIndex >= 0) {
+        e.preventDefault();
+        items[activeSuggestIndex].click();
+    } else if (e.key === 'Escape') {
+        box.style.display = 'none';
+    }
+}
+
+function updateActiveSuggestItem(items) {
+    items.forEach((it, idx) => {
+        if (idx === activeSuggestIndex) {
+            it.classList.add('active');
+            it.scrollIntoView({ block: 'nearest' });
+        } else {
+            it.classList.remove('active');
+        }
+    });
+}
+
+document.addEventListener('click', function(e) {
+    const box = document.getElementById('partnerSuggestionsBox');
+    const input = document.getElementById('partnerSearchInput');
+    if (!box) return;
+    if (e.target !== input && !box.contains(e.target)) {
+        box.style.display = 'none';
+    }
+});
+</script>
 
 <?php require __DIR__ . '/../layouts/footer.php'; ?>
