@@ -115,16 +115,6 @@ $isStudent = (!$isTeacher && !$isAdmin);
             </button>
           </div>
 
-          <!-- Documentation (PDF) Download -->
-          <a href="download-pdf.php" target="_blank" download="BPSC_TRE_PORTAL_DOCUMENTATION.pdf" title="View or Download Complete Portal Documentation as PDF" class="hidden md:flex px-3 py-1.5 rounded-xl border border-red-300 bg-red-50 hover:bg-red-100 text-xs font-bold text-red-800 transition items-center gap-1 shadow-xs cursor-pointer">
-            <span>📕</span> <span>Docs (PDF)</span>
-          </a>
-
-          <!-- Main Website Portal Link -->
-          <a href="<?php echo htmlspecialchars(AppConfig::MAIN_WEBSITE_URL); ?>" target="_blank" title="Open Main Infinity Learning Website" class="hidden xl:flex px-3 py-1.5 rounded-xl border border-brand-peachBorder bg-brand-ivory hover:bg-brand-peachSoft text-xs font-semibold text-brand-slateText transition items-center gap-1">
-            <span>🌐</span> <span>Main Site</span>
-          </a>
-
           <!-- Sign Out -->
           <button type="button" onclick="logOutAndShowGate()" class="px-3 py-1.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-xs font-bold text-red-700 transition flex items-center gap-1 cursor-pointer">
             <span>⎋</span> <span>Sign Out</span>
@@ -249,18 +239,9 @@ $isStudent = (!$isTeacher && !$isAdmin);
           </button>
         </div>
 
-        <!-- Documentation Download Button (PDF) -->
-        <a href="download-pdf.php" target="_blank" download="BPSC_TRE_PORTAL_DOCUMENTATION.pdf" class="p-2.5 rounded-xl border border-red-300 bg-red-50 text-red-800 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-xs">
-          <span>📕</span>
-          <span>Download Documentation (PDF)</span>
-        </a>
-
-        <!-- External & Logout Bar -->
-        <div class="pt-2 border-t border-brand-peachSoft flex items-center justify-between gap-2">
-          <a href="<?php echo htmlspecialchars(AppConfig::MAIN_WEBSITE_URL); ?>" target="_blank" class="flex-1 py-2 px-3 rounded-xl border border-brand-peachBorder bg-brand-ivory text-xs font-bold text-brand-slateText flex items-center justify-center gap-1.5">
-            <span>🌐</span> <span>Main Site</span>
-          </a>
-          <button type="button" onclick="logOutAndShowGate()" class="flex-1 py-2 px-3 rounded-xl border border-red-200 bg-red-50 text-xs font-bold text-red-700 flex items-center justify-center gap-1.5 cursor-pointer">
+        <!-- Logout Bar -->
+        <div class="pt-2 border-t border-brand-peachSoft flex items-center justify-end">
+          <button type="button" onclick="logOutAndShowGate()" class="w-full py-2.5 px-3 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-xs font-bold text-red-700 flex items-center justify-center gap-1.5 cursor-pointer">
             <span>⎋</span> <span>Sign Out</span>
           </button>
         </div>

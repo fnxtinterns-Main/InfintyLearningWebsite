@@ -9,6 +9,7 @@ if (!defined('BPSC_PORTAL')) {
 
 $pendingTeachers = UserManager::getPendingTeachers();
 $approvedTeachers = UserManager::getApprovedTeachers();
+$activeStudents = UserManager::getActiveStudents();
 $currentUser = Auth::user();
 $isAdminUser = ($currentUser && ($currentUser['role'] ?? '') === 'admin');
 ?>
@@ -237,6 +238,94 @@ $isAdminUser = ($currentUser && ($currentUser['role'] ?? '') === 'admin');
                       <button onclick="adminRemoveTeacher('<?php echo htmlspecialchars($t['id']); ?>')" class="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-[11px] transition shadow-xs cursor-pointer inline-flex items-center gap-1">
                         <span>🗑️</span> Remove Teacher
                       </button>
+                    </td>
+                  </tr>
+                  <?php endforeach; ?>
+                <?php endif; ?>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 3. ACTIVE CANDIDATE / STUDENT DIRECTORY -->
+        <div class="bg-white rounded-3xl border border-brand-peachBorder p-6 shadow-sm space-y-4">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-brand-peachSoft pb-3">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-xl bg-orange-100 text-brand-orange flex items-center justify-center font-bold text-sm">🎓</span>
+              <div>
+                <h3 class="text-sm font-extrabold uppercase tracking-wide text-brand-slateText flex items-center gap-2">
+                  <span>Registered Active Students Directory</span>
+                  <span id="activeStudentBadgeCount" class="text-[10px] font-sans font-semibold font-bold bg-orange-100 text-brand-orange px-2 py-0.5 rounded-full border border-orange-200">
+                    <?php echo count($activeStudents); ?> Active
+                  </span>
+                </h3>
+                <p class="text-[11px] text-brand-muted">Verified candidate accounts currently enrolled in BPSC TRE 4.0 with test access and candidate privileges.</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 self-end sm:self-auto">
+              <button type="button" 
+                      data-collapsible-target="adminActiveStudentsBody" 
+                      onclick="toggleSectionCollapse('adminActiveStudentsBody', this, 'Active Students')" 
+                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-brand-slateText bg-brand-ivory border border-brand-peachBorder hover:bg-brand-peachSoft hover:text-brand-orange transition cursor-pointer shadow-2xs" 
+                      title="Minimize Students Directory"
+                      aria-expanded="true">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+                <span>Minimize</span>
+              </button>
+              <span class="text-[11px] font-mono text-brand-orange bg-orange-50 px-2.5 py-1 rounded-xl font-bold border border-orange-200">
+                ✓ Active Candidate Access
+              </span>
+            </div>
+          </div>
+
+          <div id="adminActiveStudentsBody" class="overflow-x-auto rounded-2xl border border-brand-peachBorder shadow-2xs">
+            <table class="w-full text-left text-xs border-collapse min-w-[650px]">
+              <thead>
+                <tr class="border-b border-brand-peachSoft font-bold text-brand-slateText bg-brand-ivory/60 whitespace-nowrap">
+                  <th class="py-2.5 px-3">Student Name</th>
+                  <th class="py-2.5 px-3">Email & Contact</th>
+                  <th class="py-2.5 px-3">Cadre / Target Level</th>
+                  <th class="py-2.5 px-3">District</th>
+                  <th class="py-2.5 px-3">Performance (Tests / Best)</th>
+                  <th class="py-2.5 px-3">Enrolled Plan</th>
+                  <th class="py-2.5 px-3 text-right">Joined Date</th>
+                </tr>
+              </thead>
+              <tbody id="adminActiveStudentsTableBody" class="divide-y divide-brand-peachSoft font-medium text-brand-slateText whitespace-nowrap">
+                <?php if (empty($activeStudents)): ?>
+                <tr>
+                  <td colspan="7" class="py-6 text-center text-brand-muted text-xs">
+                    No active students registered currently.
+                  </td>
+                </tr>
+                <?php else: ?>
+                  <?php foreach ($activeStudents as $s): ?>
+                  <tr class="hover:bg-orange-50/30 transition">
+                    <td class="py-3 px-3">
+                      <div class="font-bold text-brand-slateText"><?php echo htmlspecialchars($s['name'] ?? 'Candidate'); ?></div>
+                      <div class="text-[10px] font-sans font-semibold text-brand-muted"><?php echo htmlspecialchars($s['id'] ?? ''); ?></div>
+                    </td>
+                    <td class="py-3 px-3">
+                      <div><?php echo htmlspecialchars($s['email'] ?? ''); ?></div>
+                      <div class="text-[10px] text-brand-muted"><?php echo htmlspecialchars($s['phone'] ?? ''); ?></div>
+                    </td>
+                    <td class="py-3 px-3">
+                      <div class="font-semibold text-brand-slateText"><?php echo htmlspecialchars($s['level_label'] ?? 'General Cadre'); ?></div>
+                    </td>
+                    <td class="py-3 px-3 font-semibold text-brand-orange">
+                      <?php echo htmlspecialchars($s['district'] ?? 'Bihar'); ?>
+                    </td>
+                    <td class="py-3 px-3">
+                      <div class="font-mono font-bold text-brand-slateText"><?php echo (int)($s['achievements']['tests_taken'] ?? 0); ?> Mocks Taken</div>
+                      <div class="text-[10px] text-emerald-700 font-bold">Best: <?php echo htmlspecialchars((string)($s['achievements']['best_score'] ?? '0')); ?> pts (<?php echo htmlspecialchars((string)($s['achievements']['avg_accuracy'] ?? '0%')); ?> acc)</div>
+                    </td>
+                    <td class="py-3 px-3">
+                      <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        <?php echo htmlspecialchars($s['subscription']['plan_name'] ?? 'Standard Pass'); ?>
+                      </span>
+                    </td>
+                    <td class="py-3 px-3 text-right font-mono text-[11px] text-brand-muted">
+                      <?php echo htmlspecialchars(substr($s['created_at'] ?? '', 0, 10)); ?>
                     </td>
                   </tr>
                   <?php endforeach; ?>

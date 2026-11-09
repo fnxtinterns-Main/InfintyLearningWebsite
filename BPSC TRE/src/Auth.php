@@ -34,17 +34,27 @@ class Auth {
             }
 
             if ($isPasswordValid) {
-                // Determine target session role (admins & teachers get their registered roles; students default)
-                $actualRole = $user['role'] ?? ROLE_STUDENT;
-                if ($actualRole === ROLE_ADMIN) {
-                    $targetRole = ROLE_ADMIN;
-                } elseif ($actualRole === ROLE_TEACHER) {
-                    $targetRole = ROLE_TEACHER;
-                } else {
-                    $targetRole = (!empty($expectedRole) && in_array($expectedRole, [ROLE_STUDENT, ROLE_TEACHER, ROLE_ADMIN]))
-                        ? $expectedRole
-                        : ROLE_STUDENT;
+                $actualRole   = strtolower(trim((string)($user['role'] ?? ROLE_STUDENT)));
+                $expectedRole = strtolower(trim((string)($expectedRole ?: ROLE_STUDENT)));
+
+                // STRICT ROLE ENFORCEMENT:
+                // Only teacher can login to teacher, student to student, and admin to admin.
+                if ($actualRole !== $expectedRole) {
+                    $roleDisplayNames = [
+                        ROLE_STUDENT => 'Student / Candidate',
+                        ROLE_TEACHER => 'Faculty / Teacher',
+                        ROLE_ADMIN   => 'Platform Administrator'
+                    ];
+                    $actualLabel   = $roleDisplayNames[$actualRole] ?? ucfirst($actualRole);
+                    $expectedLabel = $roleDisplayNames[$expectedRole] ?? ucfirst($expectedRole);
+
+                    return [
+                        'success' => false,
+                        'message' => "Access Denied: Your account is registered as {$actualLabel}. You cannot log into the {$expectedLabel} portal."
+                    ];
                 }
+
+                $targetRole = $actualRole;
 
                 // Strict Gate for Teachers: Check Approval Status
                 if (($user['role'] ?? '') === ROLE_TEACHER || $targetRole === ROLE_TEACHER) {

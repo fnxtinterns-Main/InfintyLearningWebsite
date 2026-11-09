@@ -270,6 +270,14 @@ class UserManager {
     }
 
     /**
+     * Get Registered Active Students / Candidates
+     */
+    public static function getActiveStudents(): array {
+        $rows = Database::fetchAll("SELECT * FROM users WHERE role = 'student' AND status = 'active' ORDER BY created_at DESC");
+        return array_map([self::class, 'formatUserData'], $rows);
+    }
+
+    /**
      * Admin Action: Approve Teacher
      */
     public static function approveTeacher(string $userId): array {
