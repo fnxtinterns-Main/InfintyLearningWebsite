@@ -91,12 +91,23 @@ if ($action === 'verify') {
         $status    = $isAiverse ? 'active' : 'pending';
 
         $userId = Auth::createUser([
-            'email'     => $data['email'],
-            'phone'     => $data['phone'],
-            'password'  => $data['password'],
-            'role'      => $role,
-            'school_id' => $schoolId,
-            'status'    => $status,
+            'email'               => $data['email'],
+            'phone'               => $data['phone'],
+            'password'            => $data['password'],
+            'role'                => $role,
+            'school_id'           => $schoolId,
+            'status'              => $status,
+            'terms_accepted_at'   => $data['terms_accepted_at'] ?? date('Y-m-d H:i:s'),
+            'terms_accepted_ip'   => $data['terms_accepted_ip'] ?? ($_SERVER['REMOTE_ADDR'] ?? null),
+            'parent_consent_at'   => $data['parent_consent_at'] ?? ($role === 'student' ? date('Y-m-d H:i:s') : null),
+            'marketing_consent'   => !empty($data['marketing_consent']) ? 1 : 0,
+        ]);
+
+        Audit::log('consent.recorded', 'user', $userId, [
+            'terms_accepted_at' => $data['terms_accepted_at'] ?? date('Y-m-d H:i:s'),
+            'parent_consent_at' => $data['parent_consent_at'] ?? null,
+            'marketing_consent' => !empty($data['marketing_consent']) ? 1 : 0,
+            'ip'                => $_SERVER['REMOTE_ADDR'] ?? null,
         ]);
 
         if ($role === 'student') {

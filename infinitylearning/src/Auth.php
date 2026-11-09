@@ -22,8 +22,8 @@ final class Auth
 
         $stmt = $db->prepare("
             INSERT INTO users
-                (uuid, email, phone, password_hash, role, school_id, status, phone_verified_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                (uuid, email, phone, password_hash, role, school_id, status, phone_verified_at, terms_accepted_at, terms_accepted_ip, parent_consent_at, marketing_consent)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?)
         ");
         $stmt->execute([
             $uuid,
@@ -33,6 +33,10 @@ final class Auth
             $data['role'],
             !empty($data['school_id']) ? (int)$data['school_id'] : null,
             $data['status'] ?? STATUS_PENDING,
+            $data['terms_accepted_at'] ?? date('Y-m-d H:i:s'),
+            $data['terms_accepted_ip'] ?? ($_SERVER['REMOTE_ADDR'] ?? null),
+            $data['parent_consent_at'] ?? null,
+            !empty($data['marketing_consent']) ? 1 : 0,
         ]);
 
         return (int) $db->lastInsertId();

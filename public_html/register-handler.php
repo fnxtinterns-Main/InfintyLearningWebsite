@@ -39,6 +39,22 @@ if (!in_array($role, ['student','teacher'], true)) {
     Helper::redirect('/register');
 }
 
+// Mandatory Terms & Privacy Policy Check (No Dark Patterns)
+if (empty($_POST['accept_terms'])) {
+    Helper::flashOld($_POST);
+    Session::flash('error', 'You must read and agree to the Terms of Service, Privacy Policy, and Cancellation & Refund Policy to proceed.');
+    Helper::redirect('/register?type=' . $role);
+}
+
+// Mandatory Parental Consent for Minors (DPDP Act 2023)
+if ($role === 'student' && empty($_POST['parent_consent'])) {
+    Helper::flashOld($_POST);
+    Session::flash('error', 'Parent / legal guardian consent is mandatory for student registration under child data protection regulations.');
+    Helper::redirect('/register?type=' . $role);
+}
+
+$marketingConsent = !empty($_POST['marketing_consent']) ? 1 : 0;
+
 $data = [
     'role'                  => $role,
     'school_id'             => (int)($_POST['school_id'] ?? 0),
@@ -68,6 +84,10 @@ $data = [
     'additional_expertise'  => trim($_POST['additional_expertise'] ?? ''),
     'bio'                   => trim($_POST['bio'] ?? ''),
     'registration_number'   => trim($_POST['registration_number'] ?? ''),
+    'terms_accepted_at'     => date('Y-m-d H:i:s'),
+    'terms_accepted_ip'     => $ip,
+    'parent_consent_at'     => ($role === 'student' ? date('Y-m-d H:i:s') : null),
+    'marketing_consent'     => $marketingConsent,
 ];
 
 // Validate school

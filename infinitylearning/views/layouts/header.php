@@ -494,9 +494,34 @@ select option {
 .skeleton-text.short { width: 55%; }
 .skeleton-box { height: 120px; width: 100%; }
 .skeleton-circle { width: 44px; height: 44px; border-radius: 50%; }
+
+/* Accessibility & Keyboard Navigation (WCAG 2.1 AA) */
+.skip-link {
+    position: absolute;
+    top: -60px;
+    left: 14px;
+    background: var(--il-brand, #7C2D5C);
+    color: #FFFFFF !important;
+    padding: 10px 18px;
+    z-index: 99999999;
+    font-weight: 700;
+    font-size: 14px;
+    border-radius: 0 0 8px 8px;
+    text-decoration: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    transition: top 0.2s ease-in-out;
+}
+.skip-link:focus {
+    top: 0;
+}
+:focus-visible {
+    outline: 2.5px solid var(--il-brand, #7C2D5C) !important;
+    outline-offset: 2px !important;
+}
 </style>
 </head>
 <body>
+<a href="#mainContent" class="skip-link">Skip to main content</a>
 <nav class="navbar">
     <div class="nav-brand">
         <a href="/" aria-label="Infinity Learning home" class="brand-link" style="display:flex; align-items:center; gap:8px;">
@@ -977,7 +1002,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-<main class="container">
+<main id="mainContent" class="container" tabindex="-1">
 <?php if ($msg = Session::flash('success')): ?>
     <div class="alert alert-success"><?= Helper::e($msg) ?></div>
 <?php endif; ?>

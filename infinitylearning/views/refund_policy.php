@@ -120,6 +120,16 @@ require VIEW_PATH . '/layouts/header.php';
                         commencement of the next academic billing cycle.
                     </p>
                 </div>
+
+                <div style="border-left:3px solid var(--il-brand,#7C2D5C); padding-left:14px;">
+                    <h3 style="font-size:1rem; margin-bottom:4px;">🔄 Recurring Subscriptions &amp; Easy 1-Click Cancellation</h3>
+                    <p style="font-size:.92rem; line-height:1.6; margin:0 0 6px;">
+                        <strong>Transparent Auto-Renewal:</strong> Subscription plans auto-renew at the end of each recurring cycle (monthly/annual) at the stated price. Advance reminder notifications are dispatched before annual renewals.
+                    </p>
+                    <p style="font-size:.92rem; line-height:1.6; margin:0;">
+                        <strong>Zero Dark Patterns Guarantee:</strong> Cancelling your recurring subscription is simple, immediate, and free of hidden hurdles or cancellation fees. You may cancel at any time from your student/parent dashboard or by emailing <a href="mailto:info@infintylearning.net" style="color:var(--il-brand,#7C2D5C); font-weight:700;">info@infintylearning.net</a>. Upon cancellation, your access remains active until the end of your current prepaid term.
+                    </p>
+                </div>
             </div>
         </div>
 

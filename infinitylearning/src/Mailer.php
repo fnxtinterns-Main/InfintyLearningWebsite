@@ -138,6 +138,8 @@ final class Mailer
             // 3. Clean Transactional Deliverability Headers (omit X-Mailer to avoid spam heuristics)
             $mail->XMailer = '';
             $mail->Priority = 3;
+            $mail->addCustomHeader('List-Unsubscribe', '<https://infintylearning.net/unsubscribe>, <mailto:info@infintylearning.net?subject=unsubscribe>');
+            $mail->addCustomHeader('List-Unsubscribe-Post', 'List-Unsubscribe=One-Click');
 
             $mail->addAddress($to, $toName);
 
@@ -198,10 +200,11 @@ final class Mailer
         <tr>
             <td align=\"center\" style=\"padding:10px 0;\">
                 {$body}
-                <div style=\"max-width:540px; margin:20px auto 0; text-align:center; font-size:11.5px; color:#8C7364; line-height:1.5;\">
+                <div style=\"max-width:540px; margin:20px auto 0; text-align:center; font-size:11.5px; color:#8C7364; line-height:1.6;\">
                     <strong>Infinity Learning</strong> · Educational &amp; School Portal<br>
-                    Official website: <a href=\"https://infintylearning.net\" style=\"color:#FF7A18; text-decoration:none; font-weight:600;\">infintylearning.net</a><br>
-                    This is an important transactional notification regarding your account. If you need assistance, contact <a href=\"mailto:info@infintylearning.net\" style=\"color:#8C7364;\">info@infintylearning.net</a>.
+                    Official website: <a href=\"https://infintylearning.net\" style=\"color:#FF7A18; text-decoration:none; font-weight:600;\">infintylearning.net</a> · <a href=\"https://infintylearning.net/privacy\" style=\"color:#8C7364; text-decoration:underline;\">Privacy Policy</a> · <a href=\"https://infintylearning.net/terms\" style=\"color:#8C7364; text-decoration:underline;\">Terms</a><br>
+                    This is an official transactional and educational notification regarding your account.<br>
+                    To manage your email preferences or unsubscribe from optional updates: <a href=\"https://infintylearning.net/unsubscribe\" style=\"color:#FF7A18; text-decoration:underline; font-weight:600;\">Unsubscribe here</a>.
                 </div>
             </td>
         </tr>

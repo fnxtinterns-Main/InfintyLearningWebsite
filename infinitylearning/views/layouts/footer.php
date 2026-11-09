@@ -348,13 +348,17 @@
 
             <!-- Column 3: Company / legal links -->
             <div class="footer-col">
-                <h4 class="footer-col-heading">Company</h4>
+                <h4 class="footer-col-heading">Company &amp; Legal</h4>
                 <ul class="footer-links">
-                    <li><a href="/about">About</a></li>
-                    <li><a href="/contact">Contact</a></li>
+                    <li><a href="/about">About Us</a></li>
+                    <li><a href="/contact">Contact Support</a></li>
                     <li><a href="/privacy">Privacy Policy</a></li>
                     <li><a href="/terms">Terms of Service</a></li>
                     <li><a href="/refund-policy">Refund &amp; Cancellation</a></li>
+                    <li><a href="/subprocessors">Subprocessors List</a></li>
+                    <li><a href="/dpa">Data Processing Agreement (DPA)</a></li>
+                    <li><a href="/data-request">Privacy &amp; Data Rights Request</a></li>
+                    <li><a href="javascript:void(0)" onclick="ilOpenCookieBanner()" style="color:#7C2D5C; font-weight:700;">🍪 Cookie Settings</a></li>
                 </ul>
             </div>
 
@@ -369,13 +373,20 @@
                 <span class="footer-dot">·</span>
                 <a href="/refund-policy">Refunds</a>
                 <span class="footer-dot">·</span>
-                <a href="/about">About</a>
+                <a href="/subprocessors">Subprocessors</a>
+                <span class="footer-dot">·</span>
+                <a href="/dpa">DPA</a>
+                <span class="footer-dot">·</span>
+                <a href="/data-request">Data Access/Erasure</a>
+                <span class="footer-dot">·</span>
+                <a href="javascript:void(0)" onclick="ilOpenCookieBanner()">Cookie Settings</a>
                 <span class="footer-dot">·</span>
                 <a href="/contact">Contact</a>
             </p>
         </div>
     </div>
 </footer>
+<?php require __DIR__ . '/cookie_banner.php'; ?>
 <script src="/assets/js/app.js?v=3.0"></script>
 <?php
 // Infinity.ai Agentic AI Chat Widget (Infinity Learning website only, strictly excluded on FutureNxt portal)

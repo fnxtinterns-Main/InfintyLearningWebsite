@@ -76,21 +76,52 @@ require VIEW_PATH . '/layouts/header.php';
         </div>
 
         <div class="card mt-3">
-            <h2 class="detail-h2">5. Content you upload</h2>
+            <h2 class="detail-h2">5. Content You Upload &amp; AI Training Shield</h2>
             <ul style="margin-left:1.25rem;line-height:1.9">
-                <li>You retain ownership of content you upload (lessons, assignments, files).</li>
-                <li>By uploading, you grant Infinity Learning a licence to store, process and display that content to the intended audience (your school, your batch, or the Platform).</li>
-                <li>You confirm you have the right to upload the content and that it does not infringe anyone else's rights.</li>
-                <li>You are responsible for ensuring uploaded files comply with data protection and copyright law.</li>
+                <li>You retain full ownership and intellectual property of content you upload (lessons, assignments, notes, student doubts, files).</li>
+                <li>By uploading, you grant Infinity Learning a limited, non-exclusive licence strictly to store, process, and display that content to authorized users in your school or cohort.</li>
+                <li><strong>No AI Model Training:</strong> Infinity Learning shall <strong>NEVER</strong> use, sell, or license your uploaded coursework, questions, student submissions, or notes to train, fine-tune, or benchmark external machine learning or foundation AI models.</li>
+                <li>You confirm you own or have obtained the necessary rights to any content you upload and that it does not infringe any third-party copyright.</li>
             </ul>
         </div>
 
         <div class="card mt-3">
-            <h2 class="detail-h2">6. Platform content</h2>
+            <h2 class="detail-h2">6. Subscriptions, Auto-Renewal &amp; Easy Cancellation</h2>
+            <p>For independent courses, bundles, chess coaching, and recurring platform tiers:</p>
+            <ul style="margin-left:1.25rem;line-height:1.9">
+                <li><strong>Auto-Renewal Disclosure:</strong> If you enroll in a recurring subscription plan, your subscription will automatically renew at the conclusion of each billing period (monthly, quarterly, or annually) at the then-current standard rate, unless cancelled prior to the renewal date.</li>
+                <li><strong>Advance Notification:</strong> We provide transparent billing receipts and advance email notices prior to annual subscription renewals.</li>
+                <li><strong>Easy 1-Click Cancellation:</strong> We do NOT employ dark patterns, forced phone calls, or deceptive retention mazes. You may cancel your subscription at any time directly through your dashboard settings or by submitting a cancellation request to <a href="mailto:info@infintylearning.net" style="color:var(--il-brand,#7C2D5C); font-weight:700;">info@infintylearning.net</a>.</li>
+                <li><strong>Post-Cancellation Access:</strong> Upon cancellation, you retain full uninterrupted access to your enrolled courses and resources until the end of your prepaid billing period.</li>
+                <li><strong>Refunds:</strong> All fee refunds and grace periods are governed strictly by our transparent <a href="/refund-policy" style="color:var(--il-brand,#7C2D5C); font-weight:700; text-decoration:underline;">Cancellation &amp; Refund Policy</a>.</li>
+            </ul>
+        </div>
+
+        <div class="card mt-3">
+            <h2 class="detail-h2">7. DMCA &amp; Copyright Infringement Takedown Procedure</h2>
             <p>
-                Content provided by Infinity Learning (global lessons, platform design, code,
-                branding) is owned by us or our licensors and may not be reproduced without
-                permission.
+                Infinity Learning respects intellectual property rights and adheres to the notice and takedown principles 
+                of the Digital Millennium Copyright Act (17 U.S.C. § 512) and the Indian Copyright Act 1957.
+            </p>
+            <p style="margin-top:.75rem">
+                If you believe your copyrighted work has been uploaded or displayed without authorization, submit a formal written notice to our Designated Copyright Agent:
+            </p>
+            <div style="background:var(--surface-2); padding:16px; border-radius:8px; margin:12px 0; font-size:13.5px; line-height:1.7;">
+                <strong>Designated Copyright Agent:</strong> Legal &amp; Compliance Office<br>
+                <strong>Email:</strong> <a href="mailto:info@infintylearning.net" style="color:var(--il-brand,#7C2D5C); font-weight:700;">info@infintylearning.net</a><br>
+                <strong>Address:</strong> Infinity Learning / FutureNxt Technologies, India
+            </div>
+            <p style="font-size:13.5px; color:#475569; line-height:1.6; margin-top:.5rem;">
+                Your notice must include: (a) identification of the copyrighted work claimed to be infringed; (b) the exact URL or location on the Platform; (c) your contact information (name, address, phone, email); (d) a statement of good-faith belief that the use is unauthorized; and (e) a physical or electronic signature of the copyright owner or authorized representative.
+            </p>
+        </div>
+
+        <div class="card mt-3">
+            <h2 class="detail-h2">8. Platform Content &amp; Open Source Licenses</h2>
+            <p>
+                Platform design, branding, and proprietary codebase are owned by Infinity Learning. Open source components and web fonts utilized on the platform are used pursuant to their respective permissive licenses (including MIT, Apache 2.0, and SIL Open Font License).
+                <br>
+                👉 <a href="/open-source-licenses" style="color:var(--il-brand,#7C2D5C); font-weight:700; text-decoration:underline;">View Open Source Software &amp; Font Disclosures</a>.
             </p>
         </div>
 

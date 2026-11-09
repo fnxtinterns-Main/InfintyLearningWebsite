@@ -278,6 +278,42 @@ require VIEW_PATH . '/layouts/header.php';
                     </div>
                 <?php endif; ?>
 
+                <!-- Legal Compliance & Consents (No Dark Patterns — Unchecked by Default) -->
+                <div style="background:var(--surface-2, #F8FAFC); border:1px solid var(--border, #E2E8F0); border-radius:10px; padding:16px 18px; margin:20px 0 16px;">
+                    <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted, #64748B); margin-bottom:12px;">
+                        Consent &amp; Legal Agreements
+                    </div>
+
+                    <!-- 1. Mandatory Terms & Privacy Policy Checkbox -->
+                    <div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:12px;">
+                        <input type="checkbox" name="accept_terms" id="acceptTermsInput" value="1" required style="width:18px; height:18px; margin-top:2px; accent-color:var(--il-brand, #7C2D5C); cursor:pointer;">
+                        <label for="acceptTermsInput" style="font-size:13px; line-height:1.5; color:var(--text-main, #0F172A); cursor:pointer; margin:0;">
+                            I have read, understood, and agree to the 
+                            <a href="/terms" target="_blank" style="color:var(--il-brand, #7C2D5C); font-weight:700; text-decoration:underline;">Terms of Service</a>, 
+                            <a href="/privacy" target="_blank" style="color:var(--il-brand, #7C2D5C); font-weight:700; text-decoration:underline;">Privacy Policy</a>, and 
+                            <a href="/refund-policy" target="_blank" style="color:var(--il-brand, #7C2D5C); font-weight:700; text-decoration:underline;">Cancellation &amp; Refund Policy</a>. <span style="color:#DC2626;">*</span>
+                        </label>
+                    </div>
+
+                    <?php if ($type === 'student'): ?>
+                        <!-- 2. Mandatory Parental Consent for Minors (DPDP Act 2023) -->
+                        <div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:12px;">
+                            <input type="checkbox" name="parent_consent" id="parentConsentInput" value="1" required style="width:18px; height:18px; margin-top:2px; accent-color:var(--il-brand, #7C2D5C); cursor:pointer;">
+                            <label for="parentConsentInput" style="font-size:13px; line-height:1.5; color:var(--text-main, #0F172A); cursor:pointer; margin:0;">
+                                <strong>Parent / Guardian Consent:</strong> As parent or legal guardian, I give verifiable consent to the collection and educational processing of this student's data in accordance with the <em>Digital Personal Data Protection Act (DPDP 2023)</em>. <span style="color:#DC2626;">*</span>
+                            </label>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- 3. Separate, Optional Marketing Consent -->
+                    <div style="display:flex; align-items:flex-start; gap:10px;">
+                        <input type="checkbox" name="marketing_consent" id="marketingConsentInput" value="1" <?= Helper::old('marketing_consent') ? 'checked' : '' ?> style="width:18px; height:18px; margin-top:2px; accent-color:var(--il-brand, #7C2D5C); cursor:pointer;">
+                        <label for="marketingConsentInput" style="font-size:12.5px; line-height:1.45; color:var(--text-muted, #64748B); cursor:pointer; margin:0;">
+                            (Optional) Send me periodic educational resources, competition updates, and platform newsletters. You can unsubscribe at any time with 1-click.
+                        </label>
+                    </div>
+                </div>
+
                 <button type="submit" id="submitBtn" class="btn btn-primary btn-block btn-lg mt-2"<?= !$schools ? ' disabled' : '' ?>>
                     Create Account
                 </button>
