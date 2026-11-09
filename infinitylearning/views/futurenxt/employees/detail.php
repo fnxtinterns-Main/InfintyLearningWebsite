@@ -176,7 +176,7 @@ require __DIR__ . '/../layouts/header.php';
     </div>
 
     <!-- 2 Columns: Identity & Banking / Task Assignments -->
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+    <div class="fnx-grid-2" style="margin-bottom:24px;">
         <!-- Left Column: KYC, Identity & Banking -->
         <div>
             <!-- KYC & Identity -->

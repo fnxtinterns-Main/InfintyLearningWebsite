@@ -130,7 +130,7 @@ require __DIR__ . '/layouts/header.php';
                     Company policy restricts active tasks to a maximum of 3 concurrent assignments per individual to guarantee quality and deliverability.
                 </p>
             </div>
-            <div style="min-width:220px; flex:1; max-width:300px;">
+            <div style="min-width:180px; flex:1; max-width:300px;" class="fnx-capacity-meter-wrap">
                 <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800; color:#111827 !important; margin-bottom:6px;">
                     <span>Current Capacity</span>
                     <span><?= round(($myActiveCount / 3) * 100) ?>%</span>
@@ -201,7 +201,7 @@ require __DIR__ . '/layouts/header.php';
         <div class="fnx-card">
             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <div>
-                    <div style="font-size:12px; font-weight:800; color:#4B5563 !important; text-transform:uppercase; letter-spacing:0.05em;">WFH Requests</div>
+                    <div style="font-size:12px; font-weight:800; color:#4B5563 !important; text-transform:uppercase; letter-spacing:0.05em;">WFA Requests</div>
                     <div style="font-size:32px; font-weight:800; color:#7C3AED !important; margin-top:4px;">
                         <?= (int)($wfhStats['pending'] ?? 0) ?>
                     </div>
@@ -211,17 +211,17 @@ require __DIR__ . '/layouts/header.php';
                 </div>
             </div>
             <div style="margin-top:14px; font-size:12.5px; color:#4B5563 !important;">
-                <span>Active WFH approvals: <strong style="color:#111827 !important;"><?= (int)($wfhStats['approved'] ?? 0) ?></strong></span>
+                <span>Active WFA approvals: <strong style="color:#111827 !important;"><?= (int)($wfhStats['approved'] ?? 0) ?></strong></span>
             </div>
         </div>
     </div>
 
     <!-- Main 2-Column Content Section -->
-    <div class="fnx-main-columns" style="display:grid; grid-template-columns: 2fr 1fr; gap:24px;">
+    <div class="fnx-main-columns" style="display:grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap:24px;">
         <!-- Left Column: Tasks Overview & Actions -->
         <div>
             <div class="fnx-card" style="margin-bottom:24px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                <div class="fnx-card-head-flex" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:18px;">
                     <div>
                         <h2 style="margin:0; font-size:18px; font-weight:800; color:#111827 !important;">Operational Tasks</h2>
                         <p style="margin:2px 0 0; font-size:13px; color:#4B5563 !important;">Recent assignments, multi-assignees, and PDF documentation status</p>

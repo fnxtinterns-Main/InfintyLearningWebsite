@@ -87,6 +87,16 @@ $activePage = $activePage ?? 'dashboard';
             }
         }
 
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            overflow-x: hidden !important;
+            max-width: 100vw !important;
+            width: 100%;
+        }
+
         body {
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
             background: #FFF9F4 !important;
@@ -95,6 +105,9 @@ $activePage = $activePage ?? 'dashboard';
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            overflow-x: hidden !important;
+            width: 100%;
+            max-width: 100vw;
         }
 
         /* Top Navigation Header */
@@ -300,7 +313,9 @@ $activePage = $activePage ?? 'dashboard';
             padding: 0 20px;
             flex: 1;
             width: 100%;
+            min-width: 0;
             box-sizing: border-box;
+            overflow-x: hidden;
         }
 
         /* Unified Component Card System */
@@ -312,6 +327,11 @@ $activePage = $activePage ?? 'dashboard';
             box-shadow: 0 1px 3px rgba(43,27,18,0.06);
             position: relative;
             color: #111827 !important;
+            min-width: 0;
+            max-width: 100%;
+            box-sizing: border-box;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         .fnx-card h1, .fnx-card h2, .fnx-card h3, .fnx-card h4, .fnx-card strong {
             color: #111827 !important;
@@ -320,16 +340,37 @@ $activePage = $activePage ?? 'dashboard';
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 20px;
+            min-width: 0;
+            width: 100%;
         }
+        .fnx-grid-4 > * { min-width: 0; max-width: 100%; }
         .fnx-grid-3 {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 20px;
+            min-width: 0;
+            width: 100%;
         }
+        .fnx-grid-3 > * { min-width: 0; max-width: 100%; }
         .fnx-grid-2 {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 20px;
+            min-width: 0;
+            width: 100%;
+        }
+        .fnx-grid-2 > * { min-width: 0; max-width: 100%; }
+
+        .fnx-main-columns {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+            gap: 24px;
+            min-width: 0;
+            width: 100%;
+        }
+        .fnx-main-columns > div {
+            min-width: 0;
+            max-width: 100%;
         }
 
         /* Unified Buttons */
@@ -405,8 +446,14 @@ $activePage = $activePage ?? 'dashboard';
 
         /* Tables */
         .fnx-table-wrap {
-            overflow-x: auto;
-            width: 100%;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box;
+            display: block;
+            margin: 0;
+            position: relative;
         }
         .fnx-table {
             width: 100%;
@@ -414,6 +461,7 @@ $activePage = $activePage ?? 'dashboard';
             font-size: 13px;
             text-align: left;
             background: #FFFFFF !important;
+            min-width: 620px;
         }
         .fnx-table th {
             padding: 12px 14px;
@@ -643,7 +691,7 @@ $activePage = $activePage ?? 'dashboard';
                 display: none !important;
             }
             .fnx-brand-img {
-                height: 34px !important;
+                height: 32px !important;
             }
             .fnx-user-btn {
                 padding: 4px 10px 4px 4px !important;
@@ -675,14 +723,21 @@ $activePage = $activePage ?? 'dashboard';
             .fnx-container {
                 margin: 14px auto 32px !important;
                 padding: 0 12px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                overflow-x: hidden !important;
             }
             .fnx-main-columns {
-                grid-template-columns: 1fr !important;
+                grid-template-columns: minmax(0, 1fr) !important;
                 gap: 16px !important;
             }
             .fnx-welcome-banner {
                 padding: 18px 16px !important;
                 gap: 14px !important;
+            }
+            .fnx-welcome-banner h1 {
+                font-size: 20px !important;
+                line-height: 1.25 !important;
             }
             .fnx-welcome-actions {
                 width: 100% !important;
@@ -696,26 +751,55 @@ $activePage = $activePage ?? 'dashboard';
                 justify-content: center !important;
                 font-size: 12px !important;
                 padding: 8px 10px !important;
+                text-align: center;
             }
             .fnx-grid-4 {
-                grid-template-columns: repeat(2, 1fr) !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
                 gap: 12px !important;
             }
-            .fnx-grid-2 {
-                grid-template-columns: 1fr !important;
+            .fnx-grid-3, .fnx-grid-2 {
+                grid-template-columns: minmax(0, 1fr) !important;
+                gap: 14px !important;
             }
             .fnx-card {
-                padding: 16px !important;
+                padding: 16px 14px !important;
                 border-radius: 12px !important;
+            }
+            .fnx-card-head-flex {
+                flex-wrap: wrap !important;
+                gap: 10px !important;
+            }
+            .fnx-card-head-flex .fnx-btn {
+                width: 100% !important;
+                justify-content: center !important;
+            }
+            .fnx-capacity-meter-wrap {
+                max-width: 100% !important;
+                width: 100% !important;
             }
         }
 
-        @media (max-width: 520px) {
+        @media (max-width: 600px) {
             .fnx-welcome-actions {
                 grid-template-columns: 1fr !important;
             }
             .fnx-grid-4 {
-                grid-template-columns: 1fr !important;
+                grid-template-columns: minmax(0, 1fr) !important;
+                gap: 10px !important;
+            }
+            .fnx-notices-btn-text {
+                display: none !important;
+            }
+            .fnx-modal-backdrop {
+                padding: 8px !important;
+            }
+            .fnx-modal-dialog {
+                border-radius: 14px !important;
+                max-height: calc(100vh - 16px) !important;
+            }
+            .fnx-modal-header, .fnx-modal-body, .fnx-modal-footer {
+                padding-left: 14px !important;
+                padding-right: 14px !important;
             }
         }
     </style>
@@ -744,7 +828,7 @@ $activePage = $activePage ?? 'dashboard';
         <!-- Top Right: Notifications & Partner Photo Menu -->
         <div style="display:flex; align-items:center; gap:10px;">
             <a href="/futurenxt/notices" class="fnx-btn fnx-btn-outline" style="padding:6px 12px; font-size:13.5px; background:#FFFFFF; border-color:var(--fnx-border); display:inline-flex; align-items:center; gap:6px; font-weight:700; color:#111827 !important;" title="Company Notices & Announcements">
-                <span>🔔</span> <span style="font-size:12px;">Notices</span>
+                <span>🔔</span> <span style="font-size:12px;" class="fnx-notices-btn-text">Notices</span>
             </a>
 
             <div class="fnx-user-menu">
