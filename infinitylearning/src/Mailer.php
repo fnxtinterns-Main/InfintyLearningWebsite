@@ -129,7 +129,8 @@ final class Mailer
             // 1. Envelope Sender (Return-Path / MAIL FROM)
             $mail->Sender = $fromEmail;
             $mail->setFrom($fromEmail, $fromName);
-            $mail->addReplyTo($fromEmail, $fromName);
+            $replyToEmail = !empty($smtp['reply_to']) ? $smtp['reply_to'] : $fromEmail;
+            $mail->addReplyTo($replyToEmail, $fromName);
 
             // 2. Domain Hostname for Message-ID alignment
             $domain = parse_url($config['app']['url'] ?? 'https://infintylearning.net', PHP_URL_HOST) ?: 'infintylearning.net';
@@ -539,7 +540,7 @@ final class Mailer
     public static function passwordResetEmail(
         string $email,
         string $resetUrl,
-        string $expiryText = '1 hour'
+        string $expiryText = '10 minutes'
     ): string {
         return "
         <div style='font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;background:#FFF9F4;padding:24px;border-radius:12px'>

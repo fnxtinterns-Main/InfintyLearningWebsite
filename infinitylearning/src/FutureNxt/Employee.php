@@ -542,10 +542,10 @@ final class Employee
         $del = $db->prepare("DELETE FROM fnx_password_resets WHERE employee_id = ?");
         $del->execute([$employeeId]);
 
-        // Insert new OTP with 15 min expiry
+        // Insert new OTP with 10 min expiry
         $ins = $db->prepare("
             INSERT INTO fnx_password_resets (employee_id, otp_code, expires_at, created_at)
-            VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 15 MINUTE), NOW())
+            VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE), NOW())
         ");
         $ins->execute([$employeeId, $otp]);
 
@@ -557,7 +557,7 @@ final class Employee
         return [
             'success' => true,
             'email'   => $emp['email'],
-            'message' => "A 6-digit OTP has been dispatched to {$emp['email']}. Valid for 15 minutes."
+            'message' => "A 6-digit OTP has been dispatched to {$emp['email']}. Valid for 10 minutes."
         ];
     }
 

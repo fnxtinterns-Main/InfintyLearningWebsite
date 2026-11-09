@@ -535,7 +535,7 @@ require __DIR__ . '/../layouts/header.php';
             <!-- STEP 2: Verify OTP & Enter New Password -->
             <div id="otpStep2" style="display:none;">
                 <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:10px; padding:12px 14px; margin-bottom:16px; font-size:13px; color:#065F46;">
-                    ✓ 6-Digit OTP sent to <strong id="resetEmailConfirmed"></strong>. Valid for 15 minutes.
+                    ✓ 6-Digit OTP sent to <strong id="resetEmailConfirmed"></strong>. Valid for 10 minutes.
                 </div>
 
                 <div id="otpConfirmAlert" style="display:none; margin-bottom:14px; padding:10px 14px; border-radius:8px; font-size:13px;"></div>

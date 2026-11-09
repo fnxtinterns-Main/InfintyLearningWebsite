@@ -22,13 +22,21 @@ final class EmailNotifier
     {
         $base = defined('BASE_PATH') ? BASE_PATH : dirname(__DIR__, 2);
         $config = require $base . '/config/config.php';
-        return $config['futurenxt_smtp'] ?? [
-            'host'      => 'smtp.gmail.com',
-            'port'      => 587,
-            'user'      => 'fnxt.admin@gmail.com',
-            'pass'      => 'Futurenxt@99',
-            'from'      => 'fnxt.admin@gmail.com',
+        $fnx = $config['futurenxt_smtp'] ?? null;
+        // If an explicit 16-character Google App Password is provided (without special chars), use Gmail SMTP
+        if (!empty($fnx['pass']) && strlen($fnx['pass']) === 16 && !str_contains($fnx['pass'], '@')) {
+            return $fnx;
+        }
+        // Otherwise use the verified, ultra-fast Hostinger SMTP with FutureNxt branding
+        return [
+            'host'      => $config['smtp']['host'] ?? 'smtp.hostinger.com',
+            'port'      => (int)($config['smtp']['port'] ?? 587),
+            'user'      => $config['smtp']['user'] ?? 'info@infintylearning.net',
+            'pass'      => $config['smtp']['pass'] ?? 'Infinity@learning99',
+            'from'      => $config['smtp']['from'] ?? 'info@infintylearning.net',
             'from_name' => 'FutureNxt Operations',
+            'reply_to'  => 'fnxt.admin@gmail.com',
+            'timeout'   => 5,
         ];
     }
 
@@ -70,7 +78,7 @@ final class EmailNotifier
                         <div style=\"display:inline-block; background:#FFFFFF; border:2px dashed #FF7A18; border-radius:12px; padding:18px 36px; box-shadow:0 4px 12px rgba(255, 122, 24, 0.12);\">
                             <div style=\"font-size:11px; font-weight:800; color:#FF7A18; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px;\">One-Time Passcode (OTP)</div>
                             <div style=\"font-size:36px; font-weight:900; letter-spacing:8px; color:#111827; font-family:'JetBrains Mono',monospace;\">" . htmlspecialchars($otp) . "</div>
-                            <div style=\"font-size:11px; color:#9CA3AF; margin-top:6px;\">Valid for 15 minutes</div>
+                            <div style=\"font-size:11px; color:#9CA3AF; margin-top:6px;\">Valid for 10 minutes</div>
                         </div>
                     </div>
 
@@ -78,7 +86,7 @@ final class EmailNotifier
                         <div style=\"font-size:12.5px; font-weight:700; color:#111827; margin-bottom:4px;\">🛡️ Security Information:</div>
                         <ul style=\"margin:4px 0 0; padding-left:18px; font-size:12.5px; color:#4B5563; line-height:1.5;\">
                             <li>Provide this verification code to your portal administrator to finalize your password update.</li>
-                            <li>This code will expire automatically in 15 minutes for your protection.</li>
+                            <li>This code will expire automatically in 10 minutes for your protection.</li>
                             <li>If you did not expect a password update, please contact administration at <a href=\"mailto:fnxt.admin@gmail.com\" style=\"color:#FF7A18; font-weight:700;\">fnxt.admin@gmail.com</a> immediately.</li>
                         </ul>
                     </div>

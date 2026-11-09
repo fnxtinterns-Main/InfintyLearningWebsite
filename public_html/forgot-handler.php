@@ -36,7 +36,7 @@ if ($user) {
     $hash  = hash('sha256', $token);
     $db = Database::connect();
     $db->prepare("DELETE FROM password_resets WHERE user_id = ?")->execute([$user['id']]);
-    $db->prepare("INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))")
+    $db->prepare("INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))")
        ->execute([$user['id'], $hash]);
 
     // Build the reset URL from the trusted production base URL
