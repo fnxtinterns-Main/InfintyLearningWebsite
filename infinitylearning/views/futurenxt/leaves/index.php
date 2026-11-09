@@ -66,7 +66,7 @@ require __DIR__ . '/../layouts/header.php';
     <!-- Filter Tabs -->
     <div class="fnx-card" style="padding:16px 20px; margin-bottom:24px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <div class="fnx-chip-bar" style="display:flex; gap:8px; flex-wrap:wrap;">
                 <a href="/futurenxt/leaves" class="fnx-btn <?= empty($statusFilter) && !$myLeavesOnly ? 'fnx-btn-dark' : 'fnx-btn-outline' ?>" style="padding:6px 12px; font-size:12.5px;">All Requests</a>
                 <a href="/futurenxt/leaves?my=1" class="fnx-btn <?= $myLeavesOnly ? 'fnx-btn-dark' : 'fnx-btn-outline' ?>" style="padding:6px 12px; font-size:12.5px;">My Leaves</a>
                 <a href="/futurenxt/leaves?status=pending" class="fnx-btn <?= $statusFilter === 'pending' ? 'fnx-btn-dark' : 'fnx-btn-outline' ?>" style="padding:6px 12px; font-size:12.5px;">Pending Approval</a>
@@ -80,6 +80,10 @@ require __DIR__ . '/../layouts/header.php';
 
     <!-- Leave Requests List with Task Conflict Indicator -->
     <div class="fnx-card">
+        <div class="fnx-table-scroll-hint">
+            <span>↔️ Swipe horizontally to view duration, task conflict &amp; actions</span>
+            <span>👉</span>
+        </div>
         <div class="fnx-table-wrap">
             <table class="fnx-table">
                 <thead>

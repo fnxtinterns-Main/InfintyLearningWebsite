@@ -64,6 +64,10 @@ require __DIR__ . '/../layouts/header.php';
 
     <!-- Table of WFA requests -->
     <div class="fnx-card">
+        <div class="fnx-table-scroll-hint">
+            <span>↔️ Swipe horizontally to view remote dates &amp; deliverables</span>
+            <span>👉</span>
+        </div>
         <div class="fnx-table-wrap">
             <table class="fnx-table">
                 <thead>

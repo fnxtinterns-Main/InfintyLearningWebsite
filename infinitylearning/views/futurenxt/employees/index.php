@@ -33,7 +33,7 @@ require __DIR__ . '/../layouts/header.php';
                 Directory of executives, officers, managers, and partners across FutureNxt.
             </p>
         </div>
-        <div style="display:flex; gap:10px;">
+        <div class="fnx-page-header-actions" style="display:flex; gap:10px;">
             <?php if (Auth::isAdminOrExec() || Auth::role() === 'manager' || Auth::role() === 'office_manager'): ?>
                 <button type="button" class="fnx-btn fnx-btn-orange" onclick="fnxOpenModal('onboardModal'); fnxUpdateCodePreview();">
                     <span>+</span> Onboard New Partner
@@ -56,11 +56,11 @@ require __DIR__ . '/../layouts/header.php';
 
     <!-- Filter Bar -->
     <div class="fnx-card" style="padding:16px 20px; margin-bottom:24px;">
-        <form method="GET" action="/futurenxt/employees" style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
-            <div style="flex:1; min-width:200px;">
+        <form method="GET" action="/futurenxt/employees" class="fnx-filter-form" style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+            <div style="flex:1; min-width:200px;" class="fnx-filter-search">
                 <input type="text" name="search" class="fnx-input" placeholder="Search by name, email, phone, or code (e.g. FNX-I-001)..." value="<?= htmlspecialchars($filters['search']) ?>">
             </div>
-            <div style="min-width:140px;">
+            <div style="min-width:140px;" class="fnx-filter-item">
                 <select name="role" class="fnx-select">
                     <option value="">All Roles</option>
                     <option value="ceo" <?= $filters['role'] === 'ceo' ? 'selected' : '' ?>>CEO</option>
@@ -72,7 +72,7 @@ require __DIR__ . '/../layouts/header.php';
                     <option value="intern" <?= $filters['role'] === 'intern' ? 'selected' : '' ?>>Intern</option>
                 </select>
             </div>
-            <div style="min-width:130px;">
+            <div style="min-width:130px;" class="fnx-filter-item">
                 <select name="status" class="fnx-select">
                     <option value="">All Statuses</option>
                     <option value="active" <?= $filters['status'] === 'active' ? 'selected' : '' ?>>Active</option>
@@ -82,15 +82,21 @@ require __DIR__ . '/../layouts/header.php';
                     <option value="terminated" <?= $filters['status'] === 'terminated' ? 'selected' : '' ?>>Terminated</option>
                 </select>
             </div>
-            <button type="submit" class="fnx-btn fnx-btn-dark">Filter</button>
-            <?php if (!empty($filters['search']) || !empty($filters['role']) || !empty($filters['status'])): ?>
-                <a href="/futurenxt/employees" class="fnx-btn fnx-btn-outline">Reset</a>
-            <?php endif; ?>
+            <div class="fnx-filter-actions" style="display:flex; gap:8px;">
+                <button type="submit" class="fnx-btn fnx-btn-dark">Filter</button>
+                <?php if (!empty($filters['search']) || !empty($filters['role']) || !empty($filters['status'])): ?>
+                    <a href="/futurenxt/employees" class="fnx-btn fnx-btn-outline">Reset</a>
+                <?php endif; ?>
+            </div>
         </form>
     </div>
 
     <!-- Personnel Directory Table -->
     <div class="fnx-card">
+        <div class="fnx-table-scroll-hint">
+            <span>↔️ Swipe horizontally to view all partner records &amp; actions</span>
+            <span>👉</span>
+        </div>
         <div class="fnx-table-wrap">
             <table class="fnx-table">
                 <thead>

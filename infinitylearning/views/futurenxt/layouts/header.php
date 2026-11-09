@@ -454,6 +454,21 @@ $activePage = $activePage ?? 'dashboard';
             display: block;
             margin: 0;
             position: relative;
+            padding-bottom: 8px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--fnx-orange) #FFF7F0;
+        }
+        .fnx-table-wrap::-webkit-scrollbar {
+            height: 6px !important;
+            display: block !important;
+        }
+        .fnx-table-wrap::-webkit-scrollbar-track {
+            background: #FFF7F0 !important;
+            border-radius: 999px !important;
+        }
+        .fnx-table-wrap::-webkit-scrollbar-thumb {
+            background: #FF7A18 !important;
+            border-radius: 999px !important;
         }
         .fnx-table {
             width: 100%;
@@ -461,7 +476,23 @@ $activePage = $activePage ?? 'dashboard';
             font-size: 13px;
             text-align: left;
             background: #FFFFFF !important;
-            min-width: 620px;
+            min-width: 700px;
+        }
+        .fnx-table th {
+            white-space: nowrap !important;
+        }
+        .fnx-table-scroll-hint {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            padding: 7px 12px;
+            background: #FFF7F0;
+            border: 1px dashed var(--fnx-orange);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--fnx-orange);
         }
         .fnx-table th {
             padding: 12px 14px;
@@ -777,9 +808,65 @@ $activePage = $activePage ?? 'dashboard';
                 max-width: 100% !important;
                 width: 100% !important;
             }
+            .fnx-table-scroll-hint {
+                display: flex !important;
+            }
+            .fnx-filter-form {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 10px !important;
+            }
+            .fnx-filter-form > div, .fnx-filter-item, .fnx-filter-search {
+                width: 100% !important;
+                min-width: 100% !important;
+            }
+            .fnx-filter-actions {
+                width: 100% !important;
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 8px !important;
+            }
+            .fnx-filter-actions .fnx-btn {
+                width: 100% !important;
+                justify-content: center !important;
+            }
+            .fnx-chip-bar {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+                gap: 6px !important;
+                padding-bottom: 6px !important;
+                width: 100% !important;
+                scrollbar-width: none;
+            }
+            .fnx-chip-bar::-webkit-scrollbar {
+                display: none;
+            }
+            .fnx-chip-bar .fnx-btn {
+                white-space: nowrap !important;
+                flex-shrink: 0 !important;
+                padding: 6px 12px !important;
+                font-size: 12px !important;
+            }
         }
 
         @media (max-width: 600px) {
+            .fnx-page-header {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 12px !important;
+            }
+            .fnx-page-header h1 {
+                font-size: 20px !important;
+            }
+            .fnx-page-header-actions {
+                width: 100% !important;
+            }
+            .fnx-page-header-actions .fnx-btn {
+                width: 100% !important;
+                justify-content: center !important;
+            }
             .fnx-welcome-actions {
                 grid-template-columns: 1fr !important;
             }

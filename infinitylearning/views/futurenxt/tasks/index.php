@@ -40,14 +40,14 @@ require __DIR__ . '/../layouts/header.php';
 ?>
 
 <div class="fnx-container">
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:24px;">
+    <div class="fnx-page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:24px;">
         <div>
             <h1 style="margin:0 0 4px; font-size:24px; font-weight:800; color:var(--fnx-navy);">Task Management</h1>
             <p style="margin:0; font-size:13.5px; color:var(--fnx-muted);">
                 Multi-assignee tasks, strict 3-task capacity limits, task reassignment, and mandatory PDF documentation.
             </p>
         </div>
-        <div style="display:flex; gap:10px;">
+        <div class="fnx-page-header-actions" style="display:flex; gap:10px;">
             <?php if (Auth::isManagerOrAbove()): ?>
                 <button type="button" class="fnx-btn fnx-btn-orange" onclick="fnxOpenModal('createTaskModal')">
                     <span>+</span> Create &amp; Assign Task
@@ -71,7 +71,7 @@ require __DIR__ . '/../layouts/header.php';
     <!-- Filter Bar -->
     <div class="fnx-card" style="padding:16px 20px; margin-bottom:24px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <div class="fnx-chip-bar" style="display:flex; gap:8px; flex-wrap:wrap;">
                 <a href="/futurenxt/tasks" class="fnx-btn <?= empty($statusFilter) && !$myTasksOnly ? 'fnx-btn-dark' : 'fnx-btn-outline' ?>" style="padding:6px 14px; font-size:12.5px;">
                     Active Tasks (<?= (int)(($taskStats['pending'] ?? 0) + ($taskStats['in_progress'] ?? 0) + ($taskStats['reopened'] ?? 0) + ($taskStats['submitted'] ?? 0)) ?>)
                 </a>
@@ -96,6 +96,10 @@ require __DIR__ . '/../layouts/header.php';
 
     <!-- Task List Table -->
     <div class="fnx-card">
+        <div class="fnx-table-scroll-hint">
+            <span>↔️ Swipe horizontally to view full task details &amp; actions</span>
+            <span>👉</span>
+        </div>
         <div class="fnx-table-wrap">
             <table class="fnx-table">
                 <thead>

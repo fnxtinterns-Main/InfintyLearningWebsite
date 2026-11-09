@@ -235,6 +235,10 @@ require __DIR__ . '/layouts/header.php';
                         <p style="margin:8px 0 0; font-size:14px;">No active tasks found. Start by assigning a task!</p>
                     </div>
                 <?php else: ?>
+                    <div class="fnx-table-scroll-hint">
+                        <span>↔️ Swipe horizontally to view assignees, status &amp; actions</span>
+                        <span>👉</span>
+                    </div>
                     <div class="fnx-table-wrap">
                         <table class="fnx-table">
                             <thead>
