@@ -72,8 +72,8 @@ $cadreLevels = UserManager::getCadreLevels();
         <!-- Persona Description Card -->
         <div class="p-3.5 rounded-2xl bg-brand-ivory border border-brand-peachBorder text-xs space-y-1">
           <div class="flex items-center justify-between">
-            <span class="font-bold text-brand-slateText uppercase text-[11px]" id="personaTitle">Student Login</span>
-            <span class="text-[10px] font-sans text-brand-orange bg-brand-peachSoft px-2 py-0.5 rounded font-bold border border-brand-peachBorder">Student</span>
+            <span class="font-bold text-brand-slateText uppercase text-[11px]" id="personaTitle">Candidate / Aspirant Terminal</span>
+            <span id="personaBadge" class="text-[10px] font-sans text-brand-orange bg-brand-peachSoft px-2 py-0.5 rounded font-bold border border-brand-peachBorder">Candidate Terminal</span>
           </div>
           <p class="text-[11px] text-brand-muted leading-relaxed" id="personaDesc">
             Access authentic BPSC TRE mock tests, official SCERT reference books, previous year papers, and topic-wise preparation.

@@ -1321,6 +1321,8 @@ $phpStoredQuestionBankJson = json_encode($sqlQuestionBank, JSON_UNESCAPED_UNICOD
       if (persona) {
         document.getElementById("personaTitle").innerText = persona.title;
         document.getElementById("personaDesc").innerText = persona.desc;
+        const badgeEl = document.getElementById("personaBadge");
+        if (badgeEl) badgeEl.innerText = persona.badge || (role.charAt(0).toUpperCase() + role.slice(1));
       }
     }
 
