@@ -361,7 +361,15 @@ final class Task
             return ['success' => false, 'error' => 'Task not found.'];
         }
 
-        if ($fromEmployeeId === $toEmployeeId) {
+        // If fromEmployeeId is not explicitly set, find first active assignee
+        if ($fromEmployeeId <= 0) {
+            $activeAssignees = self::getAssignees($taskId);
+            if (!empty($activeAssignees)) {
+                $fromEmployeeId = (int)$activeAssignees[0]['employee_id'];
+            }
+        }
+
+        if ($fromEmployeeId > 0 && $fromEmployeeId === $toEmployeeId) {
             return ['success' => false, 'error' => 'Target assignee must be different from current assignee.'];
         }
 
@@ -376,13 +384,22 @@ final class Task
             ];
         }
 
-        // Deactivate fromEmployee assignment
-        $deact = $db->prepare("
-            UPDATE fnx_task_assignees 
-            SET is_active = 0, reassigned_to = ?, reassigned_at = NOW(), reassign_reason = ? 
-            WHERE task_id = ? AND employee_id = ? AND is_active = 1
-        ");
-        $deact->execute([$toEmployeeId, $reason, $taskId, $fromEmployeeId]);
+        // Deactivate fromEmployee assignment (or any active assignment if fromEmployeeId <= 0)
+        if ($fromEmployeeId > 0) {
+            $deact = $db->prepare("
+                UPDATE fnx_task_assignees 
+                SET is_active = 0, reassigned_to = ?, reassigned_at = NOW(), reassign_reason = ? 
+                WHERE task_id = ? AND employee_id = ? AND is_active = 1
+            ");
+            $deact->execute([$toEmployeeId, $reason, $taskId, $fromEmployeeId]);
+        } else {
+            $deact = $db->prepare("
+                UPDATE fnx_task_assignees 
+                SET is_active = 0, reassigned_to = ?, reassigned_at = NOW(), reassign_reason = ? 
+                WHERE task_id = ? AND is_active = 1
+            ");
+            $deact->execute([$toEmployeeId, $reason, $taskId]);
+        }
 
         // Add new assignment
         $ins = $db->prepare("
@@ -393,6 +410,92 @@ final class Task
 
         Audit::log('reassign', 'task', $taskId, "Reassigned task {$task['task_code']} from #{$fromEmployeeId} to #{$toEmployeeId}. Reason: {$reason}", $assignedBy);
 
+        try {
+            EmailNotifier::sendTaskAssigned($taskId, [$toEmployeeId], $assignedBy);
+        } catch (\Throwable $e) {}
+
+        return ['success' => true];
+    }
+
+    public static function update(int $taskId, array $data, int $updatedBy): array
+    {
+        $db = Database::connect();
+        $task = self::find($taskId);
+        if (!$task) {
+            return ['success' => false, 'error' => 'Task not found.'];
+        }
+
+        $title       = trim((string)($data['title'] ?? $task['title']));
+        $description = trim((string)($data['description'] ?? $task['description']));
+        $priority    = $data['priority'] ?? $task['priority'];
+        $dueDate     = !empty($data['due_date']) ? $data['due_date'] : $task['due_date'];
+        $dueTime     = !empty($data['due_time']) ? $data['due_time'] : ($task['due_time'] ?? '18:00:00');
+        $status      = $data['status'] ?? $task['status'];
+
+        if (empty($title)) {
+            return ['success' => false, 'error' => 'Task title is required.'];
+        }
+
+        $stmt = $db->prepare("
+            UPDATE fnx_tasks 
+            SET title = ?, description = ?, priority = ?, due_date = ?, due_time = ?, status = ?, updated_at = NOW()
+            WHERE id = ?
+        ");
+        $stmt->execute([$title, $description, $priority, $dueDate, $dueTime, $status, $taskId]);
+
+        // If assignees list was provided, update assignees
+        if (isset($data['assignee_ids']) && is_array($data['assignee_ids'])) {
+            $newAssigneeIds = array_map('intval', array_filter($data['assignee_ids']));
+            if (!empty($newAssigneeIds)) {
+                $currentAssignees = self::getAssignees($taskId);
+                $currentIds = array_map('intval', array_column($currentAssignees, 'employee_id'));
+
+                // Deactivate assignees removed
+                foreach ($currentIds as $cId) {
+                    if (!in_array($cId, $newAssigneeIds, true)) {
+                        $db->prepare("UPDATE fnx_task_assignees SET is_active = 0 WHERE task_id = ? AND employee_id = ?")->execute([$taskId, $cId]);
+                    }
+                }
+
+                // Add newly added assignees
+                foreach ($newAssigneeIds as $nId) {
+                    if (!in_array($nId, $currentIds, true)) {
+                        $count = self::getActiveTaskCount($nId);
+                        if ($count < self::MAX_ACTIVE_TASKS_PER_EMPLOYEE) {
+                            $db->prepare("INSERT INTO fnx_task_assignees (task_id, employee_id, assigned_by, assigned_at, is_active) VALUES (?, ?, ?, NOW(), 1)")
+                               ->execute([$taskId, $nId, $updatedBy]);
+                        }
+                    }
+                }
+            }
+        }
+
+        Audit::log('update', 'task', $taskId, "Updated task {$task['task_code']}: {$title}", $updatedBy);
+        return ['success' => true];
+    }
+
+    public static function delete(int $taskId, int $deletedBy): array
+    {
+        $db = Database::connect();
+        $task = self::find($taskId);
+        if (!$task) {
+            return ['success' => false, 'error' => 'Task not found.'];
+        }
+
+        // Clean up linked daily update task associations
+        try {
+            $db->prepare("DELETE FROM fnx_daily_update_tasks WHERE task_id = ?")->execute([$taskId]);
+        } catch (\Throwable $e) {}
+
+        // Clean up assignees
+        try {
+            $db->prepare("DELETE FROM fnx_task_assignees WHERE task_id = ?")->execute([$taskId]);
+        } catch (\Throwable $e) {}
+
+        // Delete task
+        $db->prepare("DELETE FROM fnx_tasks WHERE id = ?")->execute([$taskId]);
+
+        Audit::log('delete', 'task', $taskId, "Deleted task {$task['task_code']}: {$task['title']}", $deletedBy);
         return ['success' => true];
     }
 

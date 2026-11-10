@@ -110,10 +110,11 @@ if ($action === 'change_password') {
         sendResponse(false, 'Current password is incorrect. Please try again.');
     }
 
-    $newHash = password_hash($newPass, PASSWORD_DEFAULT);
+    $newHash = password_hash($newPass, PASSWORD_ARGON2ID);
+    $newSalt = \App\FutureNxt\Employee::extractSalt($newHash);
     $db = \App\FutureNxt\Database::connect();
-    $stmt = $db->prepare("UPDATE fnx_employees SET password_hash = ?, updated_at = NOW() WHERE id = ?");
-    $stmt->execute([$newHash, $currentId]);
+    $stmt = $db->prepare("UPDATE fnx_employees SET password_hash = ?, password_salt = ?, updated_at = NOW() WHERE id = ?");
+    $stmt->execute([$newHash, $newSalt, $currentId]);
 
     \App\FutureNxt\Audit::log('change_password', 'employee', $currentId, 'User changed account password', $currentId);
 
@@ -309,13 +310,66 @@ if ($action === 'reassign_task') {
         sendResponse(false, 'Permission denied.');
     }
     $taskId         = (int)($_POST['task_id'] ?? 0);
-    $fromEmployeeId = (int)($_POST['from_employee_id'] ?? 0);
-    $toEmployeeId   = (int)($_POST['to_employee_id'] ?? 0);
-    $reason         = trim((string)($_POST['reason'] ?? 'Reassigned by management'));
+    $fromEmployeeId = (int)($_POST['from_employee_id'] ?? $_POST['current_employee_id'] ?? 0);
+    $toEmployeeId   = (int)($_POST['to_employee_id'] ?? $_POST['new_employee_id'] ?? 0);
+    $reason         = trim((string)($_POST['reason'] ?? $_POST['reassign_reason'] ?? 'Reassigned by management'));
+
+    if ($taskId <= 0 || $toEmployeeId <= 0) {
+        sendResponse(false, 'Please select a task and a valid target partner.');
+    }
 
     $res = Task::reassign($taskId, $fromEmployeeId, $toEmployeeId, $currentId, $reason);
     if ($res['success']) {
-        sendResponse(true, 'Task reassigned successfully!');
+        sendResponse(true, 'Task reassigned successfully! Notification sent to the new assignee.');
+    } else {
+        sendResponse(false, $res['error']);
+    }
+}
+
+if ($action === 'update_task') {
+    if (!Auth::isAdminOrExec() && !Auth::isManagerOrAbove()) {
+        sendResponse(false, 'Permission denied: Only managers and administrators can edit tasks.');
+    }
+    $taskId = (int)($_POST['task_id'] ?? 0);
+    if ($taskId <= 0) {
+        sendResponse(false, 'Invalid task ID.');
+    }
+
+    $assignees = $_POST['assignee_ids'] ?? [];
+    if (!is_array($assignees) && !empty($_POST['assignee_id'])) {
+        $assignees = [$_POST['assignee_id']];
+    }
+
+    $data = [
+        'title'        => trim((string)($_POST['title'] ?? '')),
+        'description'  => trim((string)($_POST['description'] ?? '')),
+        'priority'     => trim((string)($_POST['priority'] ?? 'medium')),
+        'due_date'     => trim((string)($_POST['due_date'] ?? '')),
+        'due_time'     => trim((string)($_POST['due_time'] ?? '18:00:00')),
+        'status'       => trim((string)($_POST['status'] ?? 'in_progress')),
+        'assignee_ids' => is_array($assignees) ? $assignees : null,
+    ];
+
+    $res = Task::update($taskId, $data, $currentId);
+    if ($res['success']) {
+        sendResponse(true, 'Task updated successfully!');
+    } else {
+        sendResponse(false, $res['error']);
+    }
+}
+
+if ($action === 'delete_task') {
+    if (!Auth::isAdminOrExec() && !Auth::isManagerOrAbove()) {
+        sendResponse(false, 'Permission denied: Only managers and administrators can delete tasks.');
+    }
+    $taskId = (int)($_POST['task_id'] ?? 0);
+    if ($taskId <= 0) {
+        sendResponse(false, 'Invalid task ID.');
+    }
+
+    $res = Task::delete($taskId, $currentId);
+    if ($res['success']) {
+        sendResponse(true, 'Task permanently deleted successfully.');
     } else {
         sendResponse(false, $res['error']);
     }

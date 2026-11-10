@@ -152,6 +152,8 @@ require __DIR__ . '/../layouts/header.php';
                                 'can_submit_pdf'          => ($isAssignedToMe || Auth::isManagerOrAbove()) && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
                                 'can_reassign'            => Auth::isManagerOrAbove() && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
                                 'can_approve'             => Auth::isManagerOrAbove() && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true),
+                                'can_edit'                => Auth::isManagerOrAbove() || (int)($t['created_by'] ?? 0) === (int)$me['id'],
+                                'can_delete'              => Auth::isAdminOrExec() || (int)($t['created_by'] ?? 0) === (int)$me['id'],
                             ];
                             $taskJson = htmlspecialchars(json_encode($taskPayload, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES, 'UTF-8');
                             $docUrl = !empty($t['documentation_pdf']) ? $t['documentation_pdf'] : (!empty($t['doc_path']) ? $t['doc_path'] : null);
@@ -259,11 +261,28 @@ require __DIR__ . '/../layouts/header.php';
                                             </button>
                                         <?php endif; ?>
 
+                                        <!-- Edit Task (Manager / Admin / Creator) -->
+                                        <?php if (Auth::isManagerOrAbove() || (int)($t['created_by'] ?? 0) === (int)$me['id']): ?>
+                                            <button type="button" class="fnx-btn fnx-btn-outline" style="padding:4px 8px; font-size:11.5px; color:#D97706; border-color:#FDE68A;"
+                                                    data-task="<?= $taskJson ?>"
+                                                    onclick="openEditTaskModal(this)">
+                                                ✏️ Edit
+                                            </button>
+                                        <?php endif; ?>
+
                                         <!-- Admin / Exec action: Pass / Reassign Task -->
                                         <?php if (Auth::isManagerOrAbove() && in_array($t['status'], ['in_progress', 'reopened', 'submitted'], true)): ?>
                                             <button type="button" class="fnx-btn fnx-btn-outline" style="padding:4px 8px; font-size:11.5px; color:#3B82F6; border-color:#93C5FD;"
-                                                    onclick="openReassignModal(<?= $t['id'] ?>, '<?= htmlspecialchars(addslashes($t['title'])) ?>')">
+                                                    onclick="openReassignModal(<?= $t['id'] ?>, '<?= htmlspecialchars(addslashes($t['title'])) ?>', <?= htmlspecialchars(json_encode($assignees), ENT_QUOTES, 'UTF-8') ?>)">
                                                 🔁 Reassign
+                                            </button>
+                                        <?php endif; ?>
+
+                                        <!-- Delete Task (Admin / CEO / Creator) -->
+                                        <?php if (Auth::isAdminOrExec() || (int)($t['created_by'] ?? 0) === (int)$me['id']): ?>
+                                            <button type="button" class="fnx-btn fnx-btn-outline" style="padding:4px 8px; font-size:11.5px; color:#DC2626; border-color:#FECACA;"
+                                                    onclick="fnxDeleteTask(<?= $t['id'] ?>, '<?= htmlspecialchars(addslashes($t['task_code'])) ?>')">
+                                                🗑️ Delete
                                             </button>
                                         <?php endif; ?>
 
@@ -424,12 +443,19 @@ require __DIR__ . '/../layouts/header.php';
             <button type="button" class="fnx-modal-close" onclick="fnxCloseModal('reassignModal')">&times;</button>
         </div>
 
-        <form method="POST" action="/futurenxt-handler.php?action=reassign_task">
+        <form method="POST" action="/futurenxt-handler.php?action=reassign_task" id="reassignTaskForm" onsubmit="fnxSubmitReassign(event)">
             <input type="hidden" id="reassignTaskId" name="task_id" value="">
             <div class="fnx-modal-body">
                 <div style="margin-bottom:16px;">
+                    <label class="fnx-form-label">Reassign From (Current Assignee) *</label>
+                    <select id="reassignFromSelect" name="from_employee_id" class="fnx-select" required>
+                        <option value="">Select current assignee...</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom:16px;">
                     <label class="fnx-form-label">Assign To New Partner *</label>
-                    <select name="new_employee_id" class="fnx-select" required>
+                    <select name="to_employee_id" id="reassignToSelect" class="fnx-select" required>
                         <option value="">Select Partner (Check 3-task limit)</option>
                         <?php foreach ($allEmployees as $emp): 
                             $activeCount = (int)($emp['active_tasks_count'] ?? 0);
@@ -444,13 +470,81 @@ require __DIR__ . '/../layouts/header.php';
 
                 <div style="margin-bottom:16px;">
                     <label class="fnx-form-label">Reason for Handover / Reassignment *</label>
-                    <textarea name="reassign_reason" class="fnx-textarea" rows="2" placeholder="e.g. Employee on medical leave, workload rebalancing..." required></textarea>
+                    <textarea name="reason" class="fnx-textarea" rows="2" placeholder="e.g. Employee on medical leave, workload rebalancing..." required></textarea>
                 </div>
             </div>
 
             <div class="fnx-modal-footer">
                 <button type="button" class="fnx-btn fnx-btn-outline" onclick="fnxCloseModal('reassignModal')">Cancel</button>
                 <button type="submit" class="fnx-btn fnx-btn-orange">Confirm Reassignment →</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- =========================================================================
+     MODAL: EDIT TASK (Update title, description, priority, due date, status)
+     ========================================================================= -->
+<div id="editTaskModal" class="fnx-modal-backdrop" style="display:none;">
+    <div class="fnx-modal-dialog" style="max-width:640px;">
+        <div class="fnx-modal-header">
+            <div>
+                <h3 style="margin:0; font-size:18px; font-weight:800; color:#111827;">Edit Task Details</h3>
+                <p id="editTaskCodeLabel" style="margin:2px 0 0; font-size:12px; color:#4B5563;"></p>
+            </div>
+            <button type="button" class="fnx-modal-close" onclick="fnxCloseModal('editTaskModal')">&times;</button>
+        </div>
+
+        <form method="POST" action="/futurenxt-handler.php?action=update_task" id="editTaskForm" onsubmit="fnxSubmitEditTask(event)">
+            <input type="hidden" id="editTaskId" name="task_id" value="">
+            <div class="fnx-modal-body">
+                <div style="margin-bottom:14px;">
+                    <label class="fnx-form-label">Task Title *</label>
+                    <input type="text" id="editTaskTitle" name="title" required class="fnx-input" placeholder="Task title">
+                </div>
+
+                <div style="margin-bottom:14px;">
+                    <label class="fnx-form-label">Description / Scope Deliverables</label>
+                    <textarea id="editTaskDesc" name="description" rows="3" class="fnx-textarea" placeholder="Detail the task scope..."></textarea>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+                    <div>
+                        <label class="fnx-form-label">Priority *</label>
+                        <select id="editTaskPriority" name="priority" class="fnx-select" required>
+                            <option value="urgent">🔴 Urgent</option>
+                            <option value="high">🟠 High</option>
+                            <option value="medium">🟡 Medium</option>
+                            <option value="low">🟢 Low</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="fnx-form-label">Status *</label>
+                        <select id="editTaskStatus" name="status" class="fnx-select" required>
+                            <option value="pending">Pending</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="submitted">Under Review</option>
+                            <option value="reopened">Revision Needed</option>
+                            <option value="approved">Approved</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+                    <div>
+                        <label class="fnx-form-label">Due Date *</label>
+                        <input type="date" id="editTaskDueDate" name="due_date" required class="fnx-input">
+                    </div>
+                    <div>
+                        <label class="fnx-form-label">Due Time</label>
+                        <input type="time" id="editTaskDueTime" name="due_time" value="18:00" class="fnx-input">
+                    </div>
+                </div>
+            </div>
+
+            <div class="fnx-modal-footer">
+                <button type="button" class="fnx-btn fnx-btn-outline" onclick="fnxCloseModal('editTaskModal')">Cancel</button>
+                <button type="submit" id="editTaskSubmitBtn" class="fnx-btn fnx-btn-orange">Save Task Changes →</button>
             </div>
         </form>
     </div>
@@ -737,9 +831,33 @@ function openViewTaskModal(elem) {
             b2.innerHTML = '🔁 Reassign';
             b2.onclick = function() {
                 fnxCloseModal('viewTaskModal');
-                openReassignModal(t.id, t.title);
+                openReassignModal(t.id, t.title, t.assignees);
             };
             actBox.appendChild(b2);
+        }
+        if (t.can_edit) {
+            const bEdit = document.createElement('button');
+            bEdit.type = 'button';
+            bEdit.className = 'fnx-btn fnx-btn-outline';
+            bEdit.style.cssText = 'font-size:12px; color:#D97706; border-color:#FDE68A;';
+            bEdit.innerHTML = '✏️ Edit Task';
+            bEdit.onclick = function() {
+                fnxCloseModal('viewTaskModal');
+                openEditTaskModal(t);
+            };
+            actBox.appendChild(bEdit);
+        }
+        if (t.can_delete) {
+            const bDel = document.createElement('button');
+            bDel.type = 'button';
+            bDel.className = 'fnx-btn fnx-btn-outline';
+            bDel.style.cssText = 'font-size:12px; color:#DC2626; border-color:#FECACA;';
+            bDel.innerHTML = '🗑️ Delete Task';
+            bDel.onclick = function() {
+                fnxCloseModal('viewTaskModal');
+                fnxDeleteTask(t.id, t.task_code);
+            };
+            actBox.appendChild(bDel);
         }
         if (t.can_approve) {
             const b3 = document.createElement('button');
@@ -766,10 +884,130 @@ function openDocModal(taskId, title) {
     fnxOpenModal('docModal');
 }
 
-function openReassignModal(taskId, title) {
+function openReassignModal(taskId, title, assignees) {
     document.getElementById('reassignTaskId').value = taskId;
     document.getElementById('reassignTaskTitle').innerText = title;
+
+    const fromSelect = document.getElementById('reassignFromSelect');
+    if (fromSelect) {
+        fromSelect.innerHTML = '';
+        if (assignees && Array.isArray(assignees) && assignees.length > 0) {
+            assignees.forEach((a, idx) => {
+                const opt = document.createElement('option');
+                opt.value = a.employee_id || a.id;
+                opt.text = (a.full_name || 'Partner') + ' (' + (a.emp_code || '') + ')';
+                if (idx === 0) opt.selected = true;
+                fromSelect.appendChild(opt);
+            });
+        } else {
+            const opt = document.createElement('option');
+            opt.value = '0';
+            opt.text = 'Current Active Assignee';
+            opt.selected = true;
+            fromSelect.appendChild(opt);
+        }
+    }
+
     fnxOpenModal('reassignModal');
+}
+
+function fnxSubmitReassign(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.innerText = 'Reassigning...'; }
+
+    const formData = new FormData(form);
+    fetch('/futurenxt-handler.php?action=reassign_task', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message || 'Task reassigned successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Failed to reassign task.'));
+            if (btn) { btn.disabled = false; btn.innerText = 'Confirm Reassignment →'; }
+        }
+    })
+    .catch(err => {
+        alert('Network error while reassigning task.');
+        if (btn) { btn.disabled = false; btn.innerText = 'Confirm Reassignment →'; }
+    });
+}
+
+function openEditTaskModal(t) {
+    if (t instanceof HTMLElement) {
+        try {
+            t = JSON.parse(t.getAttribute('data-task'));
+        } catch(e) {}
+    } else if (typeof t === 'string') {
+        try { t = JSON.parse(t); } catch(e) {}
+    }
+    if (!t || !t.id) return;
+
+    document.getElementById('editTaskId').value = t.id;
+    document.getElementById('editTaskCodeLabel').innerText = 'Task Code: ' + (t.task_code || '');
+    document.getElementById('editTaskTitle').value = t.title || '';
+    document.getElementById('editTaskDesc').value = t.description || '';
+    document.getElementById('editTaskPriority').value = t.priority || 'medium';
+    document.getElementById('editTaskStatus').value = t.status || 'in_progress';
+    document.getElementById('editTaskDueDate').value = t.due_date || '';
+    document.getElementById('editTaskDueTime').value = t.due_time || '18:00';
+    fnxOpenModal('editTaskModal');
+}
+
+function fnxSubmitEditTask(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = document.getElementById('editTaskSubmitBtn');
+    if (btn) { btn.disabled = true; btn.innerText = 'Saving...'; }
+
+    const formData = new FormData(form);
+    fetch('/futurenxt-handler.php?action=update_task', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message || 'Task updated successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Failed to update task.'));
+            if (btn) { btn.disabled = false; btn.innerText = 'Save Task Changes →'; }
+        }
+    })
+    .catch(err => {
+        alert('Network error while updating task.');
+        if (btn) { btn.disabled = false; btn.innerText = 'Save Task Changes →'; }
+    });
+}
+
+function fnxDeleteTask(taskId, taskCode) {
+    if (!confirm('Are you sure you want to permanently delete task ' + taskCode + '? This action cannot be undone and will release assignee capacity.')) {
+        return;
+    }
+    const formData = new FormData();
+    formData.append('task_id', taskId);
+    fetch('/futurenxt-handler.php?action=delete_task', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message || 'Task deleted successfully.');
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Failed to delete task.'));
+        }
+    })
+    .catch(err => {
+        alert('Network error while deleting task.');
+    });
 }
 
 function openReviewModal(taskId, title, docPdf) {

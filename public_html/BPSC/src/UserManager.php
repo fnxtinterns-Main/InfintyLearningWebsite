@@ -151,18 +151,21 @@ class UserManager {
         $levelLabel = $cadres[$cadreCode] ?? '2. Middle School (Classes 6–8)';
 
         $id = 'USR_STU_' . strtoupper(bin2hex(random_bytes(3)));
-        $passwordHash = password_hash($password, PASSWORD_BCRYPT);
+        $passwordHash = password_hash($password, PASSWORD_ARGON2ID);
+        $pwParts = explode('$', $passwordHash);
+        $passwordSalt = $pwParts[4] ?? '';
         $now = date('Y-m-d H:i:s');
 
         Database::execute(
-            "INSERT INTO users (id, name, email, phone, password_hash, role, level_label, district, status, plan_name, plan_status, plan_badge, plan_amount, plan_expiry, rank_district, earned_badges, created_at)
-             VALUES (:id, :name, :email, :phone, :hash, :role, :label, :dist, 'active', :plan, :status, :badge, :amount, :expiry, :rank, :badges, :now)",
+            "INSERT INTO users (id, name, email, phone, password_hash, password_salt, role, level_label, district, status, plan_name, plan_status, plan_badge, plan_amount, plan_expiry, rank_district, earned_badges, created_at)
+             VALUES (:id, :name, :email, :phone, :hash, :salt, :role, :label, :dist, 'active', :plan, :status, :badge, :amount, :expiry, :rank, :badges, :now)",
             [
                 ':id' => $id,
                 ':name' => $name,
                 ':email' => $email,
                 ':phone' => $phone,
                 ':hash' => $passwordHash,
+                ':salt' => $passwordSalt,
                 ':role' => ROLE_STUDENT,
                 ':label' => $levelLabel,
                 ':dist' => $district,
@@ -223,18 +226,21 @@ class UserManager {
         $cadres = self::getCadreLevels();
         $levelLabel = $cadres[$cadreCode] ?? 'Classes 6–8 (Middle)';
         $id = 'USR_FAC_' . strtoupper(bin2hex(random_bytes(3)));
-        $passwordHash = password_hash($password, PASSWORD_BCRYPT);
+        $passwordHash = password_hash($password, PASSWORD_ARGON2ID);
+        $pwParts = explode('$', $passwordHash);
+        $passwordSalt = $pwParts[4] ?? '';
         $now = date('Y-m-d H:i:s');
 
         Database::execute(
-            "INSERT INTO users (id, name, email, phone, password_hash, role, level_label, district, status, qualification, subject, created_at)
-             VALUES (:id, :name, :email, :phone, :hash, :role, :label, :dist, 'pending', :qual, :subj, :now)",
+            "INSERT INTO users (id, name, email, phone, password_hash, password_salt, role, level_label, district, status, qualification, subject, created_at)
+             VALUES (:id, :name, :email, :phone, :hash, :salt, :role, :label, :dist, 'pending', :qual, :subj, :now)",
             [
                 ':id' => $id,
                 ':name' => $name,
                 ':email' => $email,
                 ':phone' => $phone,
                 ':hash' => $passwordHash,
+                ':salt' => $passwordSalt,
                 ':role' => ROLE_TEACHER,
                 ':label' => $levelLabel,
                 ':dist' => $district,

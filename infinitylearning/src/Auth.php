@@ -10,6 +10,18 @@ final class Auth
         return password_hash($password, PASSWORD_ARGON2ID);
     }
 
+    public static function extractSalt(string $hash): string
+    {
+        if (strpos($hash, '$argon2') === 0) {
+            $parts = explode('$', $hash);
+            return $parts[4] ?? '';
+        }
+        if (strpos($hash, '$2y$') === 0 || strpos($hash, '$2a$') === 0) {
+            return substr($hash, 7, 22);
+        }
+        return '';
+    }
+
     public static function verifyPassword(string $password, string $hash): bool
     {
         return password_verify($password, $hash);
@@ -19,17 +31,20 @@ final class Auth
     {
         $db = Database::connect();
         $uuid = self::uuid();
+        $pwHash = self::hashPassword($data['password']);
+        $pwSalt = self::extractSalt($pwHash);
 
         $stmt = $db->prepare("
             INSERT INTO users
-                (uuid, email, phone, password_hash, role, school_id, status, phone_verified_at, terms_accepted_at, terms_accepted_ip, parent_consent_at, marketing_consent)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?)
+                (uuid, email, phone, password_hash, password_salt, role, school_id, status, phone_verified_at, terms_accepted_at, terms_accepted_ip, parent_consent_at, marketing_consent)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?)
         ");
         $stmt->execute([
             $uuid,
             strtolower(trim($data['email'])),
             trim($data['phone']),
-            self::hashPassword($data['password']),
+            $pwHash,
+            $pwSalt,
             $data['role'],
             !empty($data['school_id']) ? (int)$data['school_id'] : null,
             $data['status'] ?? STATUS_PENDING,
@@ -91,10 +106,14 @@ final class Auth
             return ['success' => false, 'error' => 'Invalid credentials.'];
         }
 
-        if (password_needs_rehash($user['password_hash'], PASSWORD_ARGON2ID)) {
+        if (password_needs_rehash($user['password_hash'], PASSWORD_ARGON2ID) || empty($user['password_salt'])) {
+            $newHash = self::hashPassword($password);
+            $newSalt = self::extractSalt($newHash);
             $db = Database::connect();
-            $db->prepare("UPDATE users SET password_hash = ? WHERE id = ?")
-               ->execute([self::hashPassword($password), $user['id']]);
+            $db->prepare("UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?")
+               ->execute([$newHash, $newSalt, $user['id']]);
+            $user['password_hash'] = $newHash;
+            $user['password_salt'] = $newSalt;
         }
 
         $isPending = ($user['status'] === STATUS_PENDING);

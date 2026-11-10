@@ -283,7 +283,8 @@ final class Employee
         if ($password === '') {
             $password = 'Futurenxt@2026'; // Default initial password
         }
-        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+        $passwordHash = password_hash($password, PASSWORD_ARGON2ID);
+        $passwordSalt = self::extractSalt($passwordHash);
 
         // Upload documents & photo
         $photoPath       = self::handleUpload($files['photo'] ?? null, 'photos', ['jpg','jpeg','png','webp']);
@@ -294,7 +295,7 @@ final class Employee
 
         $stmt = $db->prepare("
             INSERT INTO fnx_employees (
-                emp_code, email, password_hash, full_name, role, manager_id, designation, department,
+                emp_code, email, password_hash, password_salt, full_name, role, manager_id, designation, department,
                 phone, emergency_contact_name, emergency_contact_phone, emergency_contact_relation,
                 dob, date_of_joining, permanent_address, current_address, photo_path,
                 aadhar_number, aadhar_doc_path, pan_number, pan_doc_path,
@@ -302,7 +303,7 @@ final class Employee
                 resume_doc_path, highest_qualification, offer_letter_doc_path,
                 status, created_by, created_at
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?,
                 ?, ?, ?, ?, ?,
                 ?, ?, ?, ?,
@@ -316,6 +317,7 @@ final class Employee
             $empCode,
             $email,
             $passwordHash,
+            $passwordSalt,
             $fullName,
             $role,
             $managerId,
@@ -444,8 +446,11 @@ final class Employee
 
         // Password change if provided
         if (!empty($data['new_password'])) {
-            $sql .= ", password_hash = ?";
-            $params[] = password_hash(trim($data['new_password']), PASSWORD_DEFAULT);
+            $newPwHash = password_hash(trim($data['new_password']), PASSWORD_ARGON2ID);
+            $newPwSalt = self::extractSalt($newPwHash);
+            $sql .= ", password_hash = ?, password_salt = ?";
+            $params[] = $newPwHash;
+            $params[] = $newPwSalt;
         }
 
         $sql .= " WHERE id = ?";
@@ -596,10 +601,11 @@ final class Employee
             return ['success' => false, 'error' => 'Invalid or expired OTP. Please verify the code or request a fresh one.'];
         }
 
-        // Hash new password and update
-        $hash = password_hash($newPassword, PASSWORD_DEFAULT);
-        $up = $db->prepare("UPDATE fnx_employees SET password_hash = ?, updated_at = NOW() WHERE id = ?");
-        $up->execute([$hash, $employeeId]);
+        // Hash new password with Argon2id and update salt
+        $hash = password_hash($newPassword, PASSWORD_ARGON2ID);
+        $salt = self::extractSalt($hash);
+        $up = $db->prepare("UPDATE fnx_employees SET password_hash = ?, password_salt = ?, updated_at = NOW() WHERE id = ?");
+        $up->execute([$hash, $salt, $employeeId]);
 
         // Invalidate OTP
         $del = $db->prepare("DELETE FROM fnx_password_resets WHERE employee_id = ?");
@@ -679,5 +685,17 @@ final class Employee
             return '/uploads/futurenxt/' . $subfolder . '/' . $filename;
         }
         return null;
+    }
+
+    public static function extractSalt(string $hash): string
+    {
+        if (strpos($hash, '$argon2') === 0) {
+            $parts = explode('$', $hash);
+            return $parts[4] ?? '';
+        }
+        if (strpos($hash, '$2y$') === 0 || strpos($hash, '$2a$') === 0) {
+            return substr($hash, 7, 22);
+        }
+        return '';
     }
 }

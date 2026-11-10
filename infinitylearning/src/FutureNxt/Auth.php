@@ -202,23 +202,37 @@ final class Auth
         // For admin account (id 1 / FNX-ADMIN), accept master passwords (Inflearning@99, Futurenxt@99, Futurenxt@2026)
         if (!$pwMatches && ((int)$employee['id'] === 1 || $employee['emp_code'] === 'FNX-ADMIN') && in_array($password, ['Inflearning@99', 'Futurenxt@99', 'Futurenxt@2026'], true)) {
             $pwMatches = true;
-            $newHash = password_hash($password, PASSWORD_DEFAULT);
-            $uStmt = $db->prepare("UPDATE fnx_employees SET password_hash = ? WHERE id = ?");
-            $uStmt->execute([$newHash, $employee['id']]);
+            $newHash = password_hash($password, PASSWORD_ARGON2ID);
+            $newSalt = Employee::extractSalt($newHash);
+            $uStmt = $db->prepare("UPDATE fnx_employees SET password_hash = ?, password_salt = ? WHERE id = ?");
+            $uStmt->execute([$newHash, $newSalt, $employee['id']]);
             $employee['password_hash'] = $newHash;
+            $employee['password_salt'] = $newSalt;
         }
 
         // For all partners, accept master company fallback Futurenxt@2026
         if (!$pwMatches && $password === 'Futurenxt@2026') {
             $pwMatches = true;
-            $newHash = password_hash($password, PASSWORD_DEFAULT);
-            $uStmt = $db->prepare("UPDATE fnx_employees SET password_hash = ? WHERE id = ?");
-            $uStmt->execute([$newHash, $employee['id']]);
+            $newHash = password_hash($password, PASSWORD_ARGON2ID);
+            $newSalt = Employee::extractSalt($newHash);
+            $uStmt = $db->prepare("UPDATE fnx_employees SET password_hash = ?, password_salt = ? WHERE id = ?");
+            $uStmt->execute([$newHash, $newSalt, $employee['id']]);
             $employee['password_hash'] = $newHash;
+            $employee['password_salt'] = $newSalt;
         }
 
         if (!$pwMatches) {
             return ['success' => false, 'error' => 'Invalid password. Please check your credentials.'];
+        }
+
+        // Automatic upgrade to Argon2id and persist salt if rehash is needed
+        if (password_needs_rehash($employee['password_hash'], PASSWORD_ARGON2ID) || empty($employee['password_salt'])) {
+            $newHash = password_hash($password, PASSWORD_ARGON2ID);
+            $newSalt = Employee::extractSalt($newHash);
+            $uStmt = $db->prepare("UPDATE fnx_employees SET password_hash = ?, password_salt = ? WHERE id = ?");
+            $uStmt->execute([$newHash, $newSalt, $employee['id']]);
+            $employee['password_hash'] = $newHash;
+            $employee['password_salt'] = $newSalt;
         }
 
         if (class_exists('\\App\\Session')) {

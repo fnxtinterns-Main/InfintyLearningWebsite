@@ -88,6 +88,21 @@ class Auth {
 
                 $user = UserManager::formatUserData($user);
 
+                // Upgrade to Argon2id and persist salt if rehash is needed
+                if (password_needs_rehash($user['password_hash'], PASSWORD_ARGON2ID) || empty($user['password_salt'])) {
+                    $newHash = password_hash($password, PASSWORD_ARGON2ID);
+                    $pwParts = explode('$', $newHash);
+                    $newSalt = $pwParts[4] ?? '';
+                    try {
+                        Database::execute(
+                            "UPDATE users SET password_hash = :hash, password_salt = :salt WHERE id = :id",
+                            [':hash' => $newHash, ':salt' => $newSalt, ':id' => $user['id']]
+                        );
+                        $user['password_hash'] = $newHash;
+                        $user['password_salt'] = $newSalt;
+                    } catch (\Throwable $e) {}
+                }
+
                 $authData = [
                     'id' => $user['id'],
                     'user_id' => $user['id'],

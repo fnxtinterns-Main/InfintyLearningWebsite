@@ -46,7 +46,9 @@ if (!$row) { Session::flash('error','Invalid or expired reset link.'); Helper::r
 
 $db->beginTransaction();
 try {
-    $db->prepare("UPDATE users SET password_hash = ? WHERE id = ?")->execute([Auth::hashPassword($password), $user['id']]);
+    $newHash = Auth::hashPassword($password);
+    $newSalt = Auth::extractSalt($newHash);
+    $db->prepare("UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?")->execute([$newHash, $newSalt, $user['id']]);
     $db->prepare("UPDATE password_resets SET consumed_at = NOW() WHERE id = ?")->execute([$row['id']]);
     $db->commit();
     Audit::log('password.reset_completed', 'user', (int)$user['id']);

@@ -74,8 +74,10 @@ if (Auth::verifyPassword($new, $me['password_hash'])) {
 // ---- Update ----
 try {
     $db = \App\Database::connect();
-    $db->prepare("UPDATE users SET password_hash = ? WHERE id = ?")
-       ->execute([Auth::hashPassword($new), (int)$me['id']]);
+    $newHash = Auth::hashPassword($new);
+    $newSalt = Auth::extractSalt($newHash);
+    $db->prepare("UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?")
+       ->execute([$newHash, $newSalt, (int)$me['id']]);
 
     // Kill any other sessions (if you track them)
     $db->prepare("DELETE FROM sessions WHERE user_id = ?")->execute([(int)$me['id']]);
