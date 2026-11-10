@@ -25,8 +25,7 @@ Session::start();
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') 
           || isset($_POST['ajax']) || isset($_GET['ajax']) || isset($_REQUEST['ajax'])
-          || (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json'))
-          || in_array($action, ['delete_task', 'update_task', 'reassign_task', 'review_task', 'approve_task', 'reject_task', 'get_task_updates', 'submit_task_doc', 'submit_task_docs'], true);
+          || (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json') && !str_contains($_SERVER['HTTP_ACCEPT'], 'text/html'));
 
 function sendResponse(bool $success, string $message, array $extra = []): void {
     global $isAjax;

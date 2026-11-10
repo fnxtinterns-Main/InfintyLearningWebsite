@@ -563,7 +563,7 @@ require __DIR__ . '/../layouts/header.php';
             <button type="button" class="fnx-modal-close" onclick="fnxCloseModal('reviewModal')">&times;</button>
         </div>
 
-        <form method="POST" action="/futurenxt-handler.php?action=review_task">
+        <form method="POST" action="/futurenxt-handler.php?action=review_task" id="reviewTaskForm" onsubmit="fnxSubmitReview(event)">
             <input type="hidden" id="reviewTaskId" name="task_id" value="">
             <input type="hidden" name="redirect_url" value="/futurenxt/tasks">
             <div class="fnx-modal-body">
@@ -1052,9 +1052,54 @@ function fnxDeleteTask(taskId, taskCode) {
     });
 }
 
+function fnxSubmitReview(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.innerText = 'Submitting Review...'; }
+
+    const formData = new FormData(form);
+    formData.append('ajax', '1');
+    fetch('/futurenxt-handler.php?action=review_task&ajax=1', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        },
+        body: formData
+    })
+    .then(async r => {
+        const text = await r.text();
+        try {
+            return JSON.parse(text);
+        } catch(e) {
+            console.error('Non-JSON response:', text);
+            throw new Error('Server response error: ' + text.substring(0, 120));
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            alert(data.message || 'Task reviewed and approved successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Failed to review task.'));
+            if (btn) { btn.disabled = false; btn.innerText = 'Submit Review'; }
+        }
+    })
+    .catch(err => {
+        console.error('Review task error:', err);
+        alert(err.message || 'Network error while reviewing task.');
+        if (btn) { btn.disabled = false; btn.innerText = 'Submit Review'; }
+    });
+}
+
 function openReviewModal(taskId, title, docPdf) {
     document.getElementById('reviewTaskId').value = taskId;
     document.getElementById('reviewTaskTitle').innerText = title;
+    const redInput = document.querySelector('#reviewModal input[name="redirect_url"]');
+    if (redInput) {
+        redInput.value = window.location.pathname + window.location.search;
+    }
     const link = document.getElementById('reviewDocLink');
     const noDoc = document.getElementById('reviewNoDocNotice');
     if (docPdf && String(docPdf).trim() !== '') {
