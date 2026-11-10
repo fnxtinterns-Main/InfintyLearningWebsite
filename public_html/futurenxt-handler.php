@@ -24,7 +24,9 @@ Session::start();
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') 
-          || isset($_POST['ajax']) || isset($_GET['ajax']);
+          || isset($_POST['ajax']) || isset($_GET['ajax']) || isset($_REQUEST['ajax'])
+          || (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json'))
+          || in_array($action, ['delete_task', 'update_task', 'reassign_task', 'review_task', 'approve_task', 'reject_task', 'get_task_updates', 'submit_task_doc', 'submit_task_docs'], true);
 
 function sendResponse(bool $success, string $message, array $extra = []): void {
     global $isAjax;
@@ -359,12 +361,17 @@ if ($action === 'update_task') {
 }
 
 if ($action === 'delete_task') {
-    if (!Auth::isAdminOrExec() && !Auth::isManagerOrAbove()) {
-        sendResponse(false, 'Permission denied: Only managers and administrators can delete tasks.');
-    }
     $taskId = (int)($_POST['task_id'] ?? 0);
     if ($taskId <= 0) {
         sendResponse(false, 'Invalid task ID.');
+    }
+    $task = Task::find($taskId);
+    if (!$task) {
+        sendResponse(false, 'Task not found.');
+    }
+
+    if (!Auth::isAdminOrExec() && !Auth::isManagerOrAbove() && ((int)($task['created_by'] ?? 0) !== $currentId)) {
+        sendResponse(false, 'Permission denied: Only managers, administrators, or the task creator can delete tasks.');
     }
 
     $res = Task::delete($taskId, $currentId);

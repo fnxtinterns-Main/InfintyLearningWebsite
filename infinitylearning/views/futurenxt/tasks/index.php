@@ -918,11 +918,24 @@ function fnxSubmitReassign(e) {
     if (btn) { btn.disabled = true; btn.innerText = 'Reassigning...'; }
 
     const formData = new FormData(form);
-    fetch('/futurenxt-handler.php?action=reassign_task', {
+    formData.append('ajax', '1');
+    fetch('/futurenxt-handler.php?action=reassign_task&ajax=1', {
         method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        },
         body: formData
     })
-    .then(r => r.json())
+    .then(async r => {
+        const text = await r.text();
+        try {
+            return JSON.parse(text);
+        } catch(e) {
+            console.error('Non-JSON response:', text);
+            throw new Error('Server response error: ' + text.substring(0, 120));
+        }
+    })
     .then(data => {
         if (data.success) {
             alert(data.message || 'Task reassigned successfully!');
@@ -933,7 +946,8 @@ function fnxSubmitReassign(e) {
         }
     })
     .catch(err => {
-        alert('Network error while reassigning task.');
+        console.error('Reassign task error:', err);
+        alert(err.message || 'Network error while reassigning task.');
         if (btn) { btn.disabled = false; btn.innerText = 'Confirm Reassignment →'; }
     });
 }
@@ -966,11 +980,24 @@ function fnxSubmitEditTask(e) {
     if (btn) { btn.disabled = true; btn.innerText = 'Saving...'; }
 
     const formData = new FormData(form);
-    fetch('/futurenxt-handler.php?action=update_task', {
+    formData.append('ajax', '1');
+    fetch('/futurenxt-handler.php?action=update_task&ajax=1', {
         method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        },
         body: formData
     })
-    .then(r => r.json())
+    .then(async r => {
+        const text = await r.text();
+        try {
+            return JSON.parse(text);
+        } catch(e) {
+            console.error('Non-JSON response:', text);
+            throw new Error('Server response error: ' + text.substring(0, 120));
+        }
+    })
     .then(data => {
         if (data.success) {
             alert(data.message || 'Task updated successfully!');
@@ -981,7 +1008,8 @@ function fnxSubmitEditTask(e) {
         }
     })
     .catch(err => {
-        alert('Network error while updating task.');
+        console.error('Edit task error:', err);
+        alert(err.message || 'Network error while updating task.');
         if (btn) { btn.disabled = false; btn.innerText = 'Save Task Changes →'; }
     });
 }
@@ -992,11 +1020,24 @@ function fnxDeleteTask(taskId, taskCode) {
     }
     const formData = new FormData();
     formData.append('task_id', taskId);
-    fetch('/futurenxt-handler.php?action=delete_task', {
+    formData.append('ajax', '1');
+    fetch('/futurenxt-handler.php?action=delete_task&ajax=1', {
         method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        },
         body: formData
     })
-    .then(r => r.json())
+    .then(async r => {
+        const text = await r.text();
+        try {
+            return JSON.parse(text);
+        } catch(e) {
+            console.error('Non-JSON response:', text);
+            throw new Error('Server response error: ' + text.substring(0, 120));
+        }
+    })
     .then(data => {
         if (data.success) {
             alert(data.message || 'Task deleted successfully.');
@@ -1006,7 +1047,8 @@ function fnxDeleteTask(taskId, taskCode) {
         }
     })
     .catch(err => {
-        alert('Network error while deleting task.');
+        console.error('Delete task error:', err);
+        alert(err.message || 'Network error while deleting task.');
     });
 }
 
