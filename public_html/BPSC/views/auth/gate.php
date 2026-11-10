@@ -306,11 +306,17 @@ $cadreLevels = UserManager::getCadreLevels();
 
       </div>
 
-      <!-- Main Website Return Link -->
-      <div class="pt-2 text-center border-t border-brand-peachSoft/60">
-        <a href="<?php echo htmlspecialchars(AppConfig::MAIN_WEBSITE_URL); ?>" class="text-[11px] font-bold text-brand-muted hover:text-brand-orange transition inline-flex items-center gap-1">
-          <span>← Return to Infinity Learning Main Website</span>
+      <!-- Statutory DPDP & Main Website Links -->
+      <div class="pt-2 text-center border-t border-brand-peachSoft/60 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[11px] text-brand-muted">
+        <a href="<?php echo htmlspecialchars(AppConfig::MAIN_WEBSITE_URL); ?>" class="font-bold hover:text-brand-orange transition inline-flex items-center gap-0.5">
+          <span>← Main Site</span>
         </a>
+        <span>·</span>
+        <a href="/privacy" target="_blank" class="hover:text-brand-orange transition font-medium">Privacy (DPDP 2023)</a>
+        <span>·</span>
+        <a href="/terms" target="_blank" class="hover:text-brand-orange transition font-medium">Terms</a>
+        <span>·</span>
+        <a href="/data-request" target="_blank" class="hover:text-brand-orange transition font-medium">Data Rights (Nomination)</a>
       </div>
 
     </div>

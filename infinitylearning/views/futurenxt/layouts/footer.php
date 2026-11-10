@@ -13,6 +13,9 @@ declare(strict_types=1);
                 <a href="/futurenxt/daily-updates">Daily Updates</a>
                 <a href="/futurenxt/leaves">Leaves &amp; WFA</a>
                 <a href="/futurenxt/profile">My Profile</a>
+                <a href="/privacy" target="_blank">Privacy (DPDP)</a>
+                <a href="/terms" target="_blank">Terms</a>
+                <a href="/data-request" target="_blank">Data Rights (Nomination)</a>
                 <a href="https://infintylearning.net" target="_blank">Infinity Learning</a>
             </div>
         </div>

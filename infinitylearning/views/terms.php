@@ -37,16 +37,20 @@ require VIEW_PATH . '/layouts/header.php';
             <h2 class="detail-h2">1. Acceptance of terms</h2>
             <p>
                 By accessing or using Infinity Learning, you agree to be bound by these Terms of
-                Service, our <a href="/privacy">Privacy Policy</a>, and our <a href="/refund-policy">Cancellation &amp; Refund Policy</a>. If you do not agree,
+                Service, our <a href="/privacy">Privacy Policy &amp; Statutory DPDP Notice</a>, and our <a href="/refund-policy">Cancellation &amp; Refund Policy</a>. If you do not agree,
                 please do not use the Platform.
+            </p>
+            <p style="margin-top:.75rem; font-size:13.5px; color:#475569; line-height:1.6;">
+                These terms incorporate statutory rights and protections under India's <strong>Digital Personal Data Protection Act, 2023 ("DPDP Act")</strong>, the Information Technology Act 2000, and the Consumer Protection (E-Commerce) Rules 2020.
             </p>
         </div>
 
         <div class="card mt-3">
-            <h2 class="detail-h2">2. Eligibility</h2>
+            <h2 class="detail-h2">2. Eligibility &amp; Parental Consent (DPDP Act § 9)</h2>
             <ul style="margin-left:1.25rem;line-height:1.9">
                 <li>You must be at least 13 years old to create an account.</li>
-                <li>If you are under 18, you must register through a school or with verifiable parental/guardian consent.</li>
+                <li><strong>Children under 18:</strong> Pursuant to Section 9 of the DPDP Act 2023, students under 18 years of age must register with verifiable consent from a parent or lawful guardian. By registering a minor student, the parent/guardian affirms that they have reviewed and consented to these Terms and our Privacy Policy.</li>
+                <li><strong>No Child Profiling or Targeted Ads:</strong> Infinity Learning strictly prohibits tracking, behavioural monitoring, profiling, or targeted advertising directed at minor students.</li>
                 <li>If you register on behalf of a school, you confirm you are authorised to do so.</li>
             </ul>
         </div>
@@ -172,17 +176,29 @@ require VIEW_PATH . '/layouts/header.php';
         </div>
 
         <div class="card mt-3">
-            <h2 class="detail-h2">12. Governing law</h2>
+            <h2 class="detail-h2">12. Data Principal Rights &amp; DPBI Redressal</h2>
+            <p>
+                In accordance with Sections 11, 12, 13, and 14 of the Digital Personal Data Protection Act, 2023:
+            </p>
+            <ul style="margin-left:1.25rem;line-height:1.9;margin-top:.5rem;">
+                <li>You have the right to access, rectify, or request erasure of your digital personal data via our <a href="/data-request" style="color:var(--il-brand,#7C2D5C); font-weight:700;">Data Rights Portal</a>.</li>
+                <li><strong>Right to Nominate (Section 14):</strong> You may nominate a designated representative to exercise your data rights in the event of death or incapacity.</li>
+                <li><strong>Grievance Escalation to DPBI (Section 13(3)):</strong> If any privacy complaint submitted to our Grievance Officer (<a href="mailto:info@infintylearning.net">info@infintylearning.net</a>) is not resolved within 30 days, or if you are dissatisfied with the response, you have the statutory right to file a complaint directly with the <strong>Data Protection Board of India (DPBI)</strong>.</li>
+            </ul>
+        </div>
+
+        <div class="card mt-3">
+            <h2 class="detail-h2">13. Governing law</h2>
             <p>
                 These terms are governed by the laws of India. Any dispute will be subject to the
-                exclusive jurisdiction of the courts of Jharkhand, India.
+                exclusive jurisdiction of the courts of Jharkhand, India, without prejudice to the statutory powers of the Data Protection Board of India under the DPDP Act 2023.
             </p>
         </div>
 
         <div class="card mt-3">
-            <h2 class="detail-h2">13. Contact</h2>
+            <h2 class="detail-h2">14. Contact</h2>
             <p>
-                For questions about these terms:<br>
+                For questions about these terms or compliance:<br>
                 <strong>Email:</strong> <a href="mailto:info@infintylearning.net">info@infintylearning.net</a><br>
                 <strong>Website:</strong> <a href="https://infintylearning.net">infintylearning.net</a>
             </p>

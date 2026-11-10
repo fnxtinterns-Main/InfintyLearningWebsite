@@ -12,7 +12,7 @@ ADD COLUMN IF NOT EXISTS marketing_consent TINYINT(1) DEFAULT 0 AFTER parent_con
 CREATE TABLE IF NOT EXISTS privacy_requests (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NULL,
-    request_type ENUM('access_export', 'deletion_erasure', 'correction', 'marketing_optout') NOT NULL,
+    request_type ENUM('access_export', 'deletion_erasure', 'correction', 'marketing_optout', 'nomination') NOT NULL,
     full_name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(30) NULL,
