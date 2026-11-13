@@ -23,9 +23,13 @@ final class EmailNotifier
         $base = defined('BASE_PATH') ? BASE_PATH : dirname(__DIR__, 2);
         $config = require $base . '/config/config.php';
         $fnx = $config['futurenxt_smtp'] ?? null;
-        // If an explicit 16-character Google App Password is provided (without special chars), use Gmail SMTP
-        if (!empty($fnx['pass']) && strlen($fnx['pass']) === 16 && !str_contains($fnx['pass'], '@')) {
-            return $fnx;
+        // If an explicit 16-character Google App Password is provided, use Gmail SMTP directly
+        if (!empty($fnx['pass'])) {
+            $cleanedPass = str_replace(' ', '', (string)$fnx['pass']);
+            if (strlen($cleanedPass) === 16 && !str_contains($cleanedPass, '@')) {
+                $fnx['pass'] = $cleanedPass;
+                return $fnx;
+            }
         }
         // Otherwise use the verified, ultra-fast Hostinger SMTP with FutureNxt branding
         return [
