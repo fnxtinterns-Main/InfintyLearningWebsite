@@ -565,8 +565,8 @@ final class EmailNotifier
             $task = $tStmt->fetch();
             if (!$task) return 0;
 
-            $priorityBadge = strtoupper((string)($task['priority'] ?? 'MEDIUM'));
-            $subject = "New Task Assigned: [{$task['task_code']}] {$task['title']} ({$priorityBadge} Priority)";
+            $priorityBadge = ucfirst(strtolower((string)($task['priority'] ?? 'medium')));
+            $subject = "Task Assigned: [{$task['task_code']}] {$task['title']} ({$priorityBadge} Priority)";
             $taskUrl = "https://infintylearning.net/futurenxt/tasks";
 
             $assigneeIds = array_values(array_unique(array_filter(array_map('intval', $assigneeIds))));

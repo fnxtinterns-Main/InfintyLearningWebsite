@@ -133,19 +133,26 @@ final class Mailer
             $mail->addReplyTo($replyToEmail, $fromName);
 
             // 2. Domain Hostname for Message-ID alignment
-            $domain = parse_url($config['app']['url'] ?? 'https://infintylearning.net', PHP_URL_HOST) ?: 'infintylearning.net';
-            $mail->Hostname = $domain;
+            $isGmail = str_ends_with(strtolower((string)$fromEmail), '@gmail.com') || (($smtp['host'] ?? '') === 'smtp.gmail.com');
+            if (!$isGmail) {
+                $domain = parse_url($config['app']['url'] ?? 'https://infintylearning.net', PHP_URL_HOST) ?: 'infintylearning.net';
+                $mail->Hostname = $domain;
+            }
 
             // 3. Clean Transactional Deliverability Headers (omit X-Mailer to avoid spam heuristics)
             $mail->XMailer = '';
             $mail->Priority = 3;
-            $mail->addCustomHeader('List-Unsubscribe', '<https://infintylearning.net/unsubscribe>, <mailto:info@infintylearning.net?subject=unsubscribe>');
-            $mail->addCustomHeader('List-Unsubscribe-Post', 'List-Unsubscribe=One-Click');
+            // Never add bulk newsletter List-Unsubscribe headers to personal Gmail senders or internal transactional notifications
+            if (!empty($smtp['is_bulk']) && !$isGmail) {
+                $mail->addCustomHeader('List-Unsubscribe', '<https://infintylearning.net/unsubscribe>, <mailto:info@infintylearning.net?subject=unsubscribe>');
+                $mail->addCustomHeader('List-Unsubscribe-Post', 'List-Unsubscribe=One-Click');
+            }
 
             $mail->addAddress($to, $toName);
 
             // 4. Wrap in standards-compliant HTML envelope (prevents MIME/tag imbalance penalties)
-            $fullHtml = self::wrapHtmlTemplate($htmlBody, $subject);
+            $isFutureNxt = $isGmail || str_contains($fromEmail, 'fnxt') || str_contains(strtolower((string)$fromName), 'futurenxt') || str_contains($htmlBody, 'FutureNxt');
+            $fullHtml = self::wrapHtmlTemplate($htmlBody, $subject, $isFutureNxt);
             $mail->isHTML(true);
             $mail->Subject = $subject;
             $mail->Body    = $fullHtml;
@@ -181,13 +188,29 @@ final class Mailer
      * Wrap body into a clean, standards-compliant HTML email envelope.
      * Prevents SpamAssassin/Gmail MIME_HTML_ONLY and tag imbalance penalties.
      */
-    public static function wrapHtmlTemplate(string $body, string $title = 'Infinity Learning'): string
+    public static function wrapHtmlTemplate(string $body, string $title = 'Infinity Learning', bool $isFutureNxt = false): string
     {
         if (stripos($body, '<!DOCTYPE') !== false || stripos($body, '<html') !== false) {
             return $body;
         }
 
         $safeTitle = htmlspecialchars($title, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        if ($isFutureNxt) {
+            $footer = "<div style=\"max-width:540px; margin:20px auto 0; text-align:center; font-size:11.5px; color:#6B7280; line-height:1.6;\">
+                <strong>FutureNxt Operations</strong> · Official Task &amp; Operations Portal<br>
+                This is an automated operational notification regarding your active assignments.<br>
+                FutureNxt Technologies · Confidentially transmitted for authorized personnel.
+            </div>";
+        } else {
+            $footer = "<div style=\"max-width:540px; margin:20px auto 0; text-align:center; font-size:11.5px; color:#8C7364; line-height:1.6;\">
+                <strong>Infinity Learning</strong> · Educational &amp; School Portal<br>
+                Official website: <a href=\"https://infintylearning.net\" style=\"color:#FF7A18; text-decoration:none; font-weight:600;\">infintylearning.net</a> · <a href=\"https://infintylearning.net/privacy\" style=\"color:#8C7364; text-decoration:underline;\">Privacy Policy</a> · <a href=\"https://infintylearning.net/terms\" style=\"color:#8C7364; text-decoration:underline;\">Terms</a><br>
+                This is an official transactional and educational notification regarding your account.<br>
+                To manage your email preferences or unsubscribe from optional updates: <a href=\"https://infintylearning.net/unsubscribe\" style=\"color:#FF7A18; text-decoration:underline; font-weight:600;\">Unsubscribe here</a>.
+            </div>";
+        }
+
         return "<!DOCTYPE html>
 <html lang=\"en\" xmlns=\"http://www.w3.org/1999/xhtml\">
 <head>
@@ -201,12 +224,7 @@ final class Mailer
         <tr>
             <td align=\"center\" style=\"padding:10px 0;\">
                 {$body}
-                <div style=\"max-width:540px; margin:20px auto 0; text-align:center; font-size:11.5px; color:#8C7364; line-height:1.6;\">
-                    <strong>Infinity Learning</strong> · Educational &amp; School Portal<br>
-                    Official website: <a href=\"https://infintylearning.net\" style=\"color:#FF7A18; text-decoration:none; font-weight:600;\">infintylearning.net</a> · <a href=\"https://infintylearning.net/privacy\" style=\"color:#8C7364; text-decoration:underline;\">Privacy Policy</a> · <a href=\"https://infintylearning.net/terms\" style=\"color:#8C7364; text-decoration:underline;\">Terms</a><br>
-                    This is an official transactional and educational notification regarding your account.<br>
-                    To manage your email preferences or unsubscribe from optional updates: <a href=\"https://infintylearning.net/unsubscribe\" style=\"color:#FF7A18; text-decoration:underline; font-weight:600;\">Unsubscribe here</a>.
-                </div>
+                {$footer}
             </td>
         </tr>
     </table>
